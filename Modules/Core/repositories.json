@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.repositories",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "CAM-backed repository inspection, recall, planning, and verification routing.",
+  "isCore": false,
+  "entryPoint": "mcp:cam-codx",
+  "transport": "mcp",
+  "permissions": [
+    "readLocal",
+    "writeLocal",
+    "execute",
+    "network"
+  ],
+  "acceptedDataClasses": [
+    "repositoryMetadata",
+    "approvedRepositoryContent"
+  ],
+  "emittedDataClasses": [
+    "plan",
+    "verificationReceipt",
+    "methodologyCitation"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [
+      "coding"
+    ],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "exact",
+  "healthCheck": {
+    "kind": "mcp",
+    "target": "cam.status",
+    "timeoutSeconds": 10
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Disable CAM workflows while preserving local repository metadata.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "No live mutation without a separate exact approval and verifier.",
+  "license": "License pending",
+  "provenance": "Adapter manifest for CAM_Codx and CAM_CAM contracts",
+  "capabilities": [
+    "repositories.inspect",
+    "repositories.recall",
+    "repositories.plan",
+    "repositories.verify"
+  ]
+}

@@ -16,6 +16,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-24 | Use manifests/adapters instead of merging donor repos | Active |
 | 2026-07-24 | Treat GPL repos as concept donors until licensing is explicit | Active |
 | 2026-07-24 | Begin on a feature branch because no prior repo/worktree exists | Active |
+| 2026-07-24 | Discovery and enablement do not grant module permissions | Active |
 
 ## Initial Default Decisions
 
@@ -24,6 +25,9 @@ scope, security, data ownership, licensing, or verification.
 - One base config plus versioned model profiles.
 - Synthetic fixtures for privacy and evaluation.
 - Automations and optional modules disabled initially.
+- Only the native Memory module is core-enabled. Every other initial module is
+  discovered but disabled until the user enables it, and permission grants are
+  persisted separately from enablement.
 
 ## Superseded Decisions
 

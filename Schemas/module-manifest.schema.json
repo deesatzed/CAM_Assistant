@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cam-assistant.local/schemas/module-manifest.v1.json",
+  "title": "CAM Assistant Module Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "owner",
+    "purpose",
+    "isCore",
+    "entryPoint",
+    "transport",
+    "permissions",
+    "acceptedDataClasses",
+    "emittedDataClasses",
+    "requirements",
+    "cost",
+    "approvalClass",
+    "healthCheck",
+    "supportsCancellation",
+    "degradedMode",
+    "auditReceiptSchema",
+    "rollback",
+    "license",
+    "provenance",
+    "capabilities"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]*[a-z0-9]$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "isCore": {
+      "type": "boolean"
+    },
+    "entryPoint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transport": {
+      "enum": [
+        "native",
+        "mcp",
+        "cli",
+        "localHTTP"
+      ]
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "readLocal",
+          "writeLocal",
+          "readClipboard",
+          "watchFolders",
+          "network",
+          "execute",
+          "delete",
+          "account",
+          "spend"
+        ]
+      }
+    },
+    "acceptedDataClasses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "emittedDataClasses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local",
+        "web",
+        "cloud",
+        "modelRoles",
+        "capabilities"
+      ],
+      "properties": {
+        "local": {
+          "type": "boolean"
+        },
+        "web": {
+          "type": "boolean"
+        },
+        "cloud": {
+          "type": "boolean"
+        },
+        "modelRoles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canSpend",
+        "currency"
+      ],
+      "properties": {
+        "canSpend": {
+          "type": "boolean"
+        },
+        "currency": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "approvalClass": {
+      "enum": [
+        "none",
+        "notify",
+        "confirm",
+        "exact"
+      ]
+    },
+    "healthCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "target",
+        "timeoutSeconds"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeoutSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "supportsCancellation": {
+      "type": "boolean"
+    },
+    "degradedMode": {
+      "type": "string",
+      "minLength": 1
+    },
+    "auditReceiptSchema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rollback": {
+      "type": "string",
+      "minLength": 1
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9.-]*[a-z0-9]$"
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.memory",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Immutable local memory, filing, retrieval, citations, and review.",
+  "isCore": true,
+  "entryPoint": "native:memory",
+  "transport": "native",
+  "permissions": [
+    "readLocal",
+    "writeLocal"
+  ],
+  "acceptedDataClasses": [
+    "public",
+    "personal",
+    "restricted"
+  ],
+  "emittedDataClasses": [
+    "derivedLocal",
+    "citation"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "none",
+  "healthCheck": {
+    "kind": "native",
+    "target": "memory-store",
+    "timeoutSeconds": 2
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Preserve capture and deterministic source access while derived indexes rebuild.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Restore the prior index generation without changing immutable sources.",
+  "license": "License pending",
+  "provenance": "Native CAM Assistant implementation",
+  "capabilities": [
+    "memory.capture",
+    "memory.search",
+    "memory.citations"
+  ]
+}

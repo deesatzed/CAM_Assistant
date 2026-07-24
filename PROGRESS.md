@@ -2,7 +2,7 @@
 
 ## Status Overview
 
-25% complete — foundation batch verified through storage and audit.
+33% complete — permissioned module registry verified.
 
 The full objective and all proof gates remain active. Percent complete changes
 only after a milestone is verified; early scaffolding is not product readiness.
@@ -39,7 +39,10 @@ These states are evidence, not cleanup authorization.
 | 1. Repo and truth surface | Complete | Codex | Debug tests and release build pass |
 | 2. Native shell | Complete | Codex | Offline smoke and health tests pass |
 | 3. Storage and audit | Complete | Codex | Restart, backup, and redaction tests pass |
-| 4-12 | Pending | Codex | See `TASK_QUEUE.md` |
+| 4. Module registry | Complete | Codex | Seven manifests and live state tests pass |
+| 5. Capture and ingestion | Pending | Codex | |
+| 6. Retrieval | Pending | Codex | |
+| 7-12 | Pending | Codex | See `TASK_QUEUE.md` |
 
 ## Decision Links
 
@@ -49,14 +52,14 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Checkpoint the verified foundation batch before module, capture, and retrieval
-work.
+Build automatic idempotent capture and persistent ingestion.
 
 ## Next Actions
 
-1. Commit the verified storage and audit batch.
-2. Present the Tasks 1-3 checkpoint with test and commit evidence.
-3. After checkpoint approval, begin module manifests and permissions.
+1. Commit the verified module registry batch.
+2. Write failing capture replay, malformed-source, cancellation, restart, and
+   provenance tests.
+3. Implement clipboard/folder envelopes and the persistent serial ingest queue.
 
 ## Verification Receipts
 
@@ -91,6 +94,20 @@ work.
 - Green: the saved JSON fixture decodes to exactly the persisted event.
 - Green: direct credential-pattern scan of saved evidence returned clean.
 - Saved receipt: `docs/evidence/task-03-storage-audit.md`.
+
+### Task 4 — 2026-07-24
+
+- Expected red: focused registry compilation failed because manifest,
+  permission, health, and registry contract types were absent.
+- Green: full Swift test suite passed (16 tests).
+- Green: production app and CLI build passed.
+- Green: seven required manifests decode and validate against the versioned
+  contract.
+- Green: duplicate IDs, invalid versions, and unknown permissions fail closed.
+- Green: discovered and enabled modules receive no permissions automatically.
+- Green: enable/disable persists atomically, reload discovers new manifests,
+  and health failure removes only the affected module's capabilities.
+- Saved receipt: `docs/evidence/task-04-module-registry.md`.
 
 ## Blockers
 

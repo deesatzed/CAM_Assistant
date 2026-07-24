@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.privacy",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Deterministic data classification, secret scanning, and outbound control.",
+  "isCore": false,
+  "entryPoint": "native:privacy",
+  "transport": "native",
+  "permissions": [
+    "readLocal"
+  ],
+  "acceptedDataClasses": [
+    "public",
+    "personal",
+    "restricted"
+  ],
+  "emittedDataClasses": [
+    "classification",
+    "statusOnlyReceipt"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "none",
+  "healthCheck": {
+    "kind": "native",
+    "target": "privacy-policy",
+    "timeoutSeconds": 1
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Fail closed and block outbound data.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Restore the prior versioned privacy policy.",
+  "license": "License pending",
+  "provenance": "Native CAM Assistant implementation",
+  "capabilities": [
+    "privacy.classify",
+    "privacy.outbound-policy"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.prompt-library",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Local versioned prompts and workflows with explicit promotion.",
+  "isCore": false,
+  "entryPoint": "native:prompt-library",
+  "transport": "native",
+  "permissions": [
+    "readLocal",
+    "writeLocal"
+  ],
+  "acceptedDataClasses": [
+    "prompt",
+    "workflow"
+  ],
+  "emittedDataClasses": [
+    "versionedPrompt",
+    "promotionReceipt"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "confirm",
+  "healthCheck": {
+    "kind": "native",
+    "target": "prompt-store",
+    "timeoutSeconds": 2
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Keep the last promoted immutable prompt version active.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Re-point the active version to the prior immutable prompt.",
+  "license": "License pending",
+  "provenance": "Native CAM Assistant implementation informed by local prompt-library concepts",
+  "capabilities": [
+    "prompts.list",
+    "prompts.version",
+    "prompts.promote"
+  ]
+}

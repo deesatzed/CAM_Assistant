@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.capture",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Automatic clipboard and user-selected watched-folder capture.",
+  "isCore": false,
+  "entryPoint": "native:capture",
+  "transport": "native",
+  "permissions": [
+    "readLocal",
+    "writeLocal",
+    "readClipboard",
+    "watchFolders"
+  ],
+  "acceptedDataClasses": [
+    "public",
+    "personal",
+    "restricted"
+  ],
+  "emittedDataClasses": [
+    "immutableSource",
+    "captureReceipt"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": [
+      "memory.capture"
+    ]
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "notify",
+  "healthCheck": {
+    "kind": "native",
+    "target": "capture-queue",
+    "timeoutSeconds": 2
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Queue recoverable sources and surface structured warnings.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Disable watchers and retain already captured immutable sources.",
+  "license": "License pending",
+  "provenance": "Native CAM Assistant implementation informed by product-level donor concepts",
+  "capabilities": [
+    "capture.clipboard",
+    "capture.folder"
+  ]
+}

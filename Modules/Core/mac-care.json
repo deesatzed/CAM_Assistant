@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.mac-care",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Read-only Mac audit plus separately approved supported maintenance actions.",
+  "isCore": false,
+  "entryPoint": "cli:macwise",
+  "transport": "cli",
+  "permissions": [
+    "readLocal",
+    "writeLocal",
+    "execute",
+    "delete"
+  ],
+  "acceptedDataClasses": [
+    "localSystemMetadata"
+  ],
+  "emittedDataClasses": [
+    "maintenancePlan",
+    "actionReceipt",
+    "undoReceipt"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "exact",
+  "healthCheck": {
+    "kind": "cli",
+    "target": "macwise doctor",
+    "timeoutSeconds": 10
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Keep scan results read-only and disable apply or undo.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Use only action-specific undo receipts after exact approval.",
+  "license": "License pending",
+  "provenance": "Adapter manifest for the separately owned MacWise runtime",
+  "capabilities": [
+    "mac-care.scan",
+    "mac-care.plan",
+    "mac-care.apply",
+    "mac-care.undo"
+  ]
+}

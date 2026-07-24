@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.research",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Checkpointed web research with citations, verification, and exact outbound receipts.",
+  "isCore": false,
+  "entryPoint": "native:research",
+  "transport": "native",
+  "permissions": [
+    "readLocal",
+    "writeLocal",
+    "network",
+    "spend"
+  ],
+  "acceptedDataClasses": [
+    "public",
+    "approvedOutbound"
+  ],
+  "emittedDataClasses": [
+    "researchPacket",
+    "citation",
+    "costReceipt"
+  ],
+  "requirements": {
+    "local": true,
+    "web": true,
+    "cloud": false,
+    "modelRoles": [
+      "research"
+    ],
+    "capabilities": [
+      "privacy.outbound-policy"
+    ]
+  },
+  "cost": {
+    "canSpend": true,
+    "currency": "USD"
+  },
+  "approvalClass": "confirm",
+  "healthCheck": {
+    "kind": "native",
+    "target": "research-coordinator",
+    "timeoutSeconds": 5
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Pause at the last durable checkpoint and retain cited partial work.",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Discard unretained results and restore the previous checkpoint.",
+  "license": "License pending",
+  "provenance": "Native CAM Assistant implementation",
+  "capabilities": [
+    "research.web",
+    "research.checkpoint"
+  ]
+}
