@@ -2,7 +2,7 @@
 
 ## Status Overview
 
-17% complete — canonical repo and native offline shell verified.
+25% complete — foundation batch verified through storage and audit.
 
 The full objective and all proof gates remain active. Percent complete changes
 only after a milestone is verified; early scaffolding is not product readiness.
@@ -38,7 +38,7 @@ These states are evidence, not cleanup authorization.
 |---|---|---|---|
 | 1. Repo and truth surface | Complete | Codex | Debug tests and release build pass |
 | 2. Native shell | Complete | Codex | Offline smoke and health tests pass |
-| 3. Storage and audit | Pending | Codex | |
+| 3. Storage and audit | Complete | Codex | Restart, backup, and redaction tests pass |
 | 4-12 | Pending | Codex | See `TASK_QUEUE.md` |
 
 ## Decision Links
@@ -49,13 +49,14 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Implement stable local storage and secret-safe status-only audit.
+Checkpoint the verified foundation batch before module, capture, and retrieval
+work.
 
 ## Next Actions
 
-1. Commit the verified native shell batch.
-2. Write failing storage and audit tests.
-3. Implement stable content storage, migrations, backup, and redacted audit.
+1. Commit the verified storage and audit batch.
+2. Present the Tasks 1-3 checkpoint with test and commit evidence.
+3. After checkpoint approval, begin module manifests and permissions.
 
 ## Verification Receipts
 
@@ -78,6 +79,18 @@ Implement stable local storage and secret-safe status-only audit.
   network and reported capture/local-search available with cloud auto-routing
   disabled.
 - Saved receipt: `docs/evidence/task-02-offline-smoke.md`.
+
+### Task 3 — 2026-07-24
+
+- Expected red: focused storage compilation failed because all storage and
+  audit contract types were absent.
+- Green: full Swift test suite passed (10 tests).
+- Green: stable SHA-256 addressing, idempotence, restart, atomic-write cleanup,
+  exact-byte content backup/restore, SQLite migration restart, audit database
+  backup, and typed audit persistence are covered.
+- Green: the saved JSON fixture decodes to exactly the persisted event.
+- Green: direct credential-pattern scan of saved evidence returned clean.
+- Saved receipt: `docs/evidence/task-03-storage-audit.md`.
 
 ## Blockers
 

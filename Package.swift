@@ -11,7 +11,12 @@ let package = Package(
         .executable(name: "cam-assistant", targets: ["CAMAssistantCLI"]),
     ],
     targets: [
-        .target(name: "CAMAssistantCore"),
+        .target(
+            name: "CAMAssistantCore",
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
+            ]
+        ),
         .executableTarget(
             name: "CAMAssistantApp",
             dependencies: ["CAMAssistantCore"]
