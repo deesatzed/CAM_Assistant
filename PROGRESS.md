@@ -2,7 +2,7 @@
 
 ## Status Overview
 
-8% complete — canonical repo and build surface verified.
+17% complete — canonical repo and native offline shell verified.
 
 The full objective and all proof gates remain active. Percent complete changes
 only after a milestone is verified; early scaffolding is not product readiness.
@@ -37,7 +37,7 @@ These states are evidence, not cleanup authorization.
 | Task | Status | Owner | Notes |
 |---|---|---|---|
 | 1. Repo and truth surface | Complete | Codex | Debug tests and release build pass |
-| 2. Native shell | Pending | Codex | |
+| 2. Native shell | Complete | Codex | Offline smoke and health tests pass |
 | 3. Storage and audit | Pending | Codex | |
 | 4-12 | Pending | Codex | See `TASK_QUEUE.md` |
 
@@ -49,13 +49,13 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Build the native shell and deterministic degraded-health state.
+Implement stable local storage and secret-safe status-only audit.
 
 ## Next Actions
 
-1. Commit the verified initialization batch.
-2. Write failing health-state tests.
-3. Implement the native shell and explicit degraded states.
+1. Commit the verified native shell batch.
+2. Write failing storage and audit tests.
+3. Implement stable content storage, migrations, backup, and redacted audit.
 
 ## Verification Receipts
 
@@ -68,6 +68,16 @@ Build the native shell and deterministic degraded-health state.
 - Green: production build completed for the app and CLI products.
 - SwiftPM required `--disable-sandbox` plus a repo-local module cache because
   the managed execution sandbox blocks SwiftPM's nested sandbox and cache.
+
+### Task 2 — 2026-07-24
+
+- Expected red: focused health test failed because `AppHealth` was absent.
+- Green: full Swift test suite passed (4 tests).
+- Green: production build completed for app and CLI products.
+- Green: the native executable's offline smoke mode exited `0` without keys or
+  network and reported capture/local-search available with cloud auto-routing
+  disabled.
+- Saved receipt: `docs/evidence/task-02-offline-smoke.md`.
 
 ## Blockers
 
