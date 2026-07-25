@@ -2,7 +2,7 @@
 
 ## Status Overview
 
-33% complete — permissioned module registry verified.
+42% complete — automatic capture and persistent ingestion verified.
 
 The full objective and all proof gates remain active. Percent complete changes
 only after a milestone is verified; early scaffolding is not product readiness.
@@ -40,7 +40,7 @@ These states are evidence, not cleanup authorization.
 | 2. Native shell | Complete | Codex | Offline smoke and health tests pass |
 | 3. Storage and audit | Complete | Codex | Restart, backup, and redaction tests pass |
 | 4. Module registry | Complete | Codex | Seven manifests and live state tests pass |
-| 5. Capture and ingestion | Pending | Codex | |
+| 5. Capture and ingestion | Complete | Codex | Mixed modalities and FSEvents pass |
 | 6. Retrieval | Pending | Codex | |
 | 7-12 | Pending | Codex | See `TASK_QUEUE.md` |
 
@@ -52,14 +52,14 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Build automatic idempotent capture and persistent ingestion.
+Implement deterministic cited hybrid retrieval and freeze its evaluation suite.
 
 ## Next Actions
 
-1. Commit the verified module registry batch.
-2. Write failing capture replay, malformed-source, cancellation, restart, and
-   provenance tests.
-3. Implement clipboard/folder envelopes and the persistent serial ingest queue.
+1. Commit the verified capture and ingestion batch.
+2. Freeze mixed-source retrieval queries and relevance labels.
+3. Write failing deterministic ranking, citation, context-budget, and
+   generation-isolation tests.
 
 ## Verification Receipts
 
@@ -108,6 +108,27 @@ Build automatic idempotent capture and persistent ingestion.
 - Green: enable/disable persists atomically, reload discovers new manifests,
   and health failure removes only the affected module's capabilities.
 - Saved receipt: `docs/evidence/task-04-module-registry.md`.
+
+### Task 5 — 2026-07-24
+
+- Expected red: focused ingestion compilation failed because capture envelopes,
+  queue, extractors, watcher, receipts, and provenance types were absent.
+- Expected FSEvents red: the automatic watcher test failed because start/stop
+  behavior was absent.
+- Green: full Swift test suite passed (22 tests).
+- Green: production app and CLI build passed.
+- Green: clipboard and folder sources ingest text, Markdown, PDF, image,
+  audio/transcript, code, and configuration modalities.
+- Green: unchanged bytes produce one source and one job while every capture
+  retains provenance.
+- Green: malformed media receives a bounded retry and structured warnings
+  without blocking the next job.
+- Green: cancellation is resumable and pending work survives restart.
+- Green: a native FSEvents stream emitted a capture envelope without manual
+  rescanning.
+- Limitation: user-configurable capture hotkeys and watched-folder onboarding
+  remain scheduled for Task 12; this milestone proves the underlying engine.
+- Saved receipt: `docs/evidence/task-05-ingestion.md`.
 
 ## Blockers
 

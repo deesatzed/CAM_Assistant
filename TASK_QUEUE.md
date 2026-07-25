@@ -6,7 +6,7 @@
 | CAM-002 | Native shell and health | Complete | Offline launch smoke |
 | CAM-003 | Stable storage and audit | Complete | Restart/backup/redaction tests |
 | CAM-004 | Module registry | Complete | Manifest and live enable tests |
-| CAM-005 | Capture and ingestion | Pending | Idempotent mixed-fixture ingest |
+| CAM-005 | Capture and ingestion | Complete | Idempotent mixed-fixture ingest |
 | CAM-006 | Retrieval | Pending | Frozen quality/latency gates |
 | CAM-007 | Model routing | Pending | Marker/profile/catalog tests |
 | CAM-008 | Privacy and action cards | Pending | Zero-outbound restricted tests |

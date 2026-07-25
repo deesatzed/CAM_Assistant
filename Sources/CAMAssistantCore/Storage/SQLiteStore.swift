@@ -156,6 +156,20 @@ public final class SQLiteStore {
         }
     }
 
+    func transaction<T>(_ body: () throws -> T) throws -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        try execute("BEGIN IMMEDIATE TRANSACTION")
+        do {
+            let value = try body()
+            try execute("COMMIT")
+            return value
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+    }
+
     private func runMigrations(_ migrations: [Migration]) throws {
         try execute(
             """
