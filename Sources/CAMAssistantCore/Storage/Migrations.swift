@@ -9,7 +9,7 @@ public struct Migration: Sendable {
 }
 
 public enum Migrations {
-    public static let currentVersion = 2
+    public static let currentVersion = 6
 
     public static let all: [Migration] = [
         Migration(
@@ -97,6 +97,68 @@ public enum Migrations {
                     created_at REAL NOT NULL,
                     FOREIGN KEY(source_id) REFERENCES sources(source_id)
                 )
+                """,
+            ]
+        ),
+        Migration(
+            version: 3,
+            statements: [
+                "ALTER TABLE audit_events ADD COLUMN privacy_risk TEXT",
+                "ALTER TABLE audit_events ADD COLUMN privacy_decision TEXT",
+                "ALTER TABLE audit_events ADD COLUMN payload_sha256 TEXT",
+                "ALTER TABLE audit_events ADD COLUMN outbound_byte_count INTEGER",
+            ]
+        ),
+        Migration(
+            version: 4,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS task_records (
+                    task_id TEXT PRIMARY KEY NOT NULL,
+                    title TEXT NOT NULL,
+                    criteria_json TEXT NOT NULL,
+                    authority TEXT NOT NULL,
+                    citations_json TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at REAL NOT NULL
+                )
+                """,
+            ]
+        ),
+        Migration(
+            version: 5,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS repository_snapshots (
+                    canonical_path TEXT NOT NULL,
+                    commit_sha TEXT NOT NULL,
+                    snapshot_json TEXT NOT NULL,
+                    recorded_at REAL NOT NULL,
+                    PRIMARY KEY(canonical_path, commit_sha)
+                )
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS repository_snapshots_path_idx
+                    ON repository_snapshots(canonical_path, recorded_at DESC)
+                """,
+            ]
+        ),
+        Migration(
+            version: 6,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS repository_idea_cards (
+                    idea_id TEXT PRIMARY KEY NOT NULL,
+                    canonical_path TEXT NOT NULL,
+                    commit_sha TEXT NOT NULL,
+                    card_json TEXT NOT NULL,
+                    disposition TEXT NOT NULL,
+                    recorded_at REAL NOT NULL
+                )
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS repository_idea_cards_snapshot_idx
+                    ON repository_idea_cards(canonical_path, commit_sha, recorded_at DESC)
                 """,
             ]
         ),

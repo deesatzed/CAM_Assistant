@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "provider": "openrouter",
+  "recordedAt": "2026-07-26T00:00:00Z",
+  "models": [
+    {
+      "id": "example/local-compatible-chat",
+      "contextWindow": 32768,
+      "inputPricePerMillion": 0.5,
+      "outputPricePerMillion": 1.5,
+      "modalities": ["text"]
+    },
+    {
+      "id": "example/vision-chat",
+      "contextWindow": 128000,
+      "inputPricePerMillion": 3.0,
+      "outputPricePerMillion": 15.0,
+      "modalities": ["text", "image"]
+    }
+  ]
+}

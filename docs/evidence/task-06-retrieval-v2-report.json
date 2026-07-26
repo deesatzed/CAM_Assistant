@@ -1,0 +1,242 @@
+{
+  "citedClaimQuoteSupport" : 1,
+  "corpusPassageCount" : 30,
+  "emptyResultQueryIDs" : [
+
+  ],
+  "evaluatorVersion" : "retrieval-evaluator-v2",
+  "indexFingerprint" : "schema=1|sources=3172ab92fd1f2122de14f00bfb604d76eeaf11a04319b020c05c69ee5a32ffcb|tokenizer=unicode61|preprocessing=lowercase-stopwords-v1|chunking=explicit-fixture-chunks-v2|semanticProvider=none|semanticModel=none|semanticDimensions=0|fusion=hybrid-v1",
+  "latencyDistribution" : {
+    "maximumMilliseconds" : 0.107459,
+    "medianMilliseconds" : 0.066959,
+    "minimumMilliseconds" : 0.054,
+    "p95Milliseconds" : 0.100042,
+    "sampleCount" : 50
+  },
+  "latencyP95Milliseconds" : 0.100042,
+  "manifestHash" : "3172ab92fd1f2122de14f00bfb604d76eeaf11a04319b020c05c69ee5a32ffcb",
+  "meanReciprocalRank" : 1,
+  "measuredRunsPerQuery" : 5,
+  "operation" : "retrieve+context+exact-citation-availability",
+  "perModalityFailures" : {
+    "audio" : [
+
+    ],
+    "code" : [
+
+    ],
+    "configuration" : [
+
+    ],
+    "image" : [
+
+    ],
+    "markdown" : [
+
+    ],
+    "pdf" : [
+
+    ],
+    "text" : [
+
+    ],
+    "transcript" : [
+
+    ]
+  },
+  "queryCount" : 10,
+  "queryResults" : [
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.107459,
+      "queryID" : "q-stable-identity",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "vault-design#identity",
+        "vault-design#derivations",
+        "cedar-original#status",
+        "archive-backup#rotation",
+        "local-model-notes#endpoint",
+        "whiteboard-capture#boundary",
+        "archive-backup#retention"
+      ],
+      "retrievedSourceIDs" : [
+        "vault-design",
+        "vault-design",
+        "cedar-original",
+        "archive-backup",
+        "local-model-notes",
+        "whiteboard-capture",
+        "archive-backup"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.081,
+      "queryID" : "q-capture-background",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "capture-receipt#acknowledgement",
+        "recording-setup#microphone",
+        "router-source#failure",
+        "whiteboard-capture#workflow",
+        "capture-receipt#replay"
+      ],
+      "retrievedSourceIDs" : [
+        "capture-receipt",
+        "recording-setup",
+        "router-source",
+        "whiteboard-capture",
+        "capture-receipt"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.066333,
+      "queryID" : "q-local-default",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "routing-policy#default",
+        "routing-policy#research"
+      ],
+      "retrievedSourceIDs" : [
+        "routing-policy",
+        "routing-policy"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.054625,
+      "queryID" : "q-code-escalation",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "router-source#defaults",
+        "routing-policy#default"
+      ],
+      "retrievedSourceIDs" : [
+        "router-source",
+        "routing-policy"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.067125,
+      "queryID" : "q-recording-provenance",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "recording-interview#provenance",
+        "recording-setup#microphone",
+        "recording-setup#storage",
+        "answering-interview#advice"
+      ],
+      "retrievedSourceIDs" : [
+        "recording-interview",
+        "recording-setup",
+        "recording-setup",
+        "answering-interview"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.068,
+      "queryID" : "q-atlas-review",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "atlas-handbook#schedule",
+        "atlas-catering#status",
+        "atlas-handbook#location",
+        "atlas-catering#lunch"
+      ],
+      "retrievedSourceIDs" : [
+        "atlas-handbook",
+        "atlas-catering",
+        "atlas-handbook",
+        "atlas-catering"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.057,
+      "queryID" : "q-whiteboard-stages",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "whiteboard-capture#workflow",
+        "whiteboard-capture#boundary"
+      ],
+      "retrievedSourceIDs" : [
+        "whiteboard-capture",
+        "whiteboard-capture"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.066959,
+      "queryID" : "q-audio-advice",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "answering-interview#advice",
+        "answering-interview#review",
+        "recording-setup#microphone",
+        "recording-setup#storage"
+      ],
+      "retrievedSourceIDs" : [
+        "answering-interview",
+        "answering-interview",
+        "recording-setup",
+        "recording-setup"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.073,
+      "queryID" : "q-research-evidence",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "research-method#facts",
+        "routing-policy#research",
+        "local-model-notes#catalog",
+        "research-method#receipt"
+      ],
+      "retrievedSourceIDs" : [
+        "research-method",
+        "routing-policy",
+        "local-model-notes",
+        "research-method"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.075834,
+      "queryID" : "q-cedar-conflict",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "cedar-original#date",
+        "cedar-revised#date",
+        "cedar-original#status",
+        "cedar-revised#conflict"
+      ],
+      "retrievedSourceIDs" : [
+        "cedar-original",
+        "cedar-revised",
+        "cedar-original",
+        "cedar-revised"
+      ]
+    }
+  ],
+  "recallAt10" : 1,
+  "runtimeIdentity" : "com.deesatzed.cam-assistant|Version 27.0 (Build 26A5388g)",
+  "unansweredQueryIDs" : [
+
+  ],
+  "warmupRunsPerQuery" : 3
+}

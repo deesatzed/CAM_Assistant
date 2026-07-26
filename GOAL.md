@@ -3,7 +3,7 @@
 ## Ultimate Goal
 
 Complete the native, local-first CAM Assistant defined by
-[`../GOAL_LLM_WIKI.md`](../GOAL_LLM_WIKI.md).
+[`GOAL_FINISH_WIKI.md`](GOAL_FINISH_WIKI.md).
 
 ## Primary Objectives
 
@@ -53,4 +53,4 @@ data or forcing the user to manage separate systems.
 ## Completion
 
 This repository is complete only when every proof gate in
-`../GOAL_LLM_WIKI.md` is supported by current commands and saved artifacts.
+`GOAL_FINISH_WIKI.md` is supported by current commands and saved artifacts.

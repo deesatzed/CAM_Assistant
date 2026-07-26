@@ -19,6 +19,12 @@ public enum AuditStatus: String, Codable, Sendable {
     case cancelled
 }
 
+public enum AuditPrivacyDecision: String, Codable, Equatable, Sendable {
+    case localOnly
+    case proposal
+    case blocked
+}
+
 public struct AuditEvent: Codable, Equatable, Sendable {
     public let id: UUID
     public let timestamp: Date
@@ -26,6 +32,10 @@ public struct AuditEvent: Codable, Equatable, Sendable {
     public let status: AuditStatus
     public let resourceID: String?
     public let route: String?
+    public let privacyRisk: RiskClass?
+    public let privacyDecision: AuditPrivacyDecision?
+    public let payloadSHA256: String?
+    public let outboundByteCount: Int?
 
     public init(
         id: UUID = UUID(),
@@ -33,7 +43,11 @@ public struct AuditEvent: Codable, Equatable, Sendable {
         operation: AuditOperation,
         status: AuditStatus,
         resourceID: String?,
-        route: String?
+        route: String?,
+        privacyRisk: RiskClass? = nil,
+        privacyDecision: AuditPrivacyDecision? = nil,
+        payloadSHA256: String? = nil,
+        outboundByteCount: Int? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -41,6 +55,10 @@ public struct AuditEvent: Codable, Equatable, Sendable {
         self.status = status
         self.resourceID = SecretRedactor.statusValue(resourceID)
         self.route = SecretRedactor.statusValue(route)
+        self.privacyRisk = privacyRisk
+        self.privacyDecision = privacyDecision
+        self.payloadSHA256 = SecretRedactor.statusValue(payloadSHA256)
+        self.outboundByteCount = outboundByteCount
     }
 }
 

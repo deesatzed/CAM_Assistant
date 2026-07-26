@@ -1,0 +1,150 @@
+{
+  "citedClaimQuoteSupport" : 1,
+  "corpusPassageCount" : 10,
+  "emptyResultQueryIDs" : [
+
+  ],
+  "evaluatorVersion" : "retrieval-evaluator-v2",
+  "indexFingerprint" : "schema=1|sources=684a75b25f608a9bf1745bae945a4654969ce78e3ea4cabdabf5c4247caabf26|tokenizer=unicode61|preprocessing=lowercase-stopwords-v1|chunking=explicit-fixture-chunks-v2|semanticProvider=none|semanticModel=none|semanticDimensions=0|fusion=hybrid-v1",
+  "latencyDistribution" : {
+    "maximumMilliseconds" : 0.087208,
+    "medianMilliseconds" : 0.060166,
+    "minimumMilliseconds" : 0.051292,
+    "p95Milliseconds" : 0.079417,
+    "sampleCount" : 30
+  },
+  "latencyP95Milliseconds" : 0.079417,
+  "manifestHash" : "684a75b25f608a9bf1745bae945a4654969ce78e3ea4cabdabf5c4247caabf26",
+  "meanReciprocalRank" : 1,
+  "measuredRunsPerQuery" : 5,
+  "operation" : "retrieve+context+exact-citation-availability",
+  "perModalityFailures" : {
+    "configuration" : [
+
+    ],
+    "markdown" : [
+
+    ]
+  },
+  "queryCount" : 6,
+  "queryResults" : [
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.087208,
+      "queryID" : "project-front-door",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "goal3-outcome#front-door",
+        "goal3-repositories#idea-boundary",
+        "goal3-outcome#offline",
+        "goal3-authority#no-escalation",
+        "cam-assistant-goal#user-value"
+      ],
+      "retrievedSourceIDs" : [
+        "goal3-outcome",
+        "goal3-repositories",
+        "goal3-outcome",
+        "goal3-authority",
+        "cam-assistant-goal"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.079417,
+      "queryID" : "project-offline",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "goal3-outcome#offline",
+        "cam-assistant-goal#user-value",
+        "goal3-memory#local-secret",
+        "goal3-authority#no-escalation",
+        "goal3-authority#exact-approval"
+      ],
+      "retrievedSourceIDs" : [
+        "goal3-outcome",
+        "cam-assistant-goal",
+        "goal3-memory",
+        "goal3-authority",
+        "goal3-authority"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.065958,
+      "queryID" : "project-memory-owner",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "goal3-memory#layer-one",
+        "goal3-memory#local-secret",
+        "cam-assistant-goal#user-value"
+      ],
+      "retrievedSourceIDs" : [
+        "goal3-memory",
+        "goal3-memory",
+        "cam-assistant-goal"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.065708,
+      "queryID" : "project-repository-intake",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "goal3-repositories#intake",
+        "goal3-authority#no-escalation",
+        "goal3-repositories#idea-boundary"
+      ],
+      "retrievedSourceIDs" : [
+        "goal3-repositories",
+        "goal3-authority",
+        "goal3-repositories"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.066167,
+      "queryID" : "project-idea-boundary",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "goal3-repositories#idea-boundary",
+        "goal3-authority#no-escalation",
+        "cam-assistant-goal#user-value",
+        "goal3-repositories#intake"
+      ],
+      "retrievedSourceIDs" : [
+        "goal3-repositories",
+        "goal3-authority",
+        "cam-assistant-goal",
+        "goal3-repositories"
+      ]
+    },
+    {
+      "citedClaimQuoteSupport" : 1,
+      "latencyMilliseconds" : 0.0585,
+      "queryID" : "project-cam-approval",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedPassageIDs" : [
+        "goal3-authority#exact-approval",
+        "goal3-outcome#offline",
+        "goal3-authority#no-escalation"
+      ],
+      "retrievedSourceIDs" : [
+        "goal3-authority",
+        "goal3-outcome",
+        "goal3-authority"
+      ]
+    }
+  ],
+  "recallAt10" : 1,
+  "runtimeIdentity" : "com.deesatzed.cam-assistant|Version 27.0 (Build 26A5388g)",
+  "unansweredQueryIDs" : [
+
+  ],
+  "warmupRunsPerQuery" : 3
+}

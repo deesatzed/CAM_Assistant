@@ -1,0 +1,226 @@
+{
+  "manifestVersion": 2,
+  "frozenAt": "2026-07-25",
+  "corpusPurpose": "Synthetic, mixed-modality retrieval contract. It is not a claim about personal-data performance.",
+  "sources": [
+    {
+      "id": "vault-design",
+      "modality": "markdown",
+      "authority": 0.9,
+      "capturedAt": 100,
+      "chunks": [
+        {"id": "vault-design#identity", "text": "Every captured source receives a stable content address that remains unchanged when derived indexes are rebuilt."},
+        {"id": "vault-design#derivations", "text": "Summaries, entities, and search indexes are derived artifacts and may be replaced without deleting the original bytes."}
+      ]
+    },
+    {
+      "id": "capture-receipt",
+      "modality": "text",
+      "authority": 0.85,
+      "capturedAt": 110,
+      "chunks": [
+        {"id": "capture-receipt#acknowledgement", "text": "Automatic capture returns a local receipt immediately, then runs extraction and indexing in the background."},
+        {"id": "capture-receipt#replay", "text": "Repeated capture of identical bytes records provenance but does not create another stored source."}
+      ]
+    },
+    {
+      "id": "routing-policy",
+      "modality": "configuration",
+      "authority": 1.0,
+      "capturedAt": 120,
+      "chunks": [
+        {"id": "routing-policy#default", "text": "A request with no routing marker stays local and does not silently switch to a cloud provider."},
+        {"id": "routing-policy#research", "text": "The WR marker explicitly requests web research but does not approve sending restricted local material."}
+      ]
+    },
+    {
+      "id": "router-source",
+      "modality": "code",
+      "authority": 0.95,
+      "capturedAt": 130,
+      "chunks": [
+        {"id": "router-source#defaults", "text": "struct CapturedExample { let localFirst = true; let cloudAutoEscalation = false }"},
+        {"id": "router-source#failure", "text": "Unsupported provider selections return a visible configuration error before any external request is created."}
+      ]
+    },
+    {
+      "id": "recording-interview",
+      "modality": "transcript",
+      "authority": 0.7,
+      "capturedAt": 140,
+      "chunks": [
+        {"id": "recording-interview#provenance", "text": "Speaker: Keep the cited excerpt and the original recording together so that a listener can inspect the source."},
+        {"id": "recording-interview#uncertainty", "text": "Speaker: Mark an uncertain transcription as uncertain instead of silently repairing the words."}
+      ]
+    },
+    {
+      "id": "atlas-handbook",
+      "modality": "pdf",
+      "authority": 0.95,
+      "capturedAt": 150,
+      "chunks": [
+        {"id": "atlas-handbook#schedule", "text": "Atlas handbook: the launch review is scheduled for September 14."},
+        {"id": "atlas-handbook#location", "text": "Atlas handbook: the launch review takes place in the north conference room."}
+      ]
+    },
+    {
+      "id": "whiteboard-capture",
+      "modality": "image",
+      "authority": 0.6,
+      "capturedAt": 160,
+      "chunks": [
+        {"id": "whiteboard-capture#workflow", "text": "Whiteboard image caption: the three stages are capture, index, and retrieve."},
+        {"id": "whiteboard-capture#boundary", "text": "Whiteboard image caption: source bytes are separate from the derived index."}
+      ]
+    },
+    {
+      "id": "answering-interview",
+      "modality": "audio",
+      "authority": 0.7,
+      "capturedAt": 170,
+      "chunks": [
+        {"id": "answering-interview#advice", "text": "Audio interview transcript: answer briefly, include direct citations, and preserve the full recording."},
+        {"id": "answering-interview#review", "text": "Audio interview transcript: a low-confidence answer should ask one concise follow-up question."}
+      ]
+    },
+    {
+      "id": "research-method",
+      "modality": "text",
+      "authority": 0.9,
+      "capturedAt": 180,
+      "chunks": [
+        {"id": "research-method#facts", "text": "Web research must label sourced facts separately from analyst inference and retain the supporting citations."},
+        {"id": "research-method#receipt", "text": "A research packet records the outbound request manifest, source quality assessment, and resume checkpoint."}
+      ]
+    },
+    {
+      "id": "cedar-original",
+      "modality": "markdown",
+      "authority": 0.65,
+      "capturedAt": 190,
+      "chunks": [
+        {"id": "cedar-original#date", "text": "Original Cedar planning note: Project Cedar ships on March 4."},
+        {"id": "cedar-original#status", "text": "Original Cedar planning note: this date remains visible after a later revision."}
+      ]
+    },
+    {
+      "id": "cedar-revised",
+      "modality": "markdown",
+      "authority": 0.85,
+      "capturedAt": 200,
+      "chunks": [
+        {"id": "cedar-revised#date", "text": "Revised Cedar planning note: Project Cedar ships on April 9."},
+        {"id": "cedar-revised#conflict", "text": "Revised Cedar planning note: preserve the earlier March 4 date as a contradiction instead of overwriting it."}
+      ]
+    },
+    {
+      "id": "atlas-catering",
+      "modality": "pdf",
+      "authority": 0.4,
+      "capturedAt": 151,
+      "chunks": [
+        {"id": "atlas-catering#lunch", "text": "Atlas catering notes reserve the south conference room for a September 15 lunch review."},
+        {"id": "atlas-catering#status", "text": "The catering note does not set the Atlas launch review schedule."}
+      ]
+    },
+    {
+      "id": "archive-backup",
+      "modality": "markdown",
+      "authority": 0.5,
+      "capturedAt": 101,
+      "chunks": [
+        {"id": "archive-backup#rotation", "text": "A backup rotation copies source bytes nightly but does not determine their stable content address."},
+        {"id": "archive-backup#retention", "text": "Derived caches may be deleted after a backup verification while raw source bytes remain recoverable."}
+      ]
+    },
+    {
+      "id": "local-model-notes",
+      "modality": "configuration",
+      "authority": 0.55,
+      "capturedAt": 121,
+      "chunks": [
+        {"id": "local-model-notes#endpoint", "text": "The local model endpoint is configurable for a profile and can be unavailable without disabling local search."},
+        {"id": "local-model-notes#catalog", "text": "A catalog lookup shows model facts when requested; it does not make unsolicited recommendations."}
+      ]
+    },
+    {
+      "id": "recording-setup",
+      "modality": "audio",
+      "authority": 0.45,
+      "capturedAt": 171,
+      "chunks": [
+        {"id": "recording-setup#microphone", "text": "Recording setup checklist: confirm the microphone level before an interview begins."},
+        {"id": "recording-setup#storage", "text": "Recording setup checklist: reserve local disk space for the original audio file."}
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-stable-identity",
+      "text": "What remains stable when derived search indexes are rebuilt?",
+      "relevantPassageIDs": ["vault-design#identity"],
+      "expectedClaims": [{"statement": "Every captured source receives a stable content address that remains unchanged when derived indexes are rebuilt.", "citations": [{"sourceID": "vault-design", "passageID": "vault-design#identity", "quote": "stable content address that remains unchanged when derived indexes are rebuilt"}]}]
+    },
+    {
+      "id": "q-capture-background",
+      "text": "How does automatic capture behave before extraction finishes?",
+      "relevantPassageIDs": ["capture-receipt#acknowledgement"],
+      "expectedClaims": [{"statement": "Automatic capture returns a local receipt immediately, then runs extraction and indexing in the background.", "citations": [{"sourceID": "capture-receipt", "passageID": "capture-receipt#acknowledgement", "quote": "returns a local receipt immediately"}]}]
+    },
+    {
+      "id": "q-local-default",
+      "text": "Which route is used if no routing marker is supplied?",
+      "relevantPassageIDs": ["routing-policy#default"],
+      "expectedClaims": [{"statement": "A request with no routing marker stays local and does not silently switch to a cloud provider.", "citations": [{"sourceID": "routing-policy", "passageID": "routing-policy#default", "quote": "no routing marker stays local"}]}]
+    },
+    {
+      "id": "q-code-escalation",
+      "text": "What cloud behavior does CapturedExample prevent?",
+      "relevantPassageIDs": ["router-source#defaults"],
+      "expectedClaims": [{"statement": "CapturedExample sets cloudAutoEscalation to false.", "citations": [{"sourceID": "router-source", "passageID": "router-source#defaults", "quote": "cloudAutoEscalation = false"}]}]
+    },
+    {
+      "id": "q-recording-provenance",
+      "text": "What should stay with a cited recording excerpt?",
+      "relevantPassageIDs": ["recording-interview#provenance"],
+      "expectedClaims": [{"statement": "Keep the cited excerpt and the original recording together.", "citations": [{"sourceID": "recording-interview", "passageID": "recording-interview#provenance", "quote": "cited excerpt and the original recording together"}]}]
+    },
+    {
+      "id": "q-atlas-review",
+      "text": "When and where is the Atlas launch review?",
+      "relevantPassageIDs": ["atlas-handbook#schedule", "atlas-handbook#location"],
+      "expectedClaims": [
+        {"statement": "The Atlas launch review is scheduled for September 14.", "citations": [{"sourceID": "atlas-handbook", "passageID": "atlas-handbook#schedule", "quote": "launch review is scheduled for September 14"}]},
+        {"statement": "The Atlas launch review takes place in the north conference room.", "citations": [{"sourceID": "atlas-handbook", "passageID": "atlas-handbook#location", "quote": "launch review takes place in the north conference room"}]}
+      ]
+    },
+    {
+      "id": "q-whiteboard-stages",
+      "text": "Which three stages appear on the whiteboard?",
+      "relevantPassageIDs": ["whiteboard-capture#workflow"],
+      "expectedClaims": [{"statement": "The three stages are capture, index, and retrieve.", "citations": [{"sourceID": "whiteboard-capture", "passageID": "whiteboard-capture#workflow", "quote": "three stages are capture, index, and retrieve"}]}]
+    },
+    {
+      "id": "q-audio-advice",
+      "text": "What does the audio interview recommend for an answer?",
+      "relevantPassageIDs": ["answering-interview#advice"],
+      "expectedClaims": [{"statement": "Answer briefly, include direct citations, and preserve the full recording.", "citations": [{"sourceID": "answering-interview", "passageID": "answering-interview#advice", "quote": "answer briefly, include direct citations"}]}]
+    },
+    {
+      "id": "q-research-evidence",
+      "text": "How must web research distinguish facts from inference?",
+      "relevantPassageIDs": ["research-method#facts"],
+      "expectedClaims": [{"statement": "Web research must label sourced facts separately from analyst inference.", "citations": [{"sourceID": "research-method", "passageID": "research-method#facts", "quote": "label sourced facts separately from analyst inference"}]}]
+    },
+    {
+      "id": "q-cedar-conflict",
+      "text": "What are the Project Cedar shipping dates and how is the disagreement handled?",
+      "relevantPassageIDs": ["cedar-original#date", "cedar-revised#date", "cedar-revised#conflict"],
+      "expectedClaims": [
+        {"statement": "Original Cedar planning note: Project Cedar ships on March 4.", "citations": [{"sourceID": "cedar-original", "passageID": "cedar-original#date", "quote": "Project Cedar ships on March 4"}]},
+        {"statement": "Revised Cedar planning note: Project Cedar ships on April 9.", "citations": [{"sourceID": "cedar-revised", "passageID": "cedar-revised#date", "quote": "Project Cedar ships on April 9"}]},
+        {"statement": "The earlier March 4 date is preserved as a contradiction instead of being overwritten.", "citations": [{"sourceID": "cedar-revised", "passageID": "cedar-revised#conflict", "quote": "preserve the earlier March 4 date as a contradiction"}]}
+      ]
+    }
+  ]
+}

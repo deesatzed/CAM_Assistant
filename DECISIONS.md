@@ -17,6 +17,41 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-24 | Treat GPL repos as concept donors until licensing is explicit | Active |
 | 2026-07-24 | Begin on a feature branch because no prior repo/worktree exists | Active |
 | 2026-07-24 | Discovery and enablement do not grant module permissions | Active |
+| 2026-07-25 | Retrieval generations use typed fingerprints and isolated atomic promotion | Active |
+| 2026-07-25 | Retrieval citation metric is exact quote availability, not semantic entailment | Active |
+| 2026-07-26 | Model routing defaults local; profiles are atomic, receipted, and user-selected | Active |
+| 2026-07-26 | Outbound/mutating intent is policy-classified and exact-approval-bound before execution | Active |
+| 2026-07-26 | CAM integration begins with fixture-pinned, non-executing conformance; live runtime/mining stays disabled | Active |
+| 2026-07-26 | Research begins as local, ephemeral, citation-bound packets; web and automatic retention remain separately gated | Active |
+| 2026-07-26 | Repository intake and Mac Care are read-only by default; idea and maintenance plans are proposals, not executors | Active |
+| 2026-07-26 | Repository intake receipts are local derived records keyed by canonical path and commit; they never write to the inspected repository | Active |
+| 2026-07-26 | CAM mining plans are digest-only, bounded, exact-approval-bound, and fail closed when no pinned live executor is attached | Active |
+| 2026-07-26 | Coordination transitions are reducer-derived from versioned local events; stale sequence/version writes fail before terminal success can be asserted | Active |
+| 2026-07-26 | Selected repository indexing captures only permitted files into the local vault with canonical path and commit provenance; it never writes to the repository or invokes CAM | Active |
+| 2026-07-26 | Repository comparison reports only deterministic snapshot differences; it does not infer semantic behavior from file changes | Active |
+| 2026-07-26 | Repository marker observations are read from the recorded Git commit, cite file and line, and remain review evidence rather than semantic claims | Active |
+| 2026-07-26 | The first CAM/Codex coordinator is one bounded local event loop with content-addressed evidence and replay-based recovery; it cannot execute tools, models, CAM, or specialist agents | Active |
+| 2026-07-26 | Every bounded coordination loop holds an exclusive macOS local-process ownership lease; a native child-process probe proves a competing process cannot acquire the same run until release | Active |
+| 2026-07-26 | Orchestration snapshots are versioned, atomic local caches derived from and revalidated against the complete event log; they do not compact or replace event authority | Active |
+| 2026-07-26 | Orchestration event logs and snapshots migrate atomically from schema v1 to v2 while preserving events and reducer-derived state | Active |
+| 2026-07-26 | Repository symbol observations are deterministic declarations from committed Swift source, cited by commit/file/line and never elevated into behavior or architecture claims | Active |
+| 2026-07-26 | Repository refresh records the current selected-repository snapshot locally and compares it only with the prior local receipt; it never writes the repository or invokes CAM | Active |
+| 2026-07-26 | Incremental repository indexing derives receipt digests and captures only added or content-changed permitted files from the recorded Git commit; a receipt is saved only after local extraction succeeds | Active |
+| 2026-07-26 | Watched sources are explicit, locally persisted multi-folder records. A picked folder begins paused; only an explicit enablement starts its foreground local watcher, and pause/remove never delete retained vault content | Active |
+| 2026-07-26 | Repository idea drafting exposes only deterministic committed observations; the user must supply counterevidence and a smallest validation experiment. A displayed proposal can be explicitly kept or rejected as a cited local card, or saved as a cited `localRead` task; research-packet and Codex-plan promotion remain unavailable | Active |
+| 2026-07-26 | Saved repository sources are canonical local path selections only. Selecting or retaining a path grants no repository read, indexing, scheduling, CAM, or mining authority; each later inspection remains explicit | Active |
+| 2026-07-26 | Retrieval v2 remains frozen synthetic mixed-modality regression evidence. A separate frozen project-contract corpus may use only user-approved local contract excerpts with path/digest provenance; it does not substantiate personal-vault, donor-repository, semantic-entailment, or model-faithfulness claims | Active |
+| 2026-07-26 | Default local chat is bounded extractive evidence: at most three displayed local excerpts and their exact matching citations. It is not a hidden model invocation or generated synthesis | Active |
+| 2026-07-26 | Mac Care may surface read-only low-space and application/startup inventory review findings. It does not infer application necessity from counts, recommend removal, or enable maintenance execution | Active |
+| 2026-07-26 | Research plans are persisted only after the user explicitly selects Keep. A repository-idea promotion additionally preserves commit-cited provenance, confidence, counterevidence, and validation criteria, but never source bytes. Findings, web output, model output, and automatic retention remain unavailable | Active |
+| 2026-07-26 | A repository idea may be explicitly saved as a local Codex-plan handoff with proposal authority and cited evidence. This preserves planning context only; it does not invoke Codex/CAM, gain repository access, or execute a plan | Active |
+| 2026-07-26 | A low-confidence local chat result exposes exactly one local capture/index follow-up. It never offers automatic retry, provider, web, CAM, or other escalation | Active |
+| 2026-07-26 | Repository dependency observations are limited to literal Swift `import` declarations read from a clean commit. They are cited structural facts, not semantic architecture or behavior claims | Active |
+| 2026-07-26 | Citation-bound knowledge claims and unresolved contradiction candidates persist only after explicit Keep. Facts, assumptions, and both contradiction positions remain distinct; no automatic truth promotion or resolution occurs | Active |
+| 2026-07-26 | Verified research packets may be retained only through an explicit local Keep store after citation validation. The store contains typed facts/inferences, never raw source bytes, automatic output, or acquisition authority | Active |
+| 2026-07-26 | Repository indexing supports explicit cancellation through UI-to-operation checkpoints. Cancellation prevents a new snapshot receipt but preserves immutable already-captured vault content for safe recovery | Active |
+| 2026-07-26 | `GOAL_FINISH_WIKI.md` is the self-contained controlling completion contract for the canonical `cam_wiki` repository. It preserves the approved three-layer product, makes the verified foundation explicit, and defines the remaining native wiki, local model, research, repository mining, CAM/Codex, Mac Care, module, usability, and release proof gates | Active |
+| 2026-07-26 | The confirmed recovered working tree is published as the canonical repository baseline on `main`. External parent-workspace goal files remain historical design inputs rather than required files for a fresh clone | Active |
 
 ## Initial Default Decisions
 
@@ -28,6 +63,22 @@ scope, security, data ownership, licensing, or verification.
 - Only the native Memory module is core-enabled. Every other initial module is
   discovered but disabled until the user enables it, and permission grants are
   persisted separately from enablement.
+- A retrieval index fingerprint includes source-manifest hash, schema,
+  tokenizer/preprocessing, chunking, semantic provider/model/dimension, and
+  fusion version. A new build writes an isolated generation and atomically
+  promotes it only after its SQLite index is complete.
+- Retrieval reports may claim only exact quote availability in the retrieved
+  context. They do not prove arbitrary generated claims are semantically
+  entailed; that requires a separate evaluation contract.
+- A usable model profile always includes a local assignment. `CL`, `GR`, and
+  `OA` are explicit named roles; `AR`, `WR`, `WRGR`, and `CAM` are parsed but
+  deferred until their privacy/adapter gates pass. Profile revisions and their
+  change receipts share one atomic local registry document; endpoint credential
+  query data is rejected.
+- CAM-008 uses deterministic, fail-closed synthetic-fixture rules as the
+  baseline privacy boundary. Restricted/proprietary/contextual outbound intent
+  does not produce a payload; exact approval can only consume its own local
+  binding and cannot itself execute an action or network request.
 
 ## Superseded Decisions
 

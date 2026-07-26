@@ -74,6 +74,41 @@ func auditBackupReopensWithSameReceipt() throws {
     #expect(events == [event])
 }
 
+@Test("privacy audit receipts export status facts without restricted payload text")
+func privacyAuditReceiptsRemainStatusOnly() throws {
+    let root = try makeAuditTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appending(path: "audit.sqlite")
+    let restrictedPayload = "api_key=synthetic-credential-0000"
+    let event = AuditEvent(
+        timestamp: Date(timeIntervalSince1970: 10),
+        operation: .actionProposal,
+        status: .denied,
+        resourceID: "research-request",
+        route: "grok",
+        privacyRisk: .restricted,
+        privacyDecision: .blocked,
+        payloadSHA256: "a" + String(repeating: "0", count: 63),
+        outboundByteCount: 0
+    )
+    let store = try AuditStore(databaseURL: databaseURL)
+    try store.append(event)
+    let events = try store.events()
+    let export = try store.exportJSON()
+    try store.close()
+
+    let databaseText = String(decoding: try Data(contentsOf: databaseURL), as: UTF8.self)
+    let exportText = String(decoding: export, as: UTF8.self)
+
+    #expect(events == [event])
+    #expect(events[0].privacyRisk == .restricted)
+    #expect(events[0].privacyDecision == .blocked)
+    #expect(events[0].outboundByteCount == 0)
+    #expect(!databaseText.contains(restrictedPayload))
+    #expect(!exportText.contains(restrictedPayload))
+    #expect(exportText.contains("\"outboundByteCount\" : 0"))
+}
+
 private func makeAuditTemporaryDirectory() throws -> URL {
     let url = FileManager.default.temporaryDirectory
         .appending(path: "cam-assistant-audit-tests")

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "runtimeOwner": "CAM_CAM",
+  "tools": [
+    "claw_query_memory",
+    "claw_store_finding",
+    "claw_verify_claim",
+    "claw_request_specialist",
+    "claw_escalate"
+  ]
+}

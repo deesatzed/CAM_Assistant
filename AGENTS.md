@@ -10,7 +10,7 @@ Before coding, read in order:
 4. `DECISIONS.md`
 5. `PROGRESS.md`
 6. `TASK_QUEUE.md`
-7. `../GOAL_LLM_WIKI.md`
+7. `GOAL_FINISH_WIKI.md`
 
 ## Autonomous Progress
 

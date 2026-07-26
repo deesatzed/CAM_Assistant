@@ -1,0 +1,100 @@
+{
+  "manifestVersion": 2,
+  "frozenAt": "2026-07-26",
+  "corpusPurpose": "Approved project-contract retrieval fixture. It contains copied public product-contract excerpts, not personal-vault or donor-repository data.",
+  "sourceProvenance": [
+    {"path": "../../../../GOAL_3Layer.md", "sha256": "ff6fd211e2ff0c1a90246788d7fdb70b283ec9209c35a7691b6d841992aacf73"},
+    {"path": "../../../GOAL.md", "sha256": "2549db5942910859498aa33589999ad3b7d4586722c32c98863c6f339e5d5dad"},
+    {"path": "../../../STANDARDS.md", "sha256": "f1213ee5b949274f22bc50e3a74fcd23793523242754a39955a1bda657ff1703"}
+  ],
+  "sources": [
+    {
+      "id": "goal3-outcome",
+      "modality": "markdown",
+      "authority": 1.0,
+      "capturedAt": 1780000000,
+      "chunks": [
+        {"id": "goal3-outcome#front-door", "text": "Build a launchable, fully native Apple-silicon macOS application that gives one person a single, quiet front door to their knowledge, projects, research, Mac, and specialized tools."},
+        {"id": "goal3-outcome#offline", "text": "The application stays genuinely useful without CAM, the network, cloud credentials, or any optional module."}
+      ]
+    },
+    {
+      "id": "goal3-memory",
+      "modality": "markdown",
+      "authority": 1.0,
+      "capturedAt": 1780000001,
+      "chunks": [
+        {"id": "goal3-memory#layer-one", "text": "Layer 1 — Personal Trust and Memory: Native SwiftUI experience, local vault, capture, durable storage, retrieval, privacy policy, audit, tasks, receipts, and backups."},
+        {"id": "goal3-memory#local-secret", "text": "Raw vault material, API keys, credentials, private keys, regulated data, personal identifiers, and proprietary context remain local unless an exact outbound policy has produced an approved, scrubbed payload."}
+      ]
+    },
+    {
+      "id": "goal3-repositories",
+      "modality": "markdown",
+      "authority": 1.0,
+      "capturedAt": 1780000002,
+      "chunks": [
+        {"id": "goal3-repositories#intake", "text": "Repository intelligence is a first-class source-acquisition capability, not a hidden side effect of chat."},
+        {"id": "goal3-repositories#idea-boundary", "text": "An idea card is a candidate, never an instruction to copy code, alter a repository, or represent an unverified claim as product truth."}
+      ]
+    },
+    {
+      "id": "goal3-authority",
+      "modality": "configuration",
+      "authority": 1.0,
+      "capturedAt": 1780000003,
+      "chunks": [
+        {"id": "goal3-authority#exact-approval", "text": "Exact approved action: CAM mining, file mutation, Mac apply/undo, network spend requires exact approval bound to action, target, payload digest, state, expiry, and rollback."},
+        {"id": "goal3-authority#no-escalation", "text": "No model output, CAM result, mined repository content, web result, or optional reflector can upgrade itself from one authority level to another."}
+      ]
+    },
+    {
+      "id": "cam-assistant-goal",
+      "modality": "markdown",
+      "authority": 0.9,
+      "capturedAt": 1780000004,
+      "chunks": [
+        {"id": "cam-assistant-goal#user-value", "text": "One quiet assistant can remember, retrieve, research, coordinate, maintain the Mac, and invoke specialized tools without surrendering ownership of personal data or forcing the user to manage separate systems."},
+        {"id": "cam-assistant-goal#fixtures", "text": "Synthetic and approved evaluation fixtures."}
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "id": "project-front-door",
+      "text": "What is the application's one-person product outcome?",
+      "relevantPassageIDs": ["goal3-outcome#front-door"],
+      "expectedClaims": [{"statement": "The app is a single quiet front door to knowledge, projects, research, Mac, and specialized tools.", "citations": [{"sourceID": "goal3-outcome", "passageID": "goal3-outcome#front-door", "quote": "single, quiet front door to their knowledge, projects, research, Mac, and specialized tools"}]}]
+    },
+    {
+      "id": "project-offline",
+      "text": "Must the assistant depend on CAM or cloud credentials to be useful?",
+      "relevantPassageIDs": ["goal3-outcome#offline"],
+      "expectedClaims": [{"statement": "The application stays useful without CAM, network, cloud credentials, or optional modules.", "citations": [{"sourceID": "goal3-outcome", "passageID": "goal3-outcome#offline", "quote": "genuinely useful without CAM, the network, cloud credentials"}]}]
+    },
+    {
+      "id": "project-memory-owner",
+      "text": "What does the personal trust and memory layer own?",
+      "relevantPassageIDs": ["goal3-memory#layer-one"],
+      "expectedClaims": [{"statement": "Layer 1 includes the native experience, local vault, retrieval, audit, tasks, receipts, and backups.", "citations": [{"sourceID": "goal3-memory", "passageID": "goal3-memory#layer-one", "quote": "local vault, capture, durable storage, retrieval, privacy policy, audit, tasks, receipts, and backups"}]}]
+    },
+    {
+      "id": "project-repository-intake",
+      "text": "Is repository understanding a hidden chat side effect?",
+      "relevantPassageIDs": ["goal3-repositories#intake"],
+      "expectedClaims": [{"statement": "Repository intelligence is first-class source acquisition, not a hidden chat side effect.", "citations": [{"sourceID": "goal3-repositories", "passageID": "goal3-repositories#intake", "quote": "first-class source-acquisition capability, not a hidden side effect of chat"}]}]
+    },
+    {
+      "id": "project-idea-boundary",
+      "text": "Can a repository idea card copy code or alter a repository?",
+      "relevantPassageIDs": ["goal3-repositories#idea-boundary"],
+      "expectedClaims": [{"statement": "An idea card is a candidate and is not permission to copy code or alter a repository.", "citations": [{"sourceID": "goal3-repositories", "passageID": "goal3-repositories#idea-boundary", "quote": "never an instruction to copy code, alter a repository"}]}]
+    },
+    {
+      "id": "project-cam-approval",
+      "text": "What approval protects CAM mining and similar risky actions?",
+      "relevantPassageIDs": ["goal3-authority#exact-approval"],
+      "expectedClaims": [{"statement": "CAM mining requires exact approval bound to the action, target, payload digest, state, expiry, and rollback.", "citations": [{"sourceID": "goal3-authority", "passageID": "goal3-authority#exact-approval", "quote": "exact approval bound to action, target, payload digest, state, expiry, and rollback"}]}]
+    }
+  ]
+}

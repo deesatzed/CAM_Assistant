@@ -1,0 +1,134 @@
+{
+  "citedSourceSupport" : 1,
+  "latencyP95Milliseconds" : 0.267375,
+  "manifestHash" : "012b91a7db6bcc04030edbedf9bce6a21113db107e5a4e5cb4457f2d8846554e",
+  "meanReciprocalRank" : 1,
+  "perModalityFailures" : {
+    "audio" : [
+
+    ],
+    "code" : [
+
+    ],
+    "configuration" : [
+
+    ],
+    "image" : [
+
+    ],
+    "markdown" : [
+
+    ],
+    "pdf" : [
+
+    ],
+    "text" : [
+
+    ],
+    "transcript" : [
+
+    ]
+  },
+  "queryResults" : [
+    {
+      "latencyMilliseconds" : 0.267375,
+      "queryID" : "q-local-archive",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-text-001",
+        "golden-config-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.088375,
+      "queryID" : "q-capture-workflow",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-markdown-001",
+        "golden-image-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.061042,
+      "queryID" : "q-code-default",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-code-001",
+        "golden-config-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.054792,
+      "queryID" : "q-environment-files",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-config-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.060917,
+      "queryID" : "q-recording-pair",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-transcript-001",
+        "golden-cedar-original",
+        "golden-audio-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.04425,
+      "queryID" : "q-atlas-review",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-pdf-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.051416,
+      "queryID" : "q-whiteboard-stages",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-image-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.045958,
+      "queryID" : "q-audio-advice",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-audio-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.049667,
+      "queryID" : "q-web-evidence",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-research-001"
+      ]
+    },
+    {
+      "latencyMilliseconds" : 0.056791,
+      "queryID" : "q-cedar-date",
+      "recallAt10" : 1,
+      "reciprocalRank" : 1,
+      "retrievedSourceIDs" : [
+        "golden-cedar-revised",
+        "golden-cedar-original"
+      ]
+    }
+  ],
+  "recallAt10" : 1,
+  "unansweredQueryIDs" : [
+
+  ]
+}

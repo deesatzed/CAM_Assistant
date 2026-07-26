@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "sourceContractVersion": "1.0",
+  "hubOwner": "CAM_Codx",
+  "runtimeOwner": "CAM_CAM",
+  "capabilities": [
+    {"id": "query_memory", "toolName": "claw_query_memory", "safetyClass": "read_only_local", "requiresExactApproval": false},
+    {"id": "store_finding", "toolName": "claw_store_finding", "safetyClass": "local_mutation", "requiresExactApproval": true},
+    {"id": "verify_claim", "toolName": "claw_verify_claim", "safetyClass": "read_only_local", "requiresExactApproval": false},
+    {"id": "request_specialist", "toolName": "claw_request_specialist", "safetyClass": "routing_read_only", "requiresExactApproval": false},
+    {"id": "escalate", "toolName": "claw_escalate", "safetyClass": "local_mutation", "requiresExactApproval": true}
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "manifestVersion": 1,
+  "frozenAt": "2026-07-24",
+  "sources": [
+    {
+      "id": "golden-text-001",
+      "modality": "text",
+      "authority": 0.8,
+      "capturedAt": 100,
+      "text": "The local archive remembers exact source bytes and assigns a stable content address."
+    },
+    {
+      "id": "golden-markdown-001",
+      "modality": "markdown",
+      "authority": 0.8,
+      "capturedAt": 110,
+      "text": "Capture workflow: store the immutable source, extract locally, index derived text, and issue a receipt."
+    },
+    {
+      "id": "golden-code-001",
+      "modality": "code",
+      "authority": 0.9,
+      "capturedAt": 120,
+      "text": "struct CapturedExample { let localFirst = true; let cloudAutoEscalation = false }"
+    },
+    {
+      "id": "golden-config-001",
+      "modality": "configuration",
+      "authority": 1,
+      "capturedAt": 130,
+      "text": "Environment files contain secret values only. The default route is local and model choices live in versioned profiles."
+    },
+    {
+      "id": "golden-transcript-001",
+      "modality": "transcript",
+      "authority": 0.7,
+      "capturedAt": 140,
+      "text": "Speaker: Keep the cited source and the original recording together."
+    },
+    {
+      "id": "golden-pdf-001",
+      "modality": "pdf",
+      "authority": 0.95,
+      "capturedAt": 150,
+      "text": "Atlas handbook: the launch review is scheduled for September 14 in the north conference room."
+    },
+    {
+      "id": "golden-image-001",
+      "modality": "image",
+      "authority": 0.6,
+      "capturedAt": 160,
+      "text": "Whiteboard image caption: the three stages are capture, index, and retrieve."
+    },
+    {
+      "id": "golden-audio-001",
+      "modality": "audio",
+      "authority": 0.7,
+      "capturedAt": 170,
+      "text": "Audio interview transcript: answer briefly, include direct citations, and preserve the full recording."
+    },
+    {
+      "id": "golden-research-001",
+      "modality": "text",
+      "authority": 0.9,
+      "capturedAt": 180,
+      "text": "Web research must distinguish sourced facts from analyst inference and save exact outbound receipts."
+    },
+    {
+      "id": "golden-cedar-original",
+      "modality": "markdown",
+      "authority": 0.65,
+      "capturedAt": 190,
+      "text": "Original Cedar planning note: Project Cedar ships on March 4."
+    },
+    {
+      "id": "golden-cedar-revised",
+      "modality": "markdown",
+      "authority": 0.85,
+      "capturedAt": 200,
+      "text": "Revised Cedar planning note: Project Cedar ships on April 9. Preserve the earlier date as a contradiction."
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-local-archive",
+      "text": "What does the local archive remember?",
+      "relevantSourceIDs": [
+        "golden-text-001"
+      ]
+    },
+    {
+      "id": "q-capture-workflow",
+      "text": "What is the capture index workflow?",
+      "relevantSourceIDs": [
+        "golden-markdown-001"
+      ]
+    },
+    {
+      "id": "q-code-default",
+      "text": "What values does CapturedExample set?",
+      "relevantSourceIDs": [
+        "golden-code-001"
+      ]
+    },
+    {
+      "id": "q-environment-files",
+      "text": "What belongs in environment files and where are model choices?",
+      "relevantSourceIDs": [
+        "golden-config-001"
+      ]
+    },
+    {
+      "id": "q-recording-pair",
+      "text": "What should remain together with the original recording?",
+      "relevantSourceIDs": [
+        "golden-transcript-001"
+      ]
+    },
+    {
+      "id": "q-atlas-review",
+      "text": "When and where is the Atlas launch review?",
+      "relevantSourceIDs": [
+        "golden-pdf-001"
+      ]
+    },
+    {
+      "id": "q-whiteboard-stages",
+      "text": "Which three stages are shown on the whiteboard image?",
+      "relevantSourceIDs": [
+        "golden-image-001"
+      ]
+    },
+    {
+      "id": "q-audio-advice",
+      "text": "What does the audio interview recommend for answers?",
+      "relevantSourceIDs": [
+        "golden-audio-001"
+      ]
+    },
+    {
+      "id": "q-web-evidence",
+      "text": "How should web research distinguish facts and inference?",
+      "relevantSourceIDs": [
+        "golden-research-001"
+      ]
+    },
+    {
+      "id": "q-cedar-date",
+      "text": "When does Project Cedar ship and is there a contradiction?",
+      "relevantSourceIDs": [
+        "golden-cedar-original",
+        "golden-cedar-revised"
+      ]
+    }
+  ]
+}

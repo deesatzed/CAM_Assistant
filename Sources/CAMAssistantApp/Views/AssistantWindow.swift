@@ -11,31 +11,34 @@ struct AssistantWindow: View {
             detail
                 .navigationTitle(model.selection.rawValue)
         }
+        .onAppear { model.registerHotkeys() }
     }
 
     @ViewBuilder
     private var detail: some View {
         switch model.selection {
         case .assistant:
-            AssistantEmptyState(health: model.health)
+            ConversationView(model: model)
         case .library:
-            PlaceholderState(
-                title: "Your library is empty",
-                message: "Folder and clipboard capture arrive in the ingestion milestone.",
-                systemImage: "books.vertical"
-            )
+            LibraryView(model: model)
         case .activity:
-            PlaceholderState(
-                title: "No activity yet",
-                message: "Verified actions and research checkpoints will appear here.",
-                systemImage: "clock"
-            )
+            ActionCardView(card: model.pendingActionCard)
+        case .tasks:
+            TaskListView(presentation: model.taskPresentation, errorMessage: model.taskError, isRefreshing: model.isRefreshingWorkspace, reload: model.reloadTasks, complete: model.completeTask)
+        case .cam:
+            CAMStatusView(status: model.camStatus)
+        case .research:
+            ResearchView(model: model)
+        case .repositories:
+            RepositoryView(model: model)
+        case .macCare:
+            MacCareView(presentation: model.macCarePresentation, errorMessage: model.macCareError, isAssessing: model.isMacCareAssessing, assess: model.assessMacCareReadOnly)
         case .settings:
-            PlaceholderState(
-                title: "Settings are local",
-                message: "Model profiles and confidence thresholds arrive in their dedicated milestone.",
-                systemImage: "gearshape"
-            )
+            VStack(spacing: 0) {
+                ModelProfilesView(settings: model.modelSettings, errorMessage: model.modelSettingsError, reload: model.reloadModelSettings)
+                HotkeySettingsView(model: model)
+                CaptureSourcesView(model: model)
+            }
         }
     }
 }

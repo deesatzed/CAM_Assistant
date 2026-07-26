@@ -3,33 +3,54 @@ import Foundation
 public enum CaptureOrigin: Equatable, Sendable {
     case clipboard
     case watchedFolder(path: String)
+    case repository(canonicalPath: String, commit: String)
 
     var storedKind: String {
-        switch self {
+        return switch self {
         case .clipboard:
             "clipboard"
         case .watchedFolder:
             "watchedFolder"
+        case .repository:
+            "repository"
         }
     }
 
     var storedDetail: String? {
         switch self {
         case .clipboard:
-            nil
+            return nil
         case let .watchedFolder(path):
-            path
+            return path
+        case let .repository(canonicalPath, commit):
+            let detail = RepositoryCaptureOriginDetail(canonicalPath: canonicalPath, commit: commit)
+            return (try? JSONEncoder().encode(detail))
+                .flatMap { String(data: $0, encoding: .utf8) }
         }
     }
 
     static func stored(kind: String, detail: String?) -> CaptureOrigin {
         switch kind {
         case "watchedFolder":
-            .watchedFolder(path: detail ?? "")
+            return .watchedFolder(path: detail ?? "")
+        case "repository":
+            guard let detail,
+                  let decoded = try? JSONDecoder().decode(
+                    RepositoryCaptureOriginDetail.self,
+                    from: Data(detail.utf8)
+                  ) else {
+                return .clipboard
+            }
+            return .repository(canonicalPath: decoded.canonicalPath, commit: decoded.commit)
         default:
-            .clipboard
+            return .clipboard
         }
     }
+}
+
+private struct RepositoryCaptureOriginDetail: Codable {
+    let canonicalPath: String
+    let commit: String
 }
 
 public struct CaptureEnvelope: Equatable, Sendable {

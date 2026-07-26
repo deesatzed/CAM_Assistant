@@ -18,6 +18,34 @@ public struct DerivedDocument: Equatable, Sendable {
     public let text: String
     public let modality: DocumentModality
     public let extractorID: String
+    public let capturedAt: Date
+
+    public init(
+        sourceID: ContentID,
+        text: String,
+        modality: DocumentModality,
+        extractorID: String,
+        capturedAt: Date
+    ) {
+        self.sourceID = sourceID
+        self.text = text
+        self.modality = modality
+        self.extractorID = extractorID
+        self.capturedAt = capturedAt
+    }
+}
+
+/// Read-only summary for the native Library surface. It contains no source
+/// bytes and does not alter ingestion or retention state.
+public struct LibraryPresentation: Equatable, Sendable {
+    public let documentCount: Int
+    public let modalityCounts: [DocumentModality: Int]
+
+    public init(documents: [DerivedDocument]) {
+        documentCount = documents.count
+        modalityCounts = Dictionary(grouping: documents, by: \.modality)
+            .mapValues(\.count)
+    }
 }
 
 public struct CaptureProvenance: Equatable, Sendable {
@@ -239,24 +267,28 @@ public final class IngestQueue {
     public func documents() throws -> [DerivedDocument] {
         try database.query(
             """
-            SELECT source_id, text, modality, extractor_id
-            FROM derived_documents
-            ORDER BY source_id ASC
+            SELECT d.source_id, d.text, d.modality, d.extractor_id, s.created_at
+            FROM derived_documents d
+            JOIN sources s ON s.source_id = d.source_id
+            ORDER BY d.source_id ASC
             """
         ).map { row in
-            guard row.count == 4,
+            guard row.count == 5,
                   let sourceID = row[0],
                   let text = row[1],
                   let modalityText = row[2],
                   let modality = DocumentModality(rawValue: modalityText),
-                  let extractorID = row[3] else {
+                  let extractorID = row[3],
+                  let capturedAtText = row[4],
+                  let capturedAt = TimeInterval(capturedAtText) else {
                 throw IngestQueueError.invalidStoredRecord
             }
             return DerivedDocument(
                 sourceID: ContentID(rawValue: sourceID),
                 text: text,
                 modality: modality,
-                extractorID: extractorID
+                extractorID: extractorID,
+                capturedAt: Date(timeIntervalSince1970: capturedAt)
             )
         }
     }

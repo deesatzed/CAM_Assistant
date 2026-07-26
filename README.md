@@ -5,7 +5,8 @@ personal memory, retrieval, research, coding workflows, Mac maintenance, and
 permissioned on-demand tools.
 
 Development is governed by [`GOAL.md`](GOAL.md) and the controlling
-[`../GOAL_LLM_WIKI.md`](../GOAL_LLM_WIKI.md).
+[`GOAL_FINISH_WIKI.md`](GOAL_FINISH_WIKI.md).
 
-The repository is in initialization. Do not treat planned features as
-implemented behavior.
+The verified local foundation is substantial, but the complete product remains
+in progress. [`docs/VERIFICATION_REPORT.md`](docs/VERIFICATION_REPORT.md)
+separates current evidence from remaining work and non-claims.

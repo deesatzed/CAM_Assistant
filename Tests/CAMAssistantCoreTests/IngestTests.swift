@@ -3,6 +3,19 @@ import Foundation
 import Testing
 @testable import CAMAssistantCore
 
+@Test("library presentation summarizes derived local documents by modality")
+func libraryPresentationSummarizesDerivedLocalDocumentsByModality() {
+    let documents = [
+        DerivedDocument(sourceID: ContentID(rawValue: "a"), text: "One", modality: .text, extractorID: "test", capturedAt: .distantPast),
+        DerivedDocument(sourceID: ContentID(rawValue: "b"), text: "Two", modality: .code, extractorID: "test", capturedAt: .distantPast),
+    ]
+    let presentation = LibraryPresentation(documents: documents)
+
+    #expect(presentation.documentCount == 2)
+    #expect(presentation.modalityCounts[.text] == 1)
+    #expect(presentation.modalityCounts[.code] == 1)
+}
+
 @MainActor
 @Test("clipboard and folder inputs ingest every required local modality")
 func clipboardAndFolderIngestEveryRequiredModality() throws {
@@ -177,6 +190,40 @@ func pendingQueueAndProvenanceSurviveRestart() throws {
     #expect(provenance[0].origin == envelope.origin)
 }
 
+@Test("completed ingestion builds a restart-safe derived retrieval generation")
+func completedIngestionBuildsDerivedRetrievalGeneration() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let envelope = ClipboardCapture.envelope(
+        text: "A completed capture can be searched through a derived generation.",
+        capturedAt: Date(timeIntervalSince1970: 10)
+    )
+    let receipt = try harness.service.capture(envelope)
+    _ = try harness.queue.processAll()
+    let builder = try RetrievalIndexBuilder(
+        rootDirectory: harness.root.appending(path: "retrieval-index"),
+        baseFingerprint: IndexFingerprint(
+            schemaVersion: 1,
+            sourceManifestHash: "pending",
+            tokenizer: "unicode61",
+            preprocessing: "lowercase-stopwords-v1",
+            chunking: "words-200-v1",
+            semanticProvider: "none",
+            semanticModel: "none",
+            semanticDimensions: 0,
+            fusionVersion: "hybrid-v1"
+        )
+    )
+
+    _ = try builder.rebuild(documents: harness.queue.documents())
+    let index = try builder.openActive()
+    let results = try index.search("completed capture searched", limit: 10)
+    try index.close()
+
+    #expect(results.first?.sourceID == receipt.sourceID.rawValue)
+    #expect(try harness.contentStore.data(for: receipt.sourceID) == envelope.data)
+}
+
 @Test("folder watcher emits a capture envelope without manual rescanning")
 func folderWatcherEmitsAutomatically() throws {
     let root = FileManager.default.temporaryDirectory
@@ -201,6 +248,144 @@ func folderWatcherEmitsAutomatically() throws {
     #expect(signal.wait(timeout: .now() + 5) == .success)
     #expect(received.value?.data == Data("# automatic".utf8))
     #expect(received.value?.origin == .watchedFolder(path: root.appending(path: "automatic.md").path))
+}
+
+@Test("watched source configuration persists independent source states")
+func watchedSourceConfigurationPersistsIndependentSourceStates() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "cam-assistant-watched-source-tests")
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let storeURL = root.appending(path: "watched-sources.json")
+    let first = try WatchedSource(path: "/tmp/cam-first", isEnabled: true)
+    let second = try WatchedSource(path: "/tmp/cam-second", isEnabled: false)
+
+    try WatchedSourceConfigurationStore(url: storeURL).save([first, second])
+    let restored = try WatchedSourceConfigurationStore(url: storeURL).load()
+
+    #expect(restored == [first, second])
+    #expect(restored[0].isEnabled)
+    #expect(!restored[1].isEnabled)
+}
+
+@Test("watched source configuration rejects duplicate canonical paths")
+func watchedSourceConfigurationRejectsDuplicateCanonicalPaths() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "cam-assistant-watched-source-tests")
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let duplicate = try WatchedSource(path: "/tmp/cam-duplicate", isEnabled: false)
+    let samePath = try WatchedSource(path: "/tmp/cam-duplicate", isEnabled: true)
+
+    #expect(throws: WatchedSourceConfigurationError.duplicatePath("/tmp/cam-duplicate")) {
+        try WatchedSourceConfigurationStore(url: root.appending(path: "watched-sources.json"))
+            .save([duplicate, samePath])
+    }
+}
+
+@Test("watched source configuration rejects duplicate source identifiers")
+func watchedSourceConfigurationRejectsDuplicateSourceIdentifiers() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "cam-assistant-watched-source-tests")
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let id = UUID()
+    let first = try WatchedSource(id: id, path: "/tmp/cam-first", isEnabled: false)
+    let second = try WatchedSource(id: id, path: "/tmp/cam-second", isEnabled: false)
+
+    #expect(throws: WatchedSourceConfigurationError.duplicateID(id)) {
+        try WatchedSourceConfigurationStore(url: root.appending(path: "watched-sources.json"))
+            .save([first, second])
+    }
+}
+
+@Test("watched source manager starts enabled sources and stops paused sources")
+func watchedSourceManagerStartsEnabledSourcesAndStopsPausedSources() throws {
+    let enabled = try WatchedSource(path: "/tmp/cam-enabled", isEnabled: true)
+    let paused = try WatchedSource(path: "/tmp/cam-paused", isEnabled: false)
+    let factory = TestWatchedSourceFactory()
+    let manager = WatchedSourceManager(makeWatcher: factory.make, capture: { _ in })
+
+    try manager.reconcile([enabled, paused])
+
+    #expect(factory.watcher(for: enabled.id)?.started == true)
+    #expect(factory.watcher(for: paused.id) == nil)
+
+    var pausedEnabled = paused
+    pausedEnabled.isEnabled = true
+    try manager.reconcile([enabled, pausedEnabled])
+    try manager.reconcile([enabled])
+
+    #expect(factory.watcher(for: enabled.id)?.stopped == false)
+    #expect(factory.watcher(for: paused.id)?.stopped == true)
+}
+
+@Test("watched source manager forwards only watcher envelopes to local capture")
+func watchedSourceManagerForwardsWatcherEnvelopesToLocalCapture() throws {
+    let source = try WatchedSource(path: "/tmp/cam-capture", isEnabled: true)
+    let factory = TestWatchedSourceFactory()
+    let captured = CaptureEnvelopeBox()
+    let manager = WatchedSourceManager(makeWatcher: factory.make) { envelope in
+        captured.value = envelope
+    }
+    let envelope = CaptureEnvelope(
+        sourceName: "note.md",
+        contentType: "text/markdown",
+        data: Data("# local".utf8),
+        origin: .watchedFolder(path: "/tmp/cam-capture/note.md")
+    )
+
+    try manager.reconcile([source])
+    factory.watcher(for: source.id)?.emit([envelope])
+
+    #expect(captured.value == envelope)
+}
+
+@Test("watched source manager records a start failure without stopping other sources")
+func watchedSourceManagerRecordsStartFailureWithoutStoppingOtherSources() throws {
+    let working = try WatchedSource(path: "/tmp/cam-working", isEnabled: true)
+    let failing = try WatchedSource(path: "/tmp/cam-failing", isEnabled: true)
+    let factory = TestWatchedSourceFactory(failingIDs: [failing.id])
+    let manager = WatchedSourceManager(makeWatcher: factory.make, capture: { _ in })
+
+    try manager.reconcile([working, failing])
+
+    #expect(manager.runtimeState(for: working.id) == .running)
+    #expect(manager.runtimeState(for: failing.id) == .failed)
+    #expect(factory.watcher(for: working.id)?.stopped == false)
+}
+
+@Test("watched source presentation distinguishes configured runtime states")
+func watchedSourcePresentationDistinguishesConfiguredRuntimeStates() throws {
+    let source = try WatchedSource(path: "/tmp/cam-presentation", isEnabled: true)
+
+    #expect(WatchedSourcePresentation(source: source, runtimeState: .running).statusLabel == "Watching locally")
+    #expect(WatchedSourcePresentation(source: source, runtimeState: .failed).statusLabel == "Could not start local watcher")
+    #expect(WatchedSourcePresentation(source: source, runtimeState: .paused).statusLabel == "Paused")
+}
+
+@Test("watched source service persists controls and reconciles local lifecycle")
+func watchedSourceServicePersistsControlsAndReconcilesLocalLifecycle() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "cam-assistant-watched-source-tests")
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let factory = TestWatchedSourceFactory()
+    let service = WatchedSourceService(
+        store: WatchedSourceConfigurationStore(url: root.appending(path: "watched-sources.json")),
+        manager: WatchedSourceManager(makeWatcher: factory.make, capture: { _ in })
+    )
+
+    let source = try service.add(path: "/tmp/cam-service")
+    #expect(service.presentations().map(\.statusLabel) == ["Paused"])
+
+    try service.setEnabled(true, for: source.id)
+    #expect(service.presentations().map(\.statusLabel) == ["Watching locally"])
+
+    try service.remove(source.id)
+    #expect(service.presentations().isEmpty)
+    #expect(factory.watcher(for: source.id)?.stopped == true)
+    #expect(try WatchedSourceConfigurationStore(url: root.appending(path: "watched-sources.json")).load().isEmpty)
 }
 
 private final class IngestHarness {
@@ -229,6 +414,54 @@ private final class IngestHarness {
         try? queue.close()
         try? FileManager.default.removeItem(at: root)
     }
+}
+
+private final class TestWatchedSourceFactory: @unchecked Sendable {
+    private var watchers: [UUID: TestWatchedSourceWatcher] = [:]
+    private let failingIDs: Set<UUID>
+
+    init(failingIDs: Set<UUID> = []) {
+        self.failingIDs = failingIDs
+    }
+
+    func make(_ source: WatchedSource) -> any WatchedSourceWatching {
+        let watcher = TestWatchedSourceWatcher(shouldFailOnStart: failingIDs.contains(source.id))
+        watchers[source.id] = watcher
+        return watcher
+    }
+
+    func watcher(for id: UUID) -> TestWatchedSourceWatcher? {
+        watchers[id]
+    }
+}
+
+private final class TestWatchedSourceWatcher: WatchedSourceWatching, @unchecked Sendable {
+    private(set) var started = false
+    private(set) var stopped = false
+    private var handler: (@Sendable ([CaptureEnvelope]) -> Void)?
+    private let shouldFailOnStart: Bool
+
+    init(shouldFailOnStart: Bool = false) {
+        self.shouldFailOnStart = shouldFailOnStart
+    }
+
+    func start(handler: @escaping @Sendable ([CaptureEnvelope]) -> Void) throws {
+        if shouldFailOnStart { throw TestWatchedSourceWatcherError.startFailed }
+        started = true
+        self.handler = handler
+    }
+
+    func stop() {
+        stopped = true
+    }
+
+    func emit(_ envelopes: [CaptureEnvelope]) {
+        handler?(envelopes)
+    }
+}
+
+private enum TestWatchedSourceWatcherError: Error {
+    case startFailed
 }
 
 private final class CaptureEnvelopeBox: @unchecked Sendable {
