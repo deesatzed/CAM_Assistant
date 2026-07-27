@@ -66,12 +66,13 @@ individual proof gates are met.
 
 ## Next Actions
 
-1. Run the packaged selected-model chat journey when a local
-   OpenAI-compatible model profile and service are available, recording exact
-   runtime/model identity without treating their absence as a project blocker.
-2. Freeze a separately approved generated-answer corpus and measure
-   claim/citation support plus warm end-to-end latency without changing the
-   existing retrieval-v2 labels.
+1. Preserve generated-answer v1 as the fixed baseline and run a versioned v2
+   experiment comparing a bounded set of already-installed local models or a
+   constrained evidence-composition strategy; do not tune v1 labels after the
+   observed failures.
+2. Run the packaged selected-model chat journey with a versioned local profile,
+   recording exact runtime/model identity and retaining visible no-fallback
+   behavior.
 3. Complete fresh-user/restart GUI proof while preserving immutable source
    bytes.
 
@@ -948,6 +949,48 @@ individual proof gates are met.
 - Saved receipt: `docs/evidence/task-13-raw-source-inspection.md`.
 - Boundary: inspection is not edit, export, deletion, secure erasure, media
   rendering, or evidence that source claims are true.
+
+### Frozen generated-answer evaluation and live local-model comparison — 2026-07-27
+
+- Expected reds: explicit model abstention was not represented in conversation
+  state; no frozen generated-answer fixture/evaluator/CLI existed; and the
+  machine-readable report initially omitted its computed gate verdict.
+- Green: generated requests use JSON Schema with exact current-context
+  passage-ID constraints, deterministic settings, and a bounded token count.
+  Only empty answer plus empty citations is accepted as abstention; mixed
+  states fail closed. Abstention remains identified, ephemeral, low-confidence,
+  uncited, and unpromotable.
+- Green: the frozen seven-passage/seven-case manifest validates against hard
+  SHA-256
+  `5eff382987e236994bc755c9107c169fda1896c99cbb4c353dad64ad1e8006ae`.
+  The evaluator measures retrieval, bounded context, selected loopback-model
+  generation, exact citations, deterministic claim coverage, abstention, and
+  warm latency as one operation. Reports serialize runtime/model/endpoint
+  identity, failures, thresholds, and the final gate verdict.
+- Green: focused generated-answer tests passed after the expected
+  serialization red. A live LM Studio MLX service and an outside-sandbox
+  Ollama service were bound to loopback only; temporary model/server state was
+  stopped after measurement.
+- Green: `/bin/zsh scripts/verify.sh generated` passed 3 evaluator, 7 local
+  inference, and 6 conversation tests.
+  `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` passed all
+  177 tests and release-built the native app and CLI; package validation,
+  offline smoke, and `git diff --check` passed.
+- Negative evidence: valid `llama3.2:1b` runs reached at most `0.3333`
+  cited-claim support with zero abstention accuracy and p95 above `619 ms`;
+  `ornith:9b` reached correct abstention but zero claim support and p95 above
+  `60 s`; MLX `vibethinker-3b-optiq-5bpw-mlx` reached `0.1667` support,
+  correct abstention, and p95 `1,393 ms`. Retrieval Recall@10 and MRR were
+  `1.0` in every valid run. No model passed the frozen gate.
+- Invalid-environment evidence: an initial sandbox-contained Ollama run failed
+  Metal command-queue creation and every generation returned HTTP 500. It is
+  preserved separately and excluded from model comparison.
+- Saved receipt:
+  `docs/evidence/task-13-generated-answer-evaluation.md` plus six
+  machine-readable reports.
+- Boundary: this proves a usable evaluation surface and real negative model
+  results, not a passing generated-answer model or packaged GUI journey.
+  CAM-013 remains in progress and the overall goal is not blocked.
 
 ## Blockers
 

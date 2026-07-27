@@ -14,7 +14,7 @@
 | CAM-010 | Research and knowledge | Complete | Local checkpoint/resume, explicit plan-only Keep persistence, repository-cited plan promotion, citation-bound facts, separate inferences, contradiction candidates, and native status |
 | CAM-011 | Mac Care and repos | Complete | Read-only repository intake, commit-cited marker observations, retained Keep/Reject idea cards, cited local task promotion, and digest-bound Mac assessment plans with unavailable executors |
 | CAM-012 | UX and packaging | In progress | Local package/smoke and accessibility foundations; full aggregate proof remains red |
-| CAM-013 | Daily-use wiki and local-model chat | In progress | Library detail/navigation, reversible source visibility lifecycle, integrity-checked bounded raw-source inspection, and typed loopback local-model cited synthesis are complete; packaged live-model journey and frozen generated-claim faithfulness/latency evaluation remain |
+| CAM-013 | Daily-use wiki and local-model chat | In progress | Library detail/navigation, reversible source visibility lifecycle, integrity-checked bounded raw-source inspection, typed loopback local-model cited synthesis, and a frozen generated-answer evaluator are complete; live Ollama/MLX receipts fail the frozen quality/latency gates, and the packaged GUI journey remains |
 | CAM-014 | Policy-gated research acquisition | Planned | Deliberate source acquisition, privacy/cost receipts, checkpoint/resume, and native packet review |
 | CAM-015 | Persistent repository intelligence | Planned | Restart-safe jobs, removal lifecycle, evaluated semantic evidence, and idea promotion |
 | CAM-016 | Live bounded CAM/Codex | Planned | Pinned isolated runtime, closed typed executor, exact approval, verification, recovery, and controls |

@@ -102,6 +102,10 @@ public struct LocalModelGeneratedAnswer: Equatable, Sendable {
     public let endpointIdentity: String
     public let citations: [Citation]
     public let retention: ResearchRetention
+
+    public var didAbstain: Bool {
+        text.isEmpty && citations.isEmpty
+    }
 }
 
 public enum LocalModelInferenceError: Error, Equatable {
@@ -176,6 +180,7 @@ public struct LocalModelClient: Sendable {
         guard !context.passages.isEmpty else {
             throw LocalModelInferenceError.missingContext
         }
+        let validPassageIDs = context.passages.map(\.passageID)
 
         let requestBody = try JSONEncoder().encode(
             ChatCompletionRequest(
@@ -186,13 +191,20 @@ public struct LocalModelClient: Sendable {
                         content: """
                         Answer only from the supplied local evidence. Return JSON with exactly two keys: answer (string) and passage_ids (array of cited passage IDs). Cite every passage used. If the evidence does not answer the question, return an empty answer and empty passage_ids. Never invent a passage ID.
 
+                        Valid passage IDs: \(validPassageIDs.joined(separator: ", "))
+
                         \(context.serializedContext)
                         """
                     ),
                     ChatMessage(role: "user", content: normalizedQuestion),
                 ],
                 stream: false,
-                temperature: 0
+                temperature: 0,
+                maxTokens: 256,
+                seed: 0,
+                responseFormat: .groundedAnswer(
+                    validPassageIDs: validPassageIDs
+                )
             )
         )
         let response = try await perform(
@@ -230,9 +242,13 @@ public struct LocalModelClient: Sendable {
         let answer = grounded.answer.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
-        guard !answer.isEmpty,
-              !grounded.passageIDs.isEmpty,
-              Set(grounded.passageIDs).count == grounded.passageIDs.count else {
+        let isExplicitAbstention = answer.isEmpty
+            && grounded.passageIDs.isEmpty
+        let isGroundedAnswer = !answer.isEmpty
+            && !grounded.passageIDs.isEmpty
+            && Set(grounded.passageIDs).count
+                == grounded.passageIDs.count
+        guard isExplicitAbstention || isGroundedAnswer else {
             throw LocalModelInferenceError.ungroundedResponse
         }
 
@@ -297,6 +313,95 @@ private struct ChatCompletionRequest: Encodable {
     let messages: [ChatMessage]
     let stream: Bool
     let temperature: Int
+    let maxTokens: Int
+    let seed: Int
+    let responseFormat: ChatResponseFormat
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case messages
+        case stream
+        case temperature
+        case maxTokens = "max_tokens"
+        case seed
+        case responseFormat = "response_format"
+    }
+}
+
+private struct ChatResponseFormat: Encodable {
+    let type: String
+    let jsonSchema: ChatJSONSchema
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case jsonSchema = "json_schema"
+    }
+
+    static func groundedAnswer(validPassageIDs: [String]) -> Self {
+        Self(
+            type: "json_schema",
+            jsonSchema: ChatJSONSchema(
+                name: "grounded_answer",
+                schema: ChatGroundedAnswerSchema(
+                    validPassageIDs: validPassageIDs
+                )
+            )
+        )
+    }
+}
+
+private struct ChatJSONSchema: Encodable {
+    let name: String
+    let schema: ChatGroundedAnswerSchema
+}
+
+private struct ChatGroundedAnswerSchema: Encodable {
+    let type = "object"
+    let properties: [String: ChatJSONSchemaProperty]
+    let required = ["answer", "passage_ids"]
+    let additionalProperties = false
+
+    init(validPassageIDs: [String]) {
+        properties = [
+            "answer": ChatJSONSchemaProperty(
+                type: "string",
+                items: nil
+            ),
+            "passage_ids": ChatJSONSchemaProperty(
+                type: "array",
+                items: ChatJSONSchemaItems(
+                    type: "string",
+                    allowedValues: validPassageIDs
+                )
+            ),
+        ]
+    }
+}
+
+private struct ChatJSONSchemaProperty: Encodable {
+    let type: String
+    let items: ChatJSONSchemaItems?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case items
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        try container.encodeIfPresent(items, forKey: .items)
+    }
+}
+
+private struct ChatJSONSchemaItems: Encodable {
+    let type: String
+    let allowedValues: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case allowedValues = "enum"
+    }
 }
 
 private struct ChatMessage: Codable {

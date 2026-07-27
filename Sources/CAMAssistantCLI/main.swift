@@ -57,6 +57,60 @@ if arguments.first == "models" || arguments.first == "embeddings" {
         )
         exit(1)
     }
+} else if arguments.first == "evaluate-generated" {
+    do {
+        let request = try GeneratedAnswerEvaluationRequest.parse(
+            arguments: arguments
+        )
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appending(path: "cam-assistant-generated-evaluation")
+            .appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(
+            at: temporaryRoot,
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+
+        let report = try await GeneratedAnswerEvaluator().evaluate(
+            manifestURL: request.manifestURL,
+            indexURL: temporaryRoot.appending(path: "evaluation.sqlite"),
+            assignment: request.assignment,
+            benchmark: request.benchmark
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(
+            at: request.outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(report).write(
+            to: request.outputURL,
+            options: .atomic
+        )
+        print(
+            """
+            generated cited-claim support: \(report.citedClaimSupport)
+            abstention accuracy: \(report.abstentionAccuracy)
+            warm end-to-end p95 ms: \(report.warmEndToEndP95Milliseconds)
+            frozen gates: \(report.meetsFrozenThresholds ? "pass" : "fail")
+            report: \(request.outputURL.path)
+            """
+        )
+    } catch GeneratedAnswerEvaluationRequestError.invalidArguments {
+        FileHandle.standardError.write(
+            Data(
+                """
+                usage: cam-assistant evaluate-generated MANIFEST OUTPUT MODEL LOOPBACK_ENDPOINT [--warmup N] [--measured N]
+                """.appending("\n").utf8
+            )
+        )
+        exit(64)
+    } catch {
+        FileHandle.standardError.write(
+            Data("generated-answer evaluation failed: \(error)\n".utf8)
+        )
+        exit(1)
+    }
 } else {
     print("\(BuildIdentity.productName) (\(BuildIdentity.bundleIdentifier))")
 }

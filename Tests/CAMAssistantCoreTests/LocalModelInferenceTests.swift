@@ -72,7 +72,35 @@ func localModelGenerationReturnsExactRetrievedCitations() async throws {
     )
     #expect(json["model"] as? String == "local/qwen")
     #expect(json["stream"] as? Bool == false)
-    #expect(String(data: body, encoding: .utf8)?.contains("source-1#0") == true)
+    #expect(json["max_tokens"] as? Int == 256)
+    #expect(json["seed"] as? Int == 0)
+    let responseFormat = try #require(
+        json["response_format"] as? [String: Any]
+    )
+    #expect(responseFormat["type"] as? String == "json_schema")
+    let jsonSchema = try #require(
+        responseFormat["json_schema"] as? [String: Any]
+    )
+    #expect(jsonSchema["name"] as? String == "grounded_answer")
+    let schema = try #require(jsonSchema["schema"] as? [String: Any])
+    #expect(schema["additionalProperties"] as? Bool == false)
+    #expect(
+        Set(try #require(schema["required"] as? [String]))
+            == ["answer", "passage_ids"]
+    )
+    let properties = try #require(
+        schema["properties"] as? [String: Any]
+    )
+    let passageIDs = try #require(
+        properties["passage_ids"] as? [String: Any]
+    )
+    let items = try #require(passageIDs["items"] as? [String: Any])
+    #expect(
+        items["enum"] as? [String]
+            == ["source-1#0"]
+    )
+    let bodyText = try #require(String(data: body, encoding: .utf8))
+    #expect(bodyText.contains("Valid passage IDs: source-1#0"))
 }
 
 @Test("local model generation fails closed for unknown or absent evidence")
@@ -119,6 +147,53 @@ func localModelGenerationFailsClosedForUngroundedOutput() async throws {
         )
     }
     #expect(await noContextTransport.recordedRequests().isEmpty)
+}
+
+@Test("local model accepts only an explicit empty answer as abstention")
+func localModelAcceptsOnlyExplicitEmptyAbstention() async throws {
+    let abstaining = RecordingLocalModelTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: LocalModelTestEnvelope.chat(
+                model: "local/qwen",
+                content: #"{"answer":"","passage_ids":[]}"#
+            )
+        ),
+    ])
+    let abstainingClient = try LocalModelClient(
+        assignment: localInferenceAssignment(),
+        transport: abstaining
+    )
+
+    let answer = try await abstainingClient.generate(
+        question: "What is not supported?",
+        context: localInferenceContext()
+    )
+
+    #expect(answer.didAbstain)
+    #expect(answer.text.isEmpty)
+    #expect(answer.citations.isEmpty)
+    #expect(answer.retention == .ephemeral)
+
+    let mixed = RecordingLocalModelTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: LocalModelTestEnvelope.chat(
+                model: "local/qwen",
+                content: #"{"answer":"","passage_ids":["source-1#0"]}"#
+            )
+        ),
+    ])
+    let mixedClient = try LocalModelClient(
+        assignment: localInferenceAssignment(),
+        transport: mixed
+    )
+    await #expect(throws: LocalModelInferenceError.ungroundedResponse) {
+        _ = try await mixedClient.generate(
+            question: "What is not supported?",
+            context: localInferenceContext()
+        )
+    }
 }
 
 @Test("local model endpoint errors and identity drift fail visibly")

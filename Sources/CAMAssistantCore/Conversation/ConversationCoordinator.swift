@@ -97,6 +97,28 @@ public struct ConversationCoordinator: Sendable {
             in: .whitespacesAndNewlines
         )
         guard !normalized.isEmpty else { throw ConversationError.blankQuestion }
+        if generated.didAbstain {
+            let identity = GoldenRetrievalManifest.sha256(
+                of: Data(
+                    (
+                        normalized + "|" + generated.modelID
+                            + "|explicit-abstention"
+                    ).utf8
+                )
+            )
+            return ConversationResponse(
+                id: identity,
+                text: "The selected local model could not answer from the current local evidence.",
+                route: .localModel,
+                confidence: .low,
+                citations: [],
+                retention: generated.retention,
+                modelIdentity: generated.modelID,
+                endpointIdentity: generated.endpointIdentity,
+                followUp:
+                    "Capture or index one relevant local source, then ask again."
+            )
+        }
         guard !generated.text.trimmingCharacters(
             in: .whitespacesAndNewlines
         ).isEmpty, !generated.citations.isEmpty else {

@@ -1,0 +1,199 @@
+{
+  "manifestVersion": 1,
+  "frozenAt": "2026-07-27",
+  "corpusPurpose": "Approved CAM product-contract generated-answer evaluation. It contains no personal vault data, donor source, credentials, or web content.",
+  "thresholds": {
+    "recallAt10": 0.85,
+    "meanReciprocalRank": 0.70,
+    "citedClaimSupport": 0.95,
+    "abstentionAccuracy": 1.0,
+    "warmEndToEndP95Milliseconds": 500.0
+  },
+  "sources": [
+    {
+      "id": "native-outcome",
+      "modality": "markdown",
+      "authority": 1.0,
+      "capturedAt": 1785140000,
+      "passages": [
+        {
+          "id": "native-outcome#front-door",
+          "text": "CAM Assistant is one quiet native front door to local knowledge, projects, research, Mac care, and specialized tools."
+        },
+        {
+          "id": "native-outcome#offline",
+          "text": "The application remains useful without CAM, network access, cloud credentials, or optional modules."
+        }
+      ]
+    },
+    {
+      "id": "local-trust",
+      "modality": "configuration",
+      "authority": 1.0,
+      "capturedAt": 1785140001,
+      "passages": [
+        {
+          "id": "local-trust#vault",
+          "text": "Raw vault material and secrets remain local unless an exact outbound policy produces an approved scrubbed payload."
+        },
+        {
+          "id": "local-trust#routing",
+          "text": "A request without a route suffix stays local, and an unavailable explicit route fails without provider substitution."
+        }
+      ]
+    },
+    {
+      "id": "repository-boundary",
+      "modality": "markdown",
+      "authority": 1.0,
+      "capturedAt": 1785140002,
+      "passages": [
+        {
+          "id": "repository-boundary#idea",
+          "text": "A repository idea card is a candidate, not permission to copy code, alter a repository, or promote an unverified claim into product truth."
+        }
+      ]
+    },
+    {
+      "id": "retention-boundary",
+      "modality": "text",
+      "authority": 1.0,
+      "capturedAt": 1785140003,
+      "passages": [
+        {
+          "id": "retention-boundary#keep",
+          "text": "Answers remain ephemeral until the user explicitly keeps or promotes them."
+        }
+      ]
+    },
+    {
+      "id": "unknown-hardware",
+      "modality": "text",
+      "authority": 0.8,
+      "capturedAt": 1785140004,
+      "passages": [
+        {
+          "id": "unknown-hardware#selection",
+          "text": "Local model selection is explicit, versioned, and health checked before use."
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "generated-front-door",
+      "question": "What single product role does CAM Assistant serve?",
+      "expectedOutcome": "answer",
+      "relevantPassageIDs": ["native-outcome#front-door"],
+      "expectedClaims": [
+        {
+          "statement": "CAM Assistant is one quiet native front door to local knowledge, projects, research, Mac care, and specialized tools.",
+          "citations": [
+            {
+              "sourceID": "native-outcome",
+              "passageID": "native-outcome#front-door",
+              "quote": "one quiet native front door to local knowledge, projects, research, Mac care, and specialized tools"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generated-offline",
+      "question": "Does the application require CAM or cloud credentials to remain useful?",
+      "expectedOutcome": "answer",
+      "relevantPassageIDs": ["native-outcome#offline"],
+      "expectedClaims": [
+        {
+          "statement": "The application remains useful without CAM, network access, cloud credentials, or optional modules.",
+          "citations": [
+            {
+              "sourceID": "native-outcome",
+              "passageID": "native-outcome#offline",
+              "quote": "remains useful without CAM, network access, cloud credentials, or optional modules"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generated-vault",
+      "question": "When may raw vault material or secrets leave the Mac?",
+      "expectedOutcome": "answer",
+      "relevantPassageIDs": ["local-trust#vault"],
+      "expectedClaims": [
+        {
+          "statement": "Raw vault material and secrets remain local unless exact outbound policy produces an approved scrubbed payload.",
+          "citations": [
+            {
+              "sourceID": "local-trust",
+              "passageID": "local-trust#vault",
+              "quote": "remain local unless an exact outbound policy produces an approved scrubbed payload"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generated-routing",
+      "question": "What happens when a request has no route suffix or an explicit route is unavailable?",
+      "expectedOutcome": "answer",
+      "relevantPassageIDs": ["local-trust#routing"],
+      "expectedClaims": [
+        {
+          "statement": "A request without a route suffix stays local, and an unavailable explicit route fails without provider substitution.",
+          "citations": [
+            {
+              "sourceID": "local-trust",
+              "passageID": "local-trust#routing",
+              "quote": "without a route suffix stays local, and an unavailable explicit route fails without provider substitution"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generated-idea",
+      "question": "What authority does a repository idea card have?",
+      "expectedOutcome": "answer",
+      "relevantPassageIDs": ["repository-boundary#idea"],
+      "expectedClaims": [
+        {
+          "statement": "A repository idea card is a candidate and grants no permission to copy code, alter a repository, or promote an unverified claim.",
+          "citations": [
+            {
+              "sourceID": "repository-boundary",
+              "passageID": "repository-boundary#idea",
+              "quote": "is a candidate, not permission to copy code, alter a repository, or promote an unverified claim"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generated-retention",
+      "question": "When does a generated answer stop being ephemeral?",
+      "expectedOutcome": "answer",
+      "relevantPassageIDs": ["retention-boundary#keep"],
+      "expectedClaims": [
+        {
+          "statement": "A generated answer remains ephemeral until the user explicitly keeps or promotes it.",
+          "citations": [
+            {
+              "sourceID": "retention-boundary",
+              "passageID": "retention-boundary#keep",
+              "quote": "remain ephemeral until the user explicitly keeps or promotes them"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generated-hardware-abstention",
+      "question": "Which exact GPU hardware model runs the selected local model?",
+      "expectedOutcome": "abstain",
+      "relevantPassageIDs": [],
+      "expectedClaims": []
+    }
+  ]
+}

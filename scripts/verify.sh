@@ -56,6 +56,14 @@ case "$suite" in
   retrieval)
     swift test --scratch-path .swift-build --filter RetrievalTests
     ;;
+  generated)
+    swift test --scratch-path .swift-build \
+      --filter GeneratedAnswerEvaluationTests
+    swift test --scratch-path .swift-build \
+      --filter LocalModelInferenceTests
+    swift test --scratch-path .swift-build \
+      --filter ConversationTests
+    ;;
   retrieval-report)
     swift run --scratch-path .swift-build cam-assistant evaluate-retrieval \
       Tests/Fixtures/Retrieval/v2/manifest.json \
@@ -81,7 +89,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|retrieval-report|retrieval-project-contract-report|smoke|package|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|all]"
     exit 64
     ;;
 esac

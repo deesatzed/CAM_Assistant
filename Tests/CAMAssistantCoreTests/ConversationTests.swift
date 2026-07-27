@@ -53,6 +53,42 @@ func localConversationRejectsBlankQuestionsAndMarksMissingContextLowConfidence()
     #expect(response.followUp == "Capture or index one relevant local source, then ask again.")
 }
 
+@Test("explicit local model abstention remains identified and unpromotable")
+func explicitLocalModelAbstentionRemainsIdentifiedAndUnpromotable() throws {
+    let generated = LocalModelGeneratedAnswer(
+        text: "",
+        modelID: "local/qwen",
+        endpointIdentity: "http://127.0.0.1:8080/v1",
+        citations: [],
+        retention: .ephemeral
+    )
+
+    let response = try ConversationCoordinator().respond(
+        question: "What is not in the evidence?",
+        generated: generated
+    )
+
+    #expect(response.route == .localModel)
+    #expect(response.confidence == .low)
+    #expect(response.citations.isEmpty)
+    #expect(response.modelIdentity == "local/qwen")
+    #expect(response.endpointIdentity == "http://127.0.0.1:8080/v1")
+    #expect(
+        response.followUp
+            == "Capture or index one relevant local source, then ask again."
+    )
+    #expect(
+        throws: ConversationTransitionError.uncitedResponse
+    ) {
+        _ = try ConversationCoordinator().promoteToTask(
+            ConversationCoordinator().keep(response),
+            title: "Unsupported",
+            acceptanceCriteria: ["Must remain unpromotable."],
+            authority: .localRead
+        )
+    }
+}
+
 @Test("conversation keep discard and task promotion require explicit retained cited state")
 func conversationKeepDiscardAndTaskPromotionRequireExplicitRetainedCitedState() throws {
     let context = ContextBundle(
