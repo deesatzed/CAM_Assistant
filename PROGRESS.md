@@ -883,6 +883,23 @@ individual proof gates are met.
   score, or end-to-end model latency claim is made; those remain hard CAM-013
   proof work, not a blocker.
 
+### Agno cookbook adaptation recon — 2026-07-27
+
+- Green: checkpoint commit `dd73348` was pushed to
+  `origin/agent/portable-canonical-repo` before the recon.
+- Green: the two 231,721-line `agnocook.txt` copies are byte-identical; the
+  local `py314` environment contains `agno 2.8.5` and exposes the surveyed
+  approval, checkpoint, filesystem, workflow, eval, and wiki APIs.
+- Green: a read-only map and ranked risk assessment are saved under
+  `docs/research/agno/`.
+- Assessment: eval trajectories, safe-boundary checkpoint/fork, atomic
+  approval resolution, tool middleware, and bounded durable working records
+  are worth designing as Swift-native additions.
+- Boundary: no Agno code was copied, no cookbook was executed against a model,
+  no external repo was modified, and no Python/Agno dependency was added.
+  Checkpoint examples are syntax-only in their saved log and many workflow
+  examples have red receipts, so none is treated as production proof.
+
 ## Blockers
 
 None.
