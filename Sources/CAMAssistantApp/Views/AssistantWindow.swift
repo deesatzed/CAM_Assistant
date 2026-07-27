@@ -35,7 +35,15 @@ struct AssistantWindow: View {
             MacCareView(presentation: model.macCarePresentation, errorMessage: model.macCareError, isAssessing: model.isMacCareAssessing, assess: model.assessMacCareReadOnly)
         case .settings:
             VStack(spacing: 0) {
-                ModelProfilesView(settings: model.modelSettings, errorMessage: model.modelSettingsError, reload: model.reloadModelSettings)
+                ModelProfilesView(
+                    settings: model.modelSettings,
+                    errorMessage: model.modelSettingsError,
+                    localHealth: model.localModelHealth,
+                    localHealthError: model.localModelHealthError,
+                    isChecking: model.isCheckingLocalModel,
+                    reload: model.reloadModelSettings,
+                    checkLocalModel: model.checkSelectedLocalModel
+                )
                 HotkeySettingsView(model: model)
                 CaptureSourcesView(model: model)
             }

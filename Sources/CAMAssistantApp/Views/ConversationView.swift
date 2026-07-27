@@ -26,6 +26,17 @@ struct ConversationView: View {
                 Button("Ask locally", action: model.sendLocalQuestion)
                     .keyboardShortcut(.return, modifiers: [])
                     .accessibilityHint("Uses local retrieval only; it does not contact a provider or CAM.")
+                Button(
+                    model.isGeneratingLocalModelAnswer
+                        ? "Generating Locally…"
+                        : "Ask Selected Local Model",
+                    action: model.sendSelectedLocalModelQuestion
+                )
+                .disabled(
+                    model.localModelHealth == nil
+                        || model.isGeneratingLocalModelAnswer
+                )
+                .accessibilityHint("Uses the health-checked loopback model with retrieved local citations. It never falls back to cloud, web, or CAM.")
             }
             Button("Capture Clipboard Locally", action: model.captureCurrentClipboard)
                 .accessibilityHint("Captures plain-text clipboard content into the local vault and indexes it without a network request.")
@@ -54,9 +65,15 @@ struct ConversationView: View {
     private func responseView(_ response: ConversationResponse) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(response.text)
-            Text("Route: local retrieval · Confidence: \(response.confidence == .supported ? "supported" : "low")")
+            Text(routeLabel(response))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if let modelIdentity = response.modelIdentity,
+               let endpointIdentity = response.endpointIdentity {
+                Text("Model: \(modelIdentity) · Endpoint: \(endpointIdentity)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if response.citations.isEmpty {
                 Text("No local citation is available. Add or index a source before keeping or promoting this answer.")
                     .font(.caption)
@@ -103,5 +120,13 @@ struct ConversationView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Local answer. \(response.text)")
+    }
+
+    private func routeLabel(_ response: ConversationResponse) -> String {
+        let route = response.route == .localModel
+            ? "selected local model"
+            : "local retrieval"
+        let confidence = response.confidence == .supported ? "supported" : "low"
+        return "Route: \(route) · Confidence: \(confidence)"
     }
 }

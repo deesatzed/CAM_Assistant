@@ -54,6 +54,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-26 | The confirmed recovered working tree is published as the canonical repository baseline on `main`. External parent-workspace goal files remain historical design inputs rather than required files for a fresh clone | Active |
 | 2026-07-26 | Aggregate verification begins with repository-local truth and tracked-artifact checks, then runs a non-recursive temporary local clone of the committed revision for tests, release build, package validation, and offline smoke. `CAM_ASSISTANT_SKIP_FRESH_CLONE=1` is an internal recursion guard used only inside that clone | Active |
 | 2026-07-27 | Library source detail is a read-only projection of derived text plus every stored capture provenance record. Citation navigation requires an exact local source and passage match, reveals no immutable raw source bytes, and grants no retention or mutation authority | Active |
+| 2026-07-27 | Selected local-model chat uses an explicitly configured OpenAI-compatible loopback endpoint only. A separate health check must find the selected model; requests carry no authorization header, redirects are rejected, response model identity must match, and generated answers may cite only exact passage IDs from the current local retrieval context. Failure never falls back to cloud, web, CAM, or another model, and output remains ephemeral until explicit promotion | Active |
 
 ## Initial Default Decisions
 

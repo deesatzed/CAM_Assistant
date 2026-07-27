@@ -68,6 +68,24 @@ func modelProfilesRejectCredentialBearingEndpoints() throws {
             localEndpoint: "http://127.0.0.1:8080/v1?api_key=not-allowed"
         )
     }
+    #expect(
+        throws: ModelProfileError.invalidLocalEndpoint
+    ) {
+        _ = try ModelAssignment(
+            provider: .local,
+            modelID: "mlx-community/Qwen3-4B",
+            localEndpoint: "http://127.0.0.1:8080/v1?mode=chat"
+        )
+    }
+    #expect(
+        throws: ModelProfileError.invalidLocalEndpoint
+    ) {
+        _ = try ModelAssignment(
+            provider: .local,
+            modelID: "mlx-community/Qwen3-4B",
+            localEndpoint: "http://127.0.0.1:8080/v1#models"
+        )
+    }
 }
 
 @Test("a selectable profile always contains a local default assignment")

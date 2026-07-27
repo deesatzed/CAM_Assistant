@@ -17,6 +17,7 @@ case "$suite" in
     swift test --scratch-path .swift-build --filter ModelProfileTests
     swift test --scratch-path .swift-build --filter ModelCatalogTests
     swift test --scratch-path .swift-build --filter ModelCommandTests
+    swift test --scratch-path .swift-build --filter LocalModelInferenceTests
     ;;
   privacy)
     swift test --scratch-path .swift-build --filter PrivacyTests

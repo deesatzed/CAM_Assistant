@@ -45,6 +45,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var health: AppHealth
     @Published private(set) var modelSettings: ModelSettingsState?
     @Published private(set) var modelSettingsError: String?
+    @Published private(set) var localModelHealth: LocalModelHealth?
+    @Published private(set) var localModelHealthError: String?
+    @Published private(set) var isCheckingLocalModel = false
+    @Published private(set) var isGeneratingLocalModelAnswer = false
     @Published private(set) var pendingActionCard: ActionCard?
     @Published private(set) var camStatus = CAMIntegrationStatus.unavailableCAMv1
     @Published private(set) var researchPresentation = ResearchPresentation.notStarted
@@ -193,9 +197,49 @@ final class AppModel: ObservableObject {
             )
             modelSettings = try ModelSettingsState(registry: registry)
             modelSettingsError = nil
+            localModelHealth = nil
+            localModelHealthError = nil
         } catch {
             modelSettings = nil
             modelSettingsError = "Local model profile state could not be read."
+            localModelHealth = nil
+        }
+    }
+
+    func checkSelectedLocalModel() {
+        let assignment: ModelAssignment
+        do {
+            assignment = try activeLocalModelAssignment()
+        } catch {
+            localModelHealth = nil
+            localModelHealthError = "Select an active local model profile first."
+            return
+        }
+        isCheckingLocalModel = true
+        localModelHealthError = nil
+        Task { [weak self] in
+            do {
+                let health = try await LocalModelClient(
+                    assignment: assignment
+                ).health()
+                self?.localModelHealth = health
+                self?.localModelHealthError = nil
+                self?.updateHealth(
+                    localModelAvailable: true,
+                    camRuntimeAvailable: self?.health.canUseCAM ?? false,
+                    networkAvailable: self?.health.canUseCloud ?? false
+                )
+            } catch {
+                self?.localModelHealth = nil
+                self?.localModelHealthError =
+                    "The selected local model endpoint is unavailable or does not expose the selected model."
+                self?.updateHealth(
+                    localModelAvailable: false,
+                    camRuntimeAvailable: self?.health.canUseCAM ?? false,
+                    networkAvailable: self?.health.canUseCloud ?? false
+                )
+            }
+            self?.isCheckingLocalModel = false
         }
     }
 
@@ -217,6 +261,61 @@ final class AppModel: ObservableObject {
         } catch {
             conversationError = "Enter a question to search local sources."
         }
+    }
+
+    func sendSelectedLocalModelQuestion() {
+        guard localModelHealth != nil else {
+            conversationError =
+                "Health-check the selected local model before asking it."
+            return
+        }
+        let question = conversationQuestion
+        let assignment: ModelAssignment
+        let databaseURL: URL
+        do {
+            assignment = try activeLocalModelAssignment()
+            databaseURL = try LocalConversationContextProvider
+                .defaultDatabaseURL()
+        } catch {
+            conversationError = "Select an active local model profile first."
+            return
+        }
+        isGeneratingLocalModelAnswer = true
+        conversationError = nil
+        Task { [weak self] in
+            do {
+                let context = try await Task.detached {
+                    try LocalConversationContextProvider(
+                        databaseURL: databaseURL
+                    ).context(for: question)
+                }.value
+                let generated = try await LocalModelClient(
+                    assignment: assignment
+                ).generate(question: question, context: context)
+                self?.conversationResponse = try ConversationCoordinator()
+                    .respond(question: question, generated: generated)
+                self?.conversationRecord = nil
+                self?.conversationError = nil
+            } catch LocalModelInferenceError.missingContext {
+                self?.conversationError =
+                    "No matching local evidence is available. Capture or index a relevant source, then ask again."
+            } catch {
+                self?.conversationError =
+                    "The selected local model could not produce a citation-grounded answer. No fallback or escalation occurred."
+            }
+            self?.isGeneratingLocalModelAnswer = false
+        }
+    }
+
+    private func activeLocalModelAssignment() throws -> ModelAssignment {
+        let registry = try ModelRegistry(
+            stateURL: ModelProfileStorage.defaultStateURL()
+        )
+        guard let assignment = try registry.activeProfile()?
+            .assignment(for: .local) else {
+            throw LocalModelInferenceError.invalidAssignment
+        }
+        return assignment
     }
 
     func keepConversationResponse() {

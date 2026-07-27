@@ -47,11 +47,12 @@ public struct ModelAssignment: Codable, Equatable, Sendable {
               let host = components.host?.lowercased(),
               host == "localhost" || host == "127.0.0.1" || host == "::1",
               components.user == nil,
-              components.password == nil else {
+              components.password == nil,
+              components.query == nil,
+              components.fragment == nil else {
             return false
         }
-        let queryNames = Set((components.queryItems ?? []).map { $0.name.lowercased() })
-        return queryNames.isDisjoint(with: ["api_key", "apikey", "token", "secret"])
+        return true
     }
 }
 

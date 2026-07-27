@@ -2,6 +2,7 @@ import Foundation
 
 public enum ConversationRoute: String, Codable, Equatable, Sendable {
     case localRetrieval
+    case localModel
 }
 
 public enum ConversationConfidence: Int, Codable, Comparable, Sendable {
@@ -20,6 +21,8 @@ public struct ConversationResponse: Equatable, Sendable {
     public let confidence: ConversationConfidence
     public let citations: [Citation]
     public let retention: ResearchRetention
+    public let modelIdentity: String?
+    public let endpointIdentity: String?
     /// Present only for a low-confidence local result; it must not imply a
     /// provider, web, CAM, or automatic retry path.
     public let followUp: String?
@@ -80,7 +83,44 @@ public struct ConversationCoordinator: Sendable {
             confidence: confidence,
             citations: citations,
             retention: .ephemeral,
+            modelIdentity: nil,
+            endpointIdentity: nil,
             followUp: followUp
+        )
+    }
+
+    public func respond(
+        question: String,
+        generated: LocalModelGeneratedAnswer
+    ) throws -> ConversationResponse {
+        let normalized = question.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !normalized.isEmpty else { throw ConversationError.blankQuestion }
+        guard !generated.text.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).isEmpty, !generated.citations.isEmpty else {
+            throw ConversationError.ungroundedGeneratedResponse
+        }
+        let identity = GoldenRetrievalManifest.sha256(
+            of: Data(
+                (
+                    normalized + "|" + generated.modelID + "|"
+                        + generated.citations.map(\.passageID)
+                            .joined(separator: "|")
+                ).utf8
+            )
+        )
+        return ConversationResponse(
+            id: identity,
+            text: generated.text,
+            route: .localModel,
+            confidence: .supported,
+            citations: generated.citations,
+            retention: generated.retention,
+            modelIdentity: generated.modelID,
+            endpointIdentity: generated.endpointIdentity,
+            followUp: nil
         )
     }
 
@@ -122,6 +162,7 @@ public struct ConversationCoordinator: Sendable {
 
 public enum ConversationError: Error, Equatable {
     case blankQuestion
+    case ungroundedGeneratedResponse
 }
 
 public enum ConversationTransitionError: Error, Equatable {

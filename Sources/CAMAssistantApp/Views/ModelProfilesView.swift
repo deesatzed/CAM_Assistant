@@ -4,7 +4,11 @@ import SwiftUI
 struct ModelProfilesView: View {
     let settings: ModelSettingsState?
     let errorMessage: String?
+    let localHealth: LocalModelHealth?
+    let localHealthError: String?
+    let isChecking: Bool
     let reload: () -> Void
+    let checkLocalModel: () -> Void
 
     var body: some View {
         Form {
@@ -19,6 +23,23 @@ struct ModelProfilesView: View {
                     }
                     Text(settings.availabilityMessage)
                         .foregroundStyle(.secondary)
+                    if let localHealth {
+                        Label(
+                            "\(localHealth.modelID) is available at \(localHealth.endpointIdentity)",
+                            systemImage: "checkmark.circle"
+                        )
+                        .foregroundStyle(.green)
+                    } else if let localHealthError {
+                        Text(localHealthError).foregroundStyle(.red)
+                    }
+                    Button(
+                        isChecking
+                            ? "Checking Local Model…"
+                            : "Health-check Selected Local Model",
+                        action: checkLocalModel
+                    )
+                    .disabled(isChecking)
+                    .accessibilityHint("Contacts only the configured loopback endpoint and verifies that it exposes the selected model identity.")
                 } else {
                     Text(errorMessage ?? "No active local model profile.")
                         .foregroundStyle(.secondary)

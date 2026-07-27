@@ -59,17 +59,21 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Complete usability, packaging, and aggregate proof (CAM-012). Cloud-context
-loading, live catalog lookup, provider testing, web, embedding promotion, CAM
-mining, and mutating workflows remain disabled until their individual proof
-gates are met.
+Complete the daily-use wiki and grounded local-model chat gate (CAM-013).
+Cloud-context loading, live catalog lookup, provider testing, web, embedding
+promotion, CAM mining, and mutating workflows remain disabled until their
+individual proof gates are met.
 
 ## Next Actions
 
-1. Add accessibility/keyboard/empty-state proof plus local package and launch
-   smoke artifacts for CAM-012.
-2. Keep the retrieval corpus frozen; add a separately approved new corpus rather
-   than changing its v2 labels after evaluation.
+1. Run the packaged selected-model chat journey when a local
+   OpenAI-compatible model profile and service are available, recording exact
+   runtime/model identity without treating their absence as a project blocker.
+2. Freeze a separately approved generated-answer corpus and measure
+   claim/citation support plus warm end-to-end latency without changing the
+   existing retrieval-v2 labels.
+3. Complete raw-source lifecycle and fresh-user/restart GUI proof while
+   preserving immutable source bytes.
 
 ## Verification Receipts
 
@@ -851,6 +855,33 @@ gates are met.
 - Boundary: the detail is derived local text and provenance only. It does not
   expose immutable raw source bytes, edit or delete a source, create knowledge,
   invoke a model, or change authority.
+
+### Grounded selected local-model chat — 2026-07-27
+
+- Expected reds: no typed local inference transport/client, selected-model
+  health identity, generated-response conversation route, redirect refusal, or
+  exact evidence-ID validation existed.
+- Green: an explicitly selected local assignment can be health-checked through
+  its OpenAI-compatible loopback `/models` endpoint and invoked through
+  `/chat/completions`; the native UI displays health, route, model, and
+  endpoint identity.
+- Green: generation sends the current bounded local context without an
+  authorization header and accepts only structured answers whose unique
+  passage IDs exactly match that context. Unknown/missing evidence, HTTP
+  errors, malformed responses, model identity drift, and every redirect fail
+  visibly without fallback.
+- Green: generated answers become citation-bearing, supported, ephemeral
+  conversation responses and retain no output automatically.
+- Green: `/bin/zsh scripts/verify.sh models` passed 6 focused inference tests;
+  `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` passed 165
+  tests and release-built the native app and CLI; package validation, native
+  offline smoke, and `git diff --check` passed.
+- Saved receipt:
+  `docs/evidence/task-13-grounded-local-model-chat.md`.
+- Boundary: this checkout has no active local profile or running compatible
+  model service. No live generation receipt, generated-claim faithfulness
+  score, or end-to-end model latency claim is made; those remain hard CAM-013
+  proof work, not a blocker.
 
 ## Blockers
 
