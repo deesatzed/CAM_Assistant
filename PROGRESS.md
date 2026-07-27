@@ -943,6 +943,8 @@ individual proof gates are met.
   `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` passed 172
   tests and release-built the app and CLI; package validation, offline smoke,
   and `git diff --check` passed.
+- Green: a temporary clean clone of commit `3ed92c5` independently passed all
+  172 tests, release builds, package validation, and offline smoke.
 - Saved receipt: `docs/evidence/task-13-raw-source-inspection.md`.
 - Boundary: inspection is not edit, export, deletion, secure erasure, media
   rendering, or evidence that source claims are true.

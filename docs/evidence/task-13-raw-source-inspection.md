@@ -30,6 +30,7 @@
 | `/bin/zsh scripts/verify.sh package` | PASS — production app and valid `Info.plist` |
 | `/bin/zsh scripts/verify.sh smoke` | PASS — offline capture/local-search smoke |
 | `git diff --check` | PASS |
+| `/bin/zsh scripts/verify.sh fresh-clone` | PASS — commit `3ed92c5`, 172 tests, release builds, package, and smoke |
 
 The expected-red build failed on the absent invalid-ID and integrity-mismatch
 errors plus the absent typed raw-source inspection API before implementation.
