@@ -976,6 +976,9 @@ individual proof gates are met.
   `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` passed all
   177 tests and release-built the native app and CLI; package validation,
   offline smoke, and `git diff --check` passed.
+- Green: a temporary clean clone of pushed commit `b9707ae` independently
+  passed portability, all 177 tests, release builds, package validation, and
+  offline smoke.
 - Negative evidence: valid `llama3.2:1b` runs reached at most `0.3333`
   cited-claim support with zero abstention accuracy and p95 above `619 ms`;
   `ornith:9b` reached correct abstention but zero claim support and p95 above
