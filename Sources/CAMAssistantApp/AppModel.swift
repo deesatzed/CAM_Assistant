@@ -72,9 +72,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var taskError: String?
     @Published private(set) var libraryPresentation = LibraryPresentation(documents: [])
     @Published var selectedLibrarySourceID: String?
+    @Published private(set) var rawSourceInspection: RawSourceInspection?
     @Published private(set) var libraryError: String?
     @Published private(set) var isRefreshingWorkspace = false
     @Published private(set) var isUpdatingLibraryLifecycle = false
+    @Published private(set) var isInspectingRawSource = false
     @Published private(set) var captureMessage: String?
     @Published private(set) var hotkeyError: String?
     @Published private(set) var hotkeyStatus: GlobalHotkeyStatus = .unregistered
@@ -404,14 +406,70 @@ final class AppModel: ObservableObject {
         reloadWorkspace()
     }
 
+    func selectLibrarySource(_ sourceID: String) {
+        if selectedLibrarySourceID != sourceID {
+            rawSourceInspection = nil
+        }
+        selectedLibrarySourceID = sourceID
+        libraryError = nil
+    }
+
     func openLibrarySource(for citation: Citation) {
         guard let row = libraryPresentation.row(for: citation) else {
             libraryError = "That citation is not available in the current local library."
             return
         }
-        selectedLibrarySourceID = row.id
-        libraryError = nil
+        selectLibrarySource(row.id)
         selection = .library
+    }
+
+    func inspectRawLibrarySource(_ sourceID: String) {
+        let normalizedSourceID = sourceID.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !normalizedSourceID.isEmpty else {
+            libraryError = "The local source identity is invalid."
+            return
+        }
+        let databaseURL: URL
+        let contentURL: URL
+        do {
+            databaseURL = try LocalVaultPaths.databaseURL()
+            contentURL = try LocalVaultPaths.contentURL()
+        } catch {
+            libraryError = "The immutable local source could not be inspected."
+            return
+        }
+        isInspectingRawSource = true
+        rawSourceInspection = nil
+        libraryError = nil
+        Task { [weak self] in
+            do {
+                let inspection = try await Task.detached {
+                    let queue = try IngestQueue(
+                        databaseURL: databaseURL,
+                        contentStore: try ContentStore(
+                            rootDirectory: contentURL
+                        ),
+                        extractors: .localDefaults
+                    )
+                    return try queue.inspectRawSource(
+                        for: ContentID(rawValue: normalizedSourceID)
+                    )
+                }.value
+                guard self?.selectedLibrarySourceID == normalizedSourceID else {
+                    self?.isInspectingRawSource = false
+                    return
+                }
+                self?.rawSourceInspection = inspection
+                self?.libraryError = nil
+                self?.isInspectingRawSource = false
+            } catch {
+                self?.libraryError =
+                    "Inspection stopped because the immutable local source could not be verified."
+                self?.isInspectingRawSource = false
+            }
+        }
     }
 
     func setLibrarySourceLifecycle(
@@ -451,9 +509,8 @@ final class AppModel: ObservableObject {
                         for: ContentID(rawValue: normalizedSourceID)
                     )
                 }.value
-                if lifecycle == .hidden,
-                   self?.selectedLibrarySourceID == normalizedSourceID {
-                    self?.selectedLibrarySourceID = nil
+                if self?.selectedLibrarySourceID == normalizedSourceID {
+                    self?.rawSourceInspection = nil
                 }
                 self?.libraryError = nil
                 self?.isUpdatingLibraryLifecycle = false

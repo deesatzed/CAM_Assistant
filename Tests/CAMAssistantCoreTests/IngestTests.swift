@@ -175,6 +175,67 @@ func sourceLifecycleSurvivesRestartWithoutChangingImmutableSource() throws {
 }
 
 @MainActor
+@Test("raw source inspection verifies identity and bounds text even while hidden")
+func rawSourceInspectionVerifiesAndBoundsHiddenText() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let payload = Data("Immutable local evidence for inspection.".utf8)
+    let envelope = CaptureEnvelope(
+        id: UUID(),
+        capturedAt: Date(timeIntervalSince1970: 10),
+        sourceName: "inspection.txt",
+        contentType: "text/plain",
+        data: payload,
+        origin: .clipboard
+    )
+    let receipt = try harness.service.capture(envelope)
+    try harness.queue.setLifecycle(.hidden, for: receipt.sourceID)
+
+    let inspection = try harness.queue.inspectRawSource(
+        for: receipt.sourceID,
+        previewCharacterLimit: 15
+    )
+
+    #expect(inspection.sourceID == receipt.sourceID)
+    #expect(inspection.verifiedSHA256 == receipt.sourceID.rawValue)
+    #expect(inspection.byteCount == payload.count)
+    #expect(inspection.sourceName == "inspection.txt")
+    #expect(inspection.contentType == "text/plain")
+    #expect(inspection.lifecycle == .hidden)
+    #expect(inspection.previewAvailability == .text)
+    #expect(inspection.preview == "Immutable local")
+    #expect(inspection.isPreviewTruncated)
+}
+
+@MainActor
+@Test("raw source inspection refuses to render binary bytes as text")
+func rawSourceInspectionRefusesBinaryTextRendering() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let payload = Data([0x00, 0xff, 0x10, 0x80])
+    let envelope = CaptureEnvelope(
+        id: UUID(),
+        capturedAt: Date(timeIntervalSince1970: 10),
+        sourceName: "pixel.png",
+        contentType: "image/png",
+        data: payload,
+        origin: .clipboard
+    )
+    let receipt = try harness.service.capture(envelope)
+
+    let inspection = try harness.queue.inspectRawSource(
+        for: receipt.sourceID,
+        previewCharacterLimit: 100
+    )
+
+    #expect(inspection.byteCount == payload.count)
+    #expect(inspection.previewAvailability == .binaryUnavailable)
+    #expect(inspection.preview == nil)
+    #expect(!inspection.isPreviewTruncated)
+    #expect(try harness.contentStore.data(for: receipt.sourceID) == payload)
+}
+
+@MainActor
 @Test("hidden sources leave local conversation context until explicitly restored")
 func hiddenSourcesLeaveLocalConversationContextUntilRestored() throws {
     let harness = try IngestHarness()

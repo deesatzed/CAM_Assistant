@@ -38,6 +38,32 @@ func contentSurvivesRestartWithoutPartialWrites() throws {
     )
 }
 
+@Test("content reads reject unsafe object identities")
+func contentReadsRejectUnsafeObjectIdentities() throws {
+    let root = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try ContentStore(rootDirectory: root)
+    let unsafeID = ContentID(rawValue: "../../outside")
+
+    #expect(throws: ContentStoreError.invalidContentID(unsafeID)) {
+        try store.data(for: unsafeID)
+    }
+}
+
+@Test("content reads detect immutable object tampering")
+func contentReadsDetectImmutableObjectTampering() throws {
+    let root = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try ContentStore(rootDirectory: root)
+    let stored = try store.put(Data("trusted bytes".utf8))
+
+    try Data("tampered bytes".utf8).write(to: stored.fileURL, options: [.atomic])
+
+    #expect(throws: ContentStoreError.integrityMismatch(stored.id)) {
+        try store.data(for: stored.id)
+    }
+}
+
 @Test("content backup restores exact immutable bytes")
 func contentBackupRestoresExactBytes() throws {
     let workspace = try makeTemporaryDirectory()

@@ -66,15 +66,13 @@ individual proof gates are met.
 
 ## Next Actions
 
-1. Add bounded, integrity-checked raw-source inspection without exposing
-   unrestricted binary content or changing immutable source bytes.
-2. Run the packaged selected-model chat journey when a local
+1. Run the packaged selected-model chat journey when a local
    OpenAI-compatible model profile and service are available, recording exact
    runtime/model identity without treating their absence as a project blocker.
-3. Freeze a separately approved generated-answer corpus and measure
+2. Freeze a separately approved generated-answer corpus and measure
    claim/citation support plus warm end-to-end latency without changing the
    existing retrieval-v2 labels.
-4. Complete fresh-user/restart GUI proof while preserving immutable source
+3. Complete fresh-user/restart GUI proof while preserving immutable source
    bytes.
 
 ## Verification Receipts
@@ -926,6 +924,28 @@ individual proof gates are met.
 - Boundary: Hidden is not deletion, secure erasure, or raw-source inspection.
   Existing retained claims/citations are not rewritten; their Library
   navigation remains unavailable until the source is restored.
+
+### Integrity-checked bounded raw-source inspection — 2026-07-27
+
+- Expected red: the focused build failed because `ContentStore` had no
+  invalid-identity or integrity-mismatch failures and `IngestQueue` had no
+  typed raw-source inspection API.
+- Green: content reads now reject traversal-shaped or otherwise invalid
+  identities and re-hash every object before returning its bytes. Tampering
+  fails closed.
+- Green: the explicit native Library action displays verified source identity,
+  byte count, content type, and original name. Valid textual content receives a
+  bounded selectable preview with a truncation notice; binary and invalid
+  UTF-8 content receives metadata only.
+- Green: hidden sources remain selectable and inspectable without changing
+  lifecycle, content bytes, provenance, derived history, or retention state.
+- Green: 6 focused storage tests and 22 focused ingestion tests passed.
+  `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` passed 172
+  tests and release-built the app and CLI; package validation, offline smoke,
+  and `git diff --check` passed.
+- Saved receipt: `docs/evidence/task-13-raw-source-inspection.md`.
+- Boundary: inspection is not edit, export, deletion, secure erasure, media
+  rendering, or evidence that source claims are true.
 
 ## Blockers
 

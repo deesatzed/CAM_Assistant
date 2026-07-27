@@ -17,6 +17,8 @@ public struct StoredContent: Equatable, Sendable {
 
 public enum ContentStoreError: Error, Equatable {
     case contentNotFound(ContentID)
+    case invalidContentID(ContentID)
+    case integrityMismatch(ContentID)
     case hashCollision(ContentID)
     case invalidBackupObject(String)
     case backupDestinationExists
@@ -73,11 +75,18 @@ public final class ContentStore {
     }
 
     public func data(for id: ContentID) throws -> Data {
+        guard Self.isValidContentID(id) else {
+            throw ContentStoreError.invalidContentID(id)
+        }
         let url = objectURL(for: id)
         guard fileManager.fileExists(atPath: url.path) else {
             throw ContentStoreError.contentNotFound(id)
         }
-        return try Data(contentsOf: url)
+        let data = try Data(contentsOf: url)
+        guard SHA256.hash(data: data).hexString == id.rawValue else {
+            throw ContentStoreError.integrityMismatch(id)
+        }
+        return data
     }
 
     public func objectCount() throws -> Int {
@@ -118,6 +127,14 @@ public final class ContentStore {
             .appending(path: firstShard, directoryHint: .isDirectory)
             .appending(path: secondShard, directoryHint: .isDirectory)
             .appending(path: id.rawValue)
+    }
+
+    private static func isValidContentID(_ id: ContentID) -> Bool {
+        id.rawValue.count == 64
+            && id.rawValue.unicodeScalars.allSatisfy {
+                ("0"..."9").contains(Character(String($0)))
+                    || ("a"..."f").contains(Character(String($0)))
+            }
     }
 
     private func objectFiles() throws -> [URL] {

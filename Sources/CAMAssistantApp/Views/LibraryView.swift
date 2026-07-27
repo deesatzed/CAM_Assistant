@@ -4,6 +4,15 @@ import SwiftUI
 struct LibraryView: View {
     @ObservedObject var model: AppModel
 
+    private var selectedRow: LibrarySourceRow? {
+        guard let selectedID = model.selectedLibrarySourceID else {
+            return nil
+        }
+        return (model.libraryPresentation.rows
+            + model.libraryPresentation.hiddenRows)
+            .first { $0.id == selectedID }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -26,7 +35,7 @@ struct LibraryView: View {
                 Text("Local sources").font(.headline)
                 ForEach(model.libraryPresentation.rows) { row in
                     Button {
-                        model.selectedLibrarySourceID = row.id
+                        model.selectLibrarySource(row.id)
                     } label: {
                         HStack {
                             Text(row.modalityLabel)
@@ -40,20 +49,74 @@ struct LibraryView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Open local \(row.modalityLabel) source \(row.id)")
                 }
-                if let selectedID = model.selectedLibrarySourceID,
-                   let row = model.libraryPresentation.rows.first(where: { $0.id == selectedID }) {
+                if let row = selectedRow {
                     Divider()
                     Text("Source detail").font(.headline)
                     LabeledContent("Source ID", value: row.id)
                     LabeledContent("Citation passage", value: row.passageID)
                     LabeledContent("Modality", value: row.modalityLabel)
                     LabeledContent("Extractor", value: row.extractorID)
+                    LabeledContent(
+                        "Visibility",
+                        value: row.lifecycle.rawValue.capitalized
+                    )
                     Text(row.preview)
                         .textSelection(.enabled)
                         .accessibilityLabel("Derived local text preview. \(row.preview)")
+                    Button("Inspect Immutable Source") {
+                        model.inspectRawLibrarySource(row.id)
+                    }
+                    .disabled(model.isInspectingRawSource)
+                    .accessibilityHint(
+                        "Verifies the local SHA-256 identity, then shows a bounded text preview or metadata only for binary content. It does not change the source."
+                    )
+                    if model.isInspectingRawSource {
+                        ProgressView("Verifying immutable local source")
+                    }
+                    if let inspection = model.rawSourceInspection,
+                       inspection.sourceID.rawValue == row.id {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Verified immutable source")
+                                .font(.subheadline)
+                            LabeledContent(
+                                "SHA-256",
+                                value: inspection.verifiedSHA256
+                            )
+                            LabeledContent(
+                                "Bytes",
+                                value: "\(inspection.byteCount)"
+                            )
+                            LabeledContent(
+                                "Content type",
+                                value: inspection.contentType
+                            )
+                            LabeledContent(
+                                "Original name",
+                                value: inspection.sourceName
+                            )
+                            if let preview = inspection.preview {
+                                Text(preview)
+                                    .textSelection(.enabled)
+                                    .accessibilityLabel(
+                                        "Verified bounded immutable source preview. \(preview)"
+                                    )
+                                if inspection.isPreviewTruncated {
+                                    Text("Preview truncated at the local safety limit.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else {
+                                Text(
+                                    "Binary content is verified, but raw bytes are not rendered as text."
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                     Button(row.lifecycleActionLabel) {
                         model.setLibrarySourceLifecycle(
-                            .hidden,
+                            row.lifecycle == .active ? .hidden : .active,
                             sourceID: row.id
                         )
                     }
@@ -78,12 +141,20 @@ struct LibraryView: View {
                         .foregroundStyle(.secondary)
                     ForEach(model.libraryPresentation.hiddenRows) { row in
                         HStack {
-                            VStack(alignment: .leading) {
-                                Text(row.modalityLabel)
-                                Text(row.id)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            Button {
+                                model.selectLibrarySource(row.id)
+                            } label: {
+                                VStack(alignment: .leading) {
+                                    Text(row.modalityLabel)
+                                    Text(row.id)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(
+                                "Open hidden local \(row.modalityLabel) source \(row.id)"
+                            )
                             Spacer()
                             Button(row.lifecycleActionLabel) {
                                 model.setLibrarySourceLifecycle(

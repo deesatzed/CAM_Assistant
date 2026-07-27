@@ -18,6 +18,23 @@ public enum SourceLifecycle: String, Codable, Equatable, Sendable {
     case hidden
 }
 
+public enum RawSourcePreviewAvailability: String, Equatable, Sendable {
+    case text
+    case binaryUnavailable
+}
+
+public struct RawSourceInspection: Equatable, Sendable {
+    public let sourceID: ContentID
+    public let verifiedSHA256: String
+    public let byteCount: Int
+    public let sourceName: String
+    public let contentType: String
+    public let lifecycle: SourceLifecycle
+    public let previewAvailability: RawSourcePreviewAvailability
+    public let preview: String?
+    public let isPreviewTruncated: Bool
+}
+
 public struct DerivedDocument: Equatable, Sendable {
     public let sourceID: ContentID
     public let text: String
@@ -170,6 +187,7 @@ public struct IngestWarning: Equatable, Sendable {
 public enum IngestQueueError: Error, Equatable {
     case sourceNotFound(ContentID)
     case invalidStoredRecord
+    case invalidPreviewCharacterLimit(Int)
 }
 
 public final class IngestQueue {
@@ -420,6 +438,66 @@ public final class IngestQueue {
         )
     }
 
+    public func inspectRawSource(
+        for sourceID: ContentID,
+        previewCharacterLimit: Int = 2_000
+    ) throws -> RawSourceInspection {
+        lock.lock()
+        defer { lock.unlock() }
+        guard (1...10_000).contains(previewCharacterLimit) else {
+            throw IngestQueueError.invalidPreviewCharacterLimit(
+                previewCharacterLimit
+            )
+        }
+        let rows = try database.query(
+            """
+            SELECT s.byte_count, s.source_name, s.content_type,
+                   COALESCE(l.status, ?)
+            FROM sources s
+            LEFT JOIN source_lifecycle l ON l.source_id = s.source_id
+            WHERE s.source_id = ?
+            """,
+            bindings: [
+                SourceLifecycle.active.rawValue,
+                sourceID.rawValue,
+            ]
+        )
+        guard let row = rows.first else {
+            throw IngestQueueError.sourceNotFound(sourceID)
+        }
+        guard row.count == 4,
+              let byteCountText = row[0],
+              let byteCount = Int(byteCountText),
+              let sourceName = row[1],
+              let contentType = row[2],
+              let lifecycleText = row[3],
+              let lifecycle = SourceLifecycle(rawValue: lifecycleText) else {
+            throw IngestQueueError.invalidStoredRecord
+        }
+
+        let data = try contentStore.data(for: sourceID)
+        guard data.count == byteCount else {
+            throw IngestQueueError.invalidStoredRecord
+        }
+
+        let previewResult = Self.textPreview(
+            data: data,
+            contentType: contentType,
+            characterLimit: previewCharacterLimit
+        )
+        return RawSourceInspection(
+            sourceID: sourceID,
+            verifiedSHA256: sourceID.rawValue,
+            byteCount: byteCount,
+            sourceName: sourceName,
+            contentType: contentType,
+            lifecycle: lifecycle,
+            previewAvailability: previewResult.availability,
+            preview: previewResult.text,
+            isPreviewTruncated: previewResult.isTruncated
+        )
+    }
+
     private func documents(where lifecyclePredicate: String) throws
         -> [DerivedDocument] {
         try database.query(
@@ -457,6 +535,35 @@ public final class IngestQueue {
             "SELECT source_id FROM sources WHERE source_id = ?",
             bindings: [sourceID.rawValue]
         )).isEmpty
+    }
+
+    private static func textPreview(
+        data: Data,
+        contentType: String,
+        characterLimit: Int
+    ) -> (
+        availability: RawSourcePreviewAvailability,
+        text: String?,
+        isTruncated: Bool
+    ) {
+        let normalizedType = contentType
+            .split(separator: ";", maxSplits: 1)
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        let textualApplicationTypes: Set<String> = [
+            "application/json",
+            "application/xml",
+            "application/yaml",
+            "application/x-yaml",
+        ]
+        guard normalizedType.hasPrefix("text/")
+                || textualApplicationTypes.contains(normalizedType),
+              let text = String(data: data, encoding: .utf8) else {
+            return (.binaryUnavailable, nil, false)
+        }
+        let preview = String(text.prefix(characterLimit))
+        return (.text, preview, preview.count < text.count)
     }
 
     public func warnings() throws -> [IngestWarning] {
