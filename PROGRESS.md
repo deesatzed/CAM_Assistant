@@ -834,6 +834,24 @@ gates are met.
   does not prove any remaining live model, web, CAM, Mac mutation, or complete
   GUI journey.
 
+### Native Library source detail and citation navigation — 2026-07-27
+
+- Expected reds: `LibraryPresentation` had aggregate modality counts only and
+  could not represent source rows, capture provenance, or resolve a citation
+  to a local source.
+- Green: Library now lists stable derived-source IDs, citation passage IDs,
+  modality, extractor, bounded derived preview, and every stored clipboard,
+  watched-folder, or repository capture origin.
+- Green: each cited local chat passage exposes `Open in Library`; navigation
+  succeeds only for an exact source/passage match and selects the corresponding
+  read-only detail.
+- Green: the focused ingestion/Library suite passed 17 tests;
+  `/bin/zsh scripts/verify.sh all` passed 159 tests and release-built the native
+  app and CLI; package validation, offline smoke, and `git diff --check` passed.
+- Boundary: the detail is derived local text and provenance only. It does not
+  expose immutable raw source bytes, edit or delete a source, create knowledge,
+  invoke a model, or change authority.
+
 ## Blockers
 
 None.

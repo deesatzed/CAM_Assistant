@@ -67,6 +67,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var taskPresentation = TaskListPresentation(records: [])
     @Published private(set) var taskError: String?
     @Published private(set) var libraryPresentation = LibraryPresentation(documents: [])
+    @Published var selectedLibrarySourceID: String?
     @Published private(set) var libraryError: String?
     @Published private(set) var isRefreshingWorkspace = false
     @Published private(set) var captureMessage: String?
@@ -301,6 +302,16 @@ final class AppModel: ObservableObject {
 
     func reloadLibrary() {
         reloadWorkspace()
+    }
+
+    func openLibrarySource(for citation: Citation) {
+        guard let row = libraryPresentation.row(for: citation) else {
+            libraryError = "That citation is not available in the current local library."
+            return
+        }
+        selectedLibrarySourceID = row.id
+        libraryError = nil
+        selection = .library
     }
 
     private func reloadWorkspace() {

@@ -37,14 +37,79 @@ public struct DerivedDocument: Equatable, Sendable {
 
 /// Read-only summary for the native Library surface. It contains no source
 /// bytes and does not alter ingestion or retention state.
+public struct LibraryCaptureRow: Equatable, Sendable, Identifiable {
+    public let id: UUID
+    public let capturedAt: Date
+    public let sourceName: String
+    public let contentType: String
+    public let originLabel: String
+
+    init(provenance: CaptureProvenance) {
+        id = provenance.captureID
+        capturedAt = provenance.capturedAt
+        sourceName = provenance.sourceName
+        contentType = provenance.contentType
+        originLabel = switch provenance.origin {
+        case .clipboard:
+            "Clipboard"
+        case let .watchedFolder(path):
+            "Watched folder: \(path)"
+        case let .repository(canonicalPath, commit):
+            "Repository: \(canonicalPath) @ \(commit)"
+        }
+    }
+}
+
+public struct LibrarySourceRow: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let passageID: String
+    public let preview: String
+    public let modalityLabel: String
+    public let extractorID: String
+    public let capturedAt: Date
+    public let captures: [LibraryCaptureRow]
+
+    init(document: DerivedDocument, provenance: [CaptureProvenance]) {
+        id = document.sourceID.rawValue
+        passageID = "\(document.sourceID.rawValue)#0"
+        preview = String(document.text.prefix(500))
+        modalityLabel = document.modality.rawValue.capitalized
+        extractorID = document.extractorID
+        capturedAt = document.capturedAt
+        captures = provenance.map(LibraryCaptureRow.init)
+    }
+}
+
 public struct LibraryPresentation: Equatable, Sendable {
     public let documentCount: Int
     public let modalityCounts: [DocumentModality: Int]
+    public let rows: [LibrarySourceRow]
 
     public init(documents: [DerivedDocument]) {
+        self.init(documents: documents, provenanceBySource: [:])
+    }
+
+    public init(
+        documents: [DerivedDocument],
+        provenanceBySource: [ContentID: [CaptureProvenance]]
+    ) {
         documentCount = documents.count
         modalityCounts = Dictionary(grouping: documents, by: \.modality)
             .mapValues(\.count)
+        rows = documents
+            .sorted { $0.sourceID.rawValue < $1.sourceID.rawValue }
+            .map {
+                LibrarySourceRow(
+                    document: $0,
+                    provenance: provenanceBySource[$0.sourceID] ?? []
+                )
+            }
+    }
+
+    public func row(for citation: Citation) -> LibrarySourceRow? {
+        rows.first {
+            $0.id == citation.sourceID && $0.passageID == citation.passageID
+        }
     }
 }
 

@@ -68,8 +68,15 @@ struct ConversationView: View {
                 }
             } else {
                 ForEach(response.citations, id: \.passageID) { citation in
-                    Text("Source: \(citation.sourceID) · \(citation.passageID)")
-                        .font(.caption)
+                    HStack {
+                        Text("Source: \(citation.sourceID) · \(citation.passageID)")
+                            .font(.caption)
+                        Button("Open in Library") {
+                            model.openLibrarySource(for: citation)
+                        }
+                        .buttonStyle(.link)
+                        .accessibilityHint("Opens the matching local derived source and its capture provenance.")
+                    }
                 }
             }
             HStack {

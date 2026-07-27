@@ -18,6 +18,46 @@ struct LibraryView: View {
                 ForEach(DocumentModality.allCases, id: \.self) { modality in
                     if let count = model.libraryPresentation.modalityCounts[modality], count > 0 { LabeledContent(modality.rawValue.capitalized, value: "\(count)") }
                 }
+                Divider()
+                Text("Local sources").font(.headline)
+                ForEach(model.libraryPresentation.rows) { row in
+                    Button {
+                        model.selectedLibrarySourceID = row.id
+                    } label: {
+                        HStack {
+                            Text(row.modalityLabel)
+                            Text(row.id).font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(row.captures.count) \(row.captures.count == 1 ? "capture" : "captures")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Open local \(row.modalityLabel) source \(row.id)")
+                }
+                if let selectedID = model.selectedLibrarySourceID,
+                   let row = model.libraryPresentation.rows.first(where: { $0.id == selectedID }) {
+                    Divider()
+                    Text("Source detail").font(.headline)
+                    LabeledContent("Source ID", value: row.id)
+                    LabeledContent("Citation passage", value: row.passageID)
+                    LabeledContent("Modality", value: row.modalityLabel)
+                    LabeledContent("Extractor", value: row.extractorID)
+                    Text(row.preview)
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Derived local text preview. \(row.preview)")
+                    Text("Capture provenance").font(.subheadline)
+                    ForEach(row.captures) { capture in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(capture.sourceName)
+                            Text("\(capture.originLabel) · \(capture.contentType)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
             }
             if let error = model.libraryError { Text(error).foregroundStyle(.red) }
             if !model.knowledgeClaims.isEmpty {

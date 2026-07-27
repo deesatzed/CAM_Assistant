@@ -16,6 +16,72 @@ func libraryPresentationSummarizesDerivedLocalDocumentsByModality() {
     #expect(presentation.modalityCounts[.code] == 1)
 }
 
+@Test("library source detail preserves citation identity and every capture provenance")
+func librarySourceDetailPreservesCitationIdentityAndCaptureProvenance() {
+    let sourceID = ContentID(rawValue: "source-a")
+    let capturedAt = Date(timeIntervalSince1970: 10)
+    let document = DerivedDocument(
+        sourceID: sourceID,
+        text: "A local note explains the approval boundary.",
+        modality: .markdown,
+        extractorID: "markdown-v1",
+        capturedAt: capturedAt
+    )
+    let provenance = [
+        CaptureProvenance(
+            captureID: UUID(),
+            sourceID: sourceID,
+            capturedAt: capturedAt,
+            sourceName: "note.md",
+            contentType: "text/markdown",
+            origin: .watchedFolder(path: "/approved/notes")
+        ),
+        CaptureProvenance(
+            captureID: UUID(),
+            sourceID: sourceID,
+            capturedAt: Date(timeIntervalSince1970: 20),
+            sourceName: "Clipboard",
+            contentType: "text/plain",
+            origin: .clipboard
+        ),
+    ]
+
+    let presentation = LibraryPresentation(
+        documents: [document],
+        provenanceBySource: [sourceID: provenance]
+    )
+
+    #expect(presentation.rows.count == 1)
+    #expect(presentation.rows[0].id == "source-a")
+    #expect(presentation.rows[0].passageID == "source-a#0")
+    #expect(presentation.rows[0].preview == document.text)
+    #expect(presentation.rows[0].modalityLabel == "Markdown")
+    #expect(presentation.rows[0].extractorID == "markdown-v1")
+    #expect(presentation.rows[0].captures.map(\.originLabel) == [
+        "Watched folder: /approved/notes",
+        "Clipboard",
+    ])
+    #expect(presentation.rows[0].captures.map(\.sourceName) == ["note.md", "Clipboard"])
+    #expect(
+        presentation.row(
+            for: Citation(
+                sourceID: "source-a",
+                passageID: "source-a#0",
+                quote: "approval boundary"
+            )
+        )?.id == "source-a"
+    )
+    #expect(
+        presentation.row(
+            for: Citation(
+                sourceID: "missing",
+                passageID: "missing#0",
+                quote: "not local"
+            )
+        ) == nil
+    )
+}
+
 @MainActor
 @Test("clipboard and folder inputs ingest every required local modality")
 func clipboardAndFolderIngestEveryRequiredModality() throws {
