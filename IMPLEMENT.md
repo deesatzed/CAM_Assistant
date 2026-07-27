@@ -32,8 +32,8 @@ Settled decisions live in `DECISIONS.md`. New decisions must identify:
 
 ## Implementation Phases
 
-Follow
-[`../docs/plans/2026-07-24-cam-personal-assistant.md`](../docs/plans/2026-07-24-cam-personal-assistant.md):
+Follow the current repository-local finish plan:
+[`docs/plans/2026-07-26-finish-wiki.md`](docs/plans/2026-07-26-finish-wiki.md).
 
 1. repository and native shell;
 2. storage and audit;

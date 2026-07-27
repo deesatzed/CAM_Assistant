@@ -46,6 +46,12 @@ case "$suite" in
   coordination)
     swift test --scratch-path .swift-build --filter CoordinationTests
     ;;
+  portability)
+    "$SCRIPT_DIR/verify-portability.sh"
+    ;;
+  fresh-clone)
+    "$SCRIPT_DIR/verify-fresh-clone.sh"
+    ;;
   retrieval)
     swift test --scratch-path .swift-build --filter RetrievalTests
     ;;
@@ -66,11 +72,15 @@ case "$suite" in
     "$SCRIPT_DIR/package-app.sh"
     ;;
   all)
+    "$SCRIPT_DIR/verify-portability.sh"
     swift test --scratch-path .swift-build
     swift build --scratch-path .swift-build -c release
+    if [[ "${CAM_ASSISTANT_SKIP_FRESH_CLONE:-0}" != "1" ]]; then
+      "$SCRIPT_DIR/verify-fresh-clone.sh"
+    fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|retrieval|retrieval-report|retrieval-project-contract-report|smoke|package|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|retrieval-report|retrieval-project-contract-report|smoke|package|all]"
     exit 64
     ;;
 esac

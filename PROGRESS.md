@@ -55,7 +55,7 @@ These states are evidence, not cleanup authorization.
 
 - See `DECISIONS.md`.
 - Controlling goal: `GOAL_FINISH_WIKI.md`.
-- Approved design: `../docs/plans/2026-07-24-cam-personal-assistant-design.md`.
+- Approved design: `docs/plans/2026-07-26-finish-wiki-design.md`.
 
 ## Current Milestone
 
