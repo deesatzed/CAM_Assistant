@@ -7,12 +7,16 @@ struct LibraryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("\(model.libraryPresentation.documentCount) indexed local sources").font(.title3)
+                Text("\(model.libraryPresentation.documentCount) active indexed local sources").font(.title3)
                 Spacer()
                 Button("Refresh", action: model.reloadLibrary).disabled(model.isRefreshingWorkspace)
             }
             if model.isRefreshingWorkspace { ProgressView("Refreshing local library") }
-            if model.libraryPresentation.documentCount == 0 {
+            if model.isUpdatingLibraryLifecycle {
+                ProgressView("Updating local source visibility")
+            }
+            if model.libraryPresentation.documentCount == 0
+                && model.libraryPresentation.hiddenCount == 0 {
                 ContentUnavailableView("Your local library is empty", systemImage: "books.vertical", description: Text("Capture the clipboard or index a selected repository to add local sources."))
             } else {
                 ForEach(DocumentModality.allCases, id: \.self) { modality in
@@ -47,6 +51,14 @@ struct LibraryView: View {
                     Text(row.preview)
                         .textSelection(.enabled)
                         .accessibilityLabel("Derived local text preview. \(row.preview)")
+                    Button(row.lifecycleActionLabel) {
+                        model.setLibrarySourceLifecycle(
+                            .hidden,
+                            sourceID: row.id
+                        )
+                    }
+                    .disabled(model.isUpdatingLibraryLifecycle)
+                    .accessibilityHint("Hides this derived source from Library citation navigation and local chat without deleting immutable source bytes or provenance.")
                     Text("Capture provenance").font(.subheadline)
                     ForEach(row.captures) { capture in
                         VStack(alignment: .leading, spacing: 2) {
@@ -56,6 +68,32 @@ struct LibraryView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .accessibilityElement(children: .combine)
+                    }
+                }
+                if !model.libraryPresentation.hiddenRows.isEmpty {
+                    Divider()
+                    Text("Hidden local sources").font(.headline)
+                    Text("Hidden sources remain in the immutable local vault and keep their provenance. Restore one to include it in Library citation navigation and local chat.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(model.libraryPresentation.hiddenRows) { row in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(row.modalityLabel)
+                                Text(row.id)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(row.lifecycleActionLabel) {
+                                model.setLibrarySourceLifecycle(
+                                    .active,
+                                    sourceID: row.id
+                                )
+                            }
+                            .disabled(model.isUpdatingLibraryLifecycle)
+                            .accessibilityHint("Restores this immutable local source to Library citation navigation and local chat.")
+                        }
                     }
                 }
             }
@@ -80,6 +118,6 @@ struct LibraryView: View {
                 }
             }
             Spacer()
-        }.padding().accessibilityLabel("Library. \(model.libraryPresentation.documentCount) indexed local sources.")
+        }.padding().accessibilityLabel("Library. \(model.libraryPresentation.documentCount) active and \(model.libraryPresentation.hiddenCount) hidden indexed local sources.")
     }
 }

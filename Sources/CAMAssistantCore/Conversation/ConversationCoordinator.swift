@@ -222,7 +222,13 @@ public final class LocalConversationContextProvider {
         guard let databaseURL else { return [] }
         let store = try SQLiteStore(databaseURL: databaseURL)
         let rows = try store.query(
-            "SELECT source_id, text, modality, extractor_id, created_at FROM derived_documents ORDER BY created_at DESC"
+            """
+            SELECT d.source_id, d.text, d.modality, d.extractor_id, d.created_at
+            FROM derived_documents d
+            LEFT JOIN source_lifecycle l ON l.source_id = d.source_id
+            WHERE COALESCE(l.status, 'active') = 'active'
+            ORDER BY d.created_at DESC
+            """
         )
         return rows.compactMap { row in
             guard row.count == 5,

@@ -13,6 +13,11 @@ public struct IngestResult: Equatable, Sendable {
     public let status: IngestJobStatus
 }
 
+public enum SourceLifecycle: String, Codable, Equatable, Sendable {
+    case active
+    case hidden
+}
+
 public struct DerivedDocument: Equatable, Sendable {
     public let sourceID: ContentID
     public let text: String
@@ -68,8 +73,22 @@ public struct LibrarySourceRow: Equatable, Sendable, Identifiable {
     public let extractorID: String
     public let capturedAt: Date
     public let captures: [LibraryCaptureRow]
+    public let lifecycle: SourceLifecycle
 
-    init(document: DerivedDocument, provenance: [CaptureProvenance]) {
+    public var lifecycleActionLabel: String {
+        switch lifecycle {
+        case .active:
+            "Hide from Library & Chat"
+        case .hidden:
+            "Restore to Library & Chat"
+        }
+    }
+
+    init(
+        document: DerivedDocument,
+        provenance: [CaptureProvenance],
+        lifecycle: SourceLifecycle = .active
+    ) {
         id = document.sourceID.rawValue
         passageID = "\(document.sourceID.rawValue)#0"
         preview = String(document.text.prefix(500))
@@ -77,23 +96,32 @@ public struct LibrarySourceRow: Equatable, Sendable, Identifiable {
         extractorID = document.extractorID
         capturedAt = document.capturedAt
         captures = provenance.map(LibraryCaptureRow.init)
+        self.lifecycle = lifecycle
     }
 }
 
 public struct LibraryPresentation: Equatable, Sendable {
     public let documentCount: Int
+    public let hiddenCount: Int
     public let modalityCounts: [DocumentModality: Int]
     public let rows: [LibrarySourceRow]
+    public let hiddenRows: [LibrarySourceRow]
 
     public init(documents: [DerivedDocument]) {
-        self.init(documents: documents, provenanceBySource: [:])
+        self.init(
+            documents: documents,
+            hiddenDocuments: [],
+            provenanceBySource: [:]
+        )
     }
 
     public init(
         documents: [DerivedDocument],
+        hiddenDocuments: [DerivedDocument] = [],
         provenanceBySource: [ContentID: [CaptureProvenance]]
     ) {
         documentCount = documents.count
+        hiddenCount = hiddenDocuments.count
         modalityCounts = Dictionary(grouping: documents, by: \.modality)
             .mapValues(\.count)
         rows = documents
@@ -101,7 +129,17 @@ public struct LibraryPresentation: Equatable, Sendable {
             .map {
                 LibrarySourceRow(
                     document: $0,
-                    provenance: provenanceBySource[$0.sourceID] ?? []
+                    provenance: provenanceBySource[$0.sourceID] ?? [],
+                    lifecycle: .active
+                )
+            }
+        hiddenRows = hiddenDocuments
+            .sorted { $0.sourceID.rawValue < $1.sourceID.rawValue }
+            .map {
+                LibrarySourceRow(
+                    document: $0,
+                    provenance: provenanceBySource[$0.sourceID] ?? [],
+                    lifecycle: .hidden
                 )
             }
     }
@@ -330,11 +368,67 @@ public final class IngestQueue {
     }
 
     public func documents() throws -> [DerivedDocument] {
+        try documents(where: """
+            COALESCE(l.status, '\(SourceLifecycle.active.rawValue)')
+                = '\(SourceLifecycle.active.rawValue)'
+            """)
+    }
+
+    public func hiddenDocuments() throws -> [DerivedDocument] {
+        try documents(where: "l.status = '\(SourceLifecycle.hidden.rawValue)'")
+    }
+
+    public func lifecycle(for sourceID: ContentID) throws -> SourceLifecycle {
+        guard try sourceExists(sourceID) else {
+            throw IngestQueueError.sourceNotFound(sourceID)
+        }
+        let rows = try database.query(
+            "SELECT status FROM source_lifecycle WHERE source_id = ?",
+            bindings: [sourceID.rawValue]
+        )
+        guard let value = rows.first?.first.flatMap({ $0 }) else {
+            return .active
+        }
+        guard let lifecycle = SourceLifecycle(rawValue: value) else {
+            throw IngestQueueError.invalidStoredRecord
+        }
+        return lifecycle
+    }
+
+    public func setLifecycle(
+        _ lifecycle: SourceLifecycle,
+        for sourceID: ContentID
+    ) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard try sourceExists(sourceID) else {
+            throw IngestQueueError.sourceNotFound(sourceID)
+        }
+        try database.execute(
+            """
+            INSERT INTO source_lifecycle(source_id, status, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(source_id) DO UPDATE SET
+                status = excluded.status,
+                updated_at = excluded.updated_at
+            """,
+            bindings: [
+                sourceID.rawValue,
+                lifecycle.rawValue,
+                String(Date().timeIntervalSince1970),
+            ]
+        )
+    }
+
+    private func documents(where lifecyclePredicate: String) throws
+        -> [DerivedDocument] {
         try database.query(
             """
             SELECT d.source_id, d.text, d.modality, d.extractor_id, s.created_at
             FROM derived_documents d
             JOIN sources s ON s.source_id = d.source_id
+            LEFT JOIN source_lifecycle l ON l.source_id = d.source_id
+            WHERE \(lifecyclePredicate)
             ORDER BY d.source_id ASC
             """
         ).map { row in
@@ -356,6 +450,13 @@ public final class IngestQueue {
                 capturedAt: Date(timeIntervalSince1970: capturedAt)
             )
         }
+    }
+
+    private func sourceExists(_ sourceID: ContentID) throws -> Bool {
+        !(try database.query(
+            "SELECT source_id FROM sources WHERE source_id = ?",
+            bindings: [sourceID.rawValue]
+        )).isEmpty
     }
 
     public func warnings() throws -> [IngestWarning] {

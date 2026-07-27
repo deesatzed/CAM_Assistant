@@ -9,7 +9,7 @@ public struct Migration: Sendable {
 }
 
 public enum Migrations {
-    public static let currentVersion = 6
+    public static let currentVersion = 7
 
     public static let all: [Migration] = [
         Migration(
@@ -159,6 +159,23 @@ public enum Migrations {
                 """
                 CREATE INDEX IF NOT EXISTS repository_idea_cards_snapshot_idx
                     ON repository_idea_cards(canonical_path, commit_sha, recorded_at DESC)
+                """,
+            ]
+        ),
+        Migration(
+            version: 7,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS source_lifecycle (
+                    source_id TEXT PRIMARY KEY NOT NULL,
+                    status TEXT NOT NULL,
+                    updated_at REAL NOT NULL,
+                    FOREIGN KEY(source_id) REFERENCES sources(source_id)
+                )
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS source_lifecycle_status_idx
+                    ON source_lifecycle(status, updated_at)
                 """,
             ]
         ),

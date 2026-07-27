@@ -66,14 +66,16 @@ individual proof gates are met.
 
 ## Next Actions
 
-1. Run the packaged selected-model chat journey when a local
+1. Add bounded, integrity-checked raw-source inspection without exposing
+   unrestricted binary content or changing immutable source bytes.
+2. Run the packaged selected-model chat journey when a local
    OpenAI-compatible model profile and service are available, recording exact
    runtime/model identity without treating their absence as a project blocker.
-2. Freeze a separately approved generated-answer corpus and measure
+3. Freeze a separately approved generated-answer corpus and measure
    claim/citation support plus warm end-to-end latency without changing the
    existing retrieval-v2 labels.
-3. Complete raw-source lifecycle and fresh-user/restart GUI proof while
-   preserving immutable source bytes.
+4. Complete fresh-user/restart GUI proof while preserving immutable source
+   bytes.
 
 ## Verification Receipts
 
@@ -899,6 +901,29 @@ individual proof gates are met.
   no external repo was modified, and no Python/Agno dependency was added.
   Checkpoint examples are syntax-only in their saved log and many workflow
   examples have red receipts, so none is treated as production proof.
+
+### Reversible local source visibility lifecycle — 2026-07-27
+
+- Expected reds: the Library presentation had no hidden-source collection or
+  lifecycle action contract, and `IngestQueue` had no durable source lifecycle
+  API. The corrected focused suite failed specifically on those missing APIs.
+- Green: SQLite schema version 7 stores explicit Active/Hidden source state;
+  missing legacy state remains Active. Hide and restore survive restart.
+- Green: hiding removes the derived document from active Library rows, exact
+  citation navigation, and database-backed local conversation context. Hidden
+  sources remain visible in a separate native review list with an explicit
+  Restore action.
+- Green: content-addressed bytes, object count, every capture provenance
+  record, and derived-document history remain unchanged through hide,
+  restart, and restore.
+- Green: 20 focused ingestion/lifecycle tests, 5 conversation tests, and 4
+  storage tests passed. `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh
+  scripts/verify.sh all` passed 168 tests and release-built the app and CLI;
+  package validation, offline smoke, and `git diff --check` passed.
+- Saved receipt: `docs/evidence/task-13-source-lifecycle.md`.
+- Boundary: Hidden is not deletion, secure erasure, or raw-source inspection.
+  Existing retained claims/citations are not rewritten; their Library
+  navigation remains unavailable until the source is restored.
 
 ## Blockers
 

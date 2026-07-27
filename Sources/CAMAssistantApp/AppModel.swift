@@ -74,6 +74,7 @@ final class AppModel: ObservableObject {
     @Published var selectedLibrarySourceID: String?
     @Published private(set) var libraryError: String?
     @Published private(set) var isRefreshingWorkspace = false
+    @Published private(set) var isUpdatingLibraryLifecycle = false
     @Published private(set) var captureMessage: String?
     @Published private(set) var hotkeyError: String?
     @Published private(set) var hotkeyStatus: GlobalHotkeyStatus = .unregistered
@@ -411,6 +412,58 @@ final class AppModel: ObservableObject {
         selectedLibrarySourceID = row.id
         libraryError = nil
         selection = .library
+    }
+
+    func setLibrarySourceLifecycle(
+        _ lifecycle: SourceLifecycle,
+        sourceID: String
+    ) {
+        let normalizedSourceID = sourceID.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !normalizedSourceID.isEmpty else {
+            libraryError = "The local source identity is invalid."
+            return
+        }
+        let databaseURL: URL
+        let contentURL: URL
+        do {
+            databaseURL = try LocalVaultPaths.databaseURL()
+            contentURL = try LocalVaultPaths.contentURL()
+        } catch {
+            libraryError = "The local source lifecycle could not be updated."
+            return
+        }
+        isUpdatingLibraryLifecycle = true
+        libraryError = nil
+        Task { [weak self] in
+            do {
+                try await Task.detached {
+                    let queue = try IngestQueue(
+                        databaseURL: databaseURL,
+                        contentStore: try ContentStore(
+                            rootDirectory: contentURL
+                        ),
+                        extractors: .localDefaults
+                    )
+                    try queue.setLifecycle(
+                        lifecycle,
+                        for: ContentID(rawValue: normalizedSourceID)
+                    )
+                }.value
+                if lifecycle == .hidden,
+                   self?.selectedLibrarySourceID == normalizedSourceID {
+                    self?.selectedLibrarySourceID = nil
+                }
+                self?.libraryError = nil
+                self?.isUpdatingLibraryLifecycle = false
+                self?.reloadLibrary()
+            } catch {
+                self?.libraryError =
+                    "The local source lifecycle could not be updated."
+                self?.isUpdatingLibraryLifecycle = false
+            }
+        }
     }
 
     private func reloadWorkspace() {

@@ -71,13 +71,15 @@ public struct LocalWorkspaceReader: Sendable {
     public static func library(databaseURL: URL, contentRootURL: URL) throws -> LibraryPresentation {
         let queue = try IngestQueue(databaseURL: databaseURL, contentStore: try ContentStore(rootDirectory: contentRootURL), extractors: .localDefaults)
         let documents = try queue.documents()
+        let hiddenDocuments = try queue.hiddenDocuments()
         let provenance = try Dictionary(
-            uniqueKeysWithValues: documents.map { document in
+            uniqueKeysWithValues: (documents + hiddenDocuments).map { document in
                 (document.sourceID, try queue.provenance(for: document.sourceID))
             }
         )
         return LibraryPresentation(
             documents: documents,
+            hiddenDocuments: hiddenDocuments,
             provenanceBySource: provenance
         )
     }

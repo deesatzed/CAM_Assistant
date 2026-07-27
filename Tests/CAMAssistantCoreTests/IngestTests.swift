@@ -82,6 +82,134 @@ func librarySourceDetailPreservesCitationIdentityAndCaptureProvenance() {
     )
 }
 
+@Test("library presentation separates hidden sources and resolves citations only to active sources")
+func libraryPresentationSeparatesHiddenSourcesFromCitationNavigation() {
+    let active = DerivedDocument(
+        sourceID: ContentID(rawValue: "active-source"),
+        text: "Active local evidence.",
+        modality: .text,
+        extractorID: "plain-text-v1",
+        capturedAt: .distantPast
+    )
+    let hidden = DerivedDocument(
+        sourceID: ContentID(rawValue: "hidden-source"),
+        text: "Hidden local evidence.",
+        modality: .markdown,
+        extractorID: "markdown-v1",
+        capturedAt: .distantPast
+    )
+
+    let presentation = LibraryPresentation(
+        documents: [active],
+        hiddenDocuments: [hidden],
+        provenanceBySource: [:]
+    )
+
+    #expect(presentation.documentCount == 1)
+    #expect(presentation.hiddenCount == 1)
+    #expect(presentation.rows.map(\.id) == ["active-source"])
+    #expect(presentation.hiddenRows.map(\.id) == ["hidden-source"])
+    #expect(presentation.rows[0].lifecycle == .active)
+    #expect(presentation.rows[0].lifecycleActionLabel == "Hide from Library & Chat")
+    #expect(presentation.hiddenRows[0].lifecycle == .hidden)
+    #expect(presentation.hiddenRows[0].lifecycleActionLabel == "Restore to Library & Chat")
+    #expect(
+        presentation.row(
+            for: Citation(
+                sourceID: "hidden-source",
+                passageID: "hidden-source#0",
+                quote: "Hidden local evidence."
+            )
+        ) == nil
+    )
+}
+
+@MainActor
+@Test("source lifecycle survives restart and never changes immutable bytes or provenance")
+func sourceLifecycleSurvivesRestartWithoutChangingImmutableSource() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let payload = Data("Lifecycle evidence remains immutable.".utf8)
+    let envelope = CaptureEnvelope(
+        id: UUID(),
+        capturedAt: Date(timeIntervalSince1970: 10),
+        sourceName: "lifecycle.txt",
+        contentType: "text/plain",
+        data: payload,
+        origin: .clipboard
+    )
+    let receipt = try harness.service.capture(envelope)
+    _ = try harness.queue.processNext()
+    let originalProvenance = try harness.queue.provenance(
+        for: receipt.sourceID
+    )
+
+    try harness.queue.setLifecycle(.hidden, for: receipt.sourceID)
+
+    #expect(try harness.queue.documents().isEmpty)
+    #expect(
+        try harness.queue.hiddenDocuments().map(\.sourceID)
+            == [receipt.sourceID]
+    )
+    #expect(try harness.contentStore.data(for: receipt.sourceID) == payload)
+    #expect(
+        try harness.queue.provenance(for: receipt.sourceID)
+            == originalProvenance
+    )
+
+    let restarted = try IngestQueue(
+        databaseURL: harness.databaseURL,
+        contentStore: harness.contentStore,
+        extractors: .localDefaults
+    )
+    #expect(
+        try restarted.lifecycle(for: receipt.sourceID) == .hidden
+    )
+    #expect(try restarted.documents().isEmpty)
+
+    try restarted.setLifecycle(.active, for: receipt.sourceID)
+
+    #expect(try restarted.documents().map(\.sourceID) == [receipt.sourceID])
+    #expect(try harness.contentStore.data(for: receipt.sourceID) == payload)
+    #expect(try harness.contentStore.objectCount() == 1)
+}
+
+@MainActor
+@Test("hidden sources leave local conversation context until explicitly restored")
+func hiddenSourcesLeaveLocalConversationContextUntilRestored() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let envelope = CaptureEnvelope(
+        id: UUID(),
+        capturedAt: Date(timeIntervalSince1970: 10),
+        sourceName: "context.txt",
+        contentType: "text/plain",
+        data: Data("The lifecycle phrase is locally searchable.".utf8),
+        origin: .clipboard
+    )
+    let receipt = try harness.service.capture(envelope)
+    _ = try harness.queue.processNext()
+    let provider = LocalConversationContextProvider(
+        databaseURL: harness.databaseURL
+    )
+
+    #expect(
+        try provider.context(for: "lifecycle phrase").passages
+            .map(\.sourceID) == [receipt.sourceID.rawValue]
+    )
+
+    try harness.queue.setLifecycle(.hidden, for: receipt.sourceID)
+    #expect(
+        try provider.context(for: "lifecycle phrase").passages.isEmpty
+    )
+
+    try harness.queue.setLifecycle(.active, for: receipt.sourceID)
+    #expect(
+        try provider.context(for: "lifecycle phrase").passages
+            .map(\.sourceID) == [receipt.sourceID.rawValue]
+    )
+}
+
 @MainActor
 @Test("clipboard and folder inputs ingest every required local modality")
 func clipboardAndFolderIngestEveryRequiredModality() throws {
