@@ -818,6 +818,22 @@ gates are met.
   CAM-mining, mutating Mac Care, accessibility, or distribution gates are
   implemented.
 
+### Portable fresh-clone verification — 2026-07-26
+
+- Expected red: focused portability tests failed because `IMPLEMENT.md` and
+  `PROGRESS.md` still depended on parent-workspace plans and `scripts/verify.sh`
+  had no portability or fresh-clone entry points.
+- Green: governing truth now resolves entirely inside the canonical repository;
+  tracked Finder/build/artifact output is rejected and `git diff --check` is
+  part of the portability receipt.
+- Green: a temporary `git clone --no-local` of commit `162de43` passed the
+  repository-local portability check, 158 tests, native app/CLI release build,
+  unsigned app package validation, and offline smoke.
+- Saved receipt: `docs/evidence/task-13-portable-fresh-clone.md`.
+- Boundary: this proves a clean clone can reproduce the local foundation. It
+  does not prove any remaining live model, web, CAM, Mac mutation, or complete
+  GUI journey.
+
 ## Blockers
 
 None.

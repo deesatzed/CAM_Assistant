@@ -19,4 +19,4 @@
 | CAM-015 | Persistent repository intelligence | Planned | Restart-safe jobs, removal lifecycle, evaluated semantic evidence, and idea promotion |
 | CAM-016 | Live bounded CAM/Codex | Planned | Pinned isolated runtime, closed typed executor, exact approval, verification, recovery, and controls |
 | CAM-017 | Safe Mac actions and module lifecycle | Planned | Closed reversible action set and packaged home-grown module proof |
-| CAM-018 | Final portability and release evidence | Planned | Fresh-clone verifier, accessibility/recovery journeys, final reality audit, and release report |
+| CAM-018 | Final portability and release evidence | In progress | Fresh-clone verifier complete; accessibility/recovery journeys, final reality audit, and release report remain |

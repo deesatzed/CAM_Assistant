@@ -52,6 +52,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-26 | Repository indexing supports explicit cancellation through UI-to-operation checkpoints. Cancellation prevents a new snapshot receipt but preserves immutable already-captured vault content for safe recovery | Active |
 | 2026-07-26 | `GOAL_FINISH_WIKI.md` is the self-contained controlling completion contract for the canonical `cam_wiki` repository. It preserves the approved three-layer product, makes the verified foundation explicit, and defines the remaining native wiki, local model, research, repository mining, CAM/Codex, Mac Care, module, usability, and release proof gates | Active |
 | 2026-07-26 | The confirmed recovered working tree is published as the canonical repository baseline on `main`. External parent-workspace goal files remain historical design inputs rather than required files for a fresh clone | Active |
+| 2026-07-26 | Aggregate verification begins with repository-local truth and tracked-artifact checks, then runs a non-recursive temporary local clone of the committed revision for tests, release build, package validation, and offline smoke. `CAM_ASSISTANT_SKIP_FRESH_CLONE=1` is an internal recursion guard used only inside that clone | Active |
 
 ## Initial Default Decisions
 
