@@ -10,7 +10,7 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 |---|---|
 | `/bin/zsh scripts/verify.sh all` | Repository portability gate plus 168 tests pass; native app and CLI release build pass; clean committed runs also execute the fresh-clone gate |
 | `/bin/zsh scripts/verify.sh portability` | Required truth files are local; no external governing links or tracked generated artifacts; diff check passes |
-| `/bin/zsh scripts/verify.sh fresh-clone` | Temporary local clone of commit `162de43` passes portability, 158 tests, release build, package, and offline smoke |
+| `/bin/zsh scripts/verify.sh fresh-clone` | Temporary local clone of lifecycle commit `a80367a` passes portability, 168 tests, release build, package, and offline smoke |
 | `/bin/zsh scripts/verify.sh smoke` | Offline native smoke reports capture/local search available and cloud auto-routing disabled |
 | `/bin/zsh scripts/verify.sh package` | Builds unsigned `artifacts/CAM Assistant.app`; `Info.plist` validates |
 | Native accessibility inspection of `artifacts/CAM Assistant.app` | Launches the packaged app and exposes local chat/capture controls plus `Global hotkeys active` |

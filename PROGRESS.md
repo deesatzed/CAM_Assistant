@@ -920,6 +920,8 @@ individual proof gates are met.
   storage tests passed. `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh
   scripts/verify.sh all` passed 168 tests and release-built the app and CLI;
   package validation, offline smoke, and `git diff --check` passed.
+- Green: a temporary clean clone of commit `a80367a` independently passed all
+  168 tests, release builds, package validation, and offline smoke.
 - Saved receipt: `docs/evidence/task-13-source-lifecycle.md`.
 - Boundary: Hidden is not deletion, secure erasure, or raw-source inspection.
   Existing retained claims/citations are not rewritten; their Library

@@ -25,6 +25,7 @@
 | `/bin/zsh scripts/verify.sh package` | PASS — production app and valid `Info.plist` |
 | `/bin/zsh scripts/verify.sh smoke` | PASS — offline capture/local-search smoke |
 | `git diff --check` | PASS |
+| `/bin/zsh scripts/verify.sh fresh-clone` | PASS — commit `a80367a`, 168 tests, release builds, package, and smoke |
 
 The lifecycle restart test reads the exact original bytes after hide and
 restore, confirms the object count remains one, and compares all provenance
