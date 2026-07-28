@@ -1404,7 +1404,7 @@ disabled until their individual proof gates are met.
   coverage, unique ordered IDs/lines, repository-relative existing evidence,
   legal verdicts, non-passed limitations, summary counts, and overall-status
   consistency.
-- Current honest verdict: `10 passed`, `27 partial`, `11 missing`, `0
+- Current honest verdict: `11 passed`, `26 partial`, `11 missing`, `0
   deferred`, overall `incomplete`.
 - Green: the focused contract and named `goal-map` verifier pass, and
   `scripts/verify.sh all` now runs that validation before build and test work.
@@ -1412,6 +1412,26 @@ disabled until their individual proof gates are met.
   of the audit map, not product completion. Only an all-`passed` map plus the
   remaining packaged/recovery/reality evidence may support the final claim.
 - CAM-018 remains in progress.
+
+### Unsigned package reproducibility — 2026-07-28
+
+- Red: the focused test failed because no two-build reproducibility verifier
+  existed; its aggregate-wiring assertion then failed until the named suite
+  was added to `verify.sh all`.
+- Green: two real release package builds at the same source/state produce an
+  identical canonical manifest covering all `4` bundle entries, their entry
+  types, permission modes, and file-content SHA-256 digests.
+- Green: exact package commit/build/dirty identity is validated after each
+  build; filesystem timestamps are excluded because they are not content or
+  source identity.
+- Green: the focused suite passes and aggregate verification now runs
+  `package-reproducibility` before the final package/evidence credential scan.
+- Goal-map effect: `release.reproducible-package` moves from `partial` to
+  `passed`; the overall goal remains `incomplete` at `11 passed`, `26 partial`,
+  and `11 missing`.
+- Claim boundary: this proves deterministic unsigned bundle content on the
+  reference environment at one source/state. Signing, notarization, and
+  distribution remain unapproved and unperformed.
 
 ## Blockers
 

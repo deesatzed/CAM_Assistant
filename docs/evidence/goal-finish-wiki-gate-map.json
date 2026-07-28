@@ -5,8 +5,8 @@
   "overallStatus": "incomplete",
   "summary": {
     "total": 48,
-    "passed": 10,
-    "partial": 27,
+    "passed": 11,
+    "partial": 26,
     "missing": 11,
     "deferred": 0
   },
@@ -486,12 +486,11 @@
       "id": "release.reproducible-package",
       "sourceLine": 237,
       "title": "Reproducible unsigned package and gated distribution",
-      "status": "partial",
+      "status": "passed",
       "evidence": [
         "docs/VERIFICATION_REPORT.md",
         "DECISIONS.md"
-      ],
-      "limitation": "Clean-clone packaging embeds exact deterministic identity, but byte-for-byte reproducibility is not yet compared; signing and distribution remain intentionally unauthorized."
+      ]
     },
     {
       "id": "release.final-report",

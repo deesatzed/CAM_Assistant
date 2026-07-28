@@ -67,6 +67,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-28 | Aggregate release verification scans the unsigned package and saved evidence for bounded credential/private-key signatures, emits only status/counts in an atomic JSON receipt, and fails without exposing matched bytes. This is a credential-signature gate, not a claim that arbitrary sensitive content is mechanically detectable | Active |
 | 2026-07-28 | Every unsigned app package embeds the exact Git commit, deterministic commit-count build number, and source dirty state in `Info.plist`; aggregate release verification rejects an identity mismatch. Wall-clock timestamps and branch names are excluded from package identity because they are not reproducible source identities | Active |
 | 2026-07-28 | The machine-readable finish-goal map keys every Proof-of-Done bullet to its exact source line, current verdict, evidence, and limitation under a pinned goal digest. Aggregate validation passes when the map is complete and honest even if its overall product verdict is `incomplete`; only an all-`passed` map may support final completion | Active |
+| 2026-07-28 | Unsigned package reproducibility compares two same-source builds through a canonical sorted manifest of every bundle entry type, permission mode, and content digest. Filesystem timestamps are intentionally excluded; exact package commit/build/dirty identity is verified separately after each build | Active |
 
 ## Initial Default Decisions
 

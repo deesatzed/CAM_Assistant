@@ -92,18 +92,22 @@ case "$suite" in
   goal-map)
     "$REPOSITORY_ROOT/Tests/ReleaseProofTests/goal-gate-map-tests.sh"
     ;;
+  package-reproducibility)
+    "$REPOSITORY_ROOT/Tests/ReleaseProofTests/package-reproducibility-tests.sh"
+    ;;
   all)
     "$SCRIPT_DIR/verify-portability.sh"
     "$SCRIPT_DIR/verify.sh" goal-map
     swift test --scratch-path .swift-build
     swift build --scratch-path .swift-build -c release
+    "$SCRIPT_DIR/verify.sh" package-reproducibility
     "$SCRIPT_DIR/verify.sh" release-privacy
     if [[ "${CAM_ASSISTANT_SKIP_FRESH_CLONE:-0}" != "1" ]]; then
       "$SCRIPT_DIR/verify-fresh-clone.sh"
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
     exit 64
     ;;
 esac
