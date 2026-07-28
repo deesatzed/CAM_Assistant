@@ -59,10 +59,12 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Complete the daily-use wiki and grounded local-model chat gate (CAM-013).
-Cloud-context loading, live catalog lookup, provider testing, web, embedding
-promotion, CAM mining, and mutating workflows remain disabled until their
-individual proof gates are met.
+Complete the evaluated semantic repository-evidence portion of CAM-015 while
+preserving the verified durable repository-job lifecycle. CAM-013 remains in
+progress because the frozen generated-answer quality checks pass but its
+latency gate does not. Cloud-context loading, live catalog lookup, provider
+testing, web, embedding promotion, CAM mining, and mutating workflows remain
+disabled until their individual proof gates are met.
 
 ## Next Actions
 
@@ -1217,4 +1219,15 @@ None.
 
 ## Questions for User
 
-None required for the initialization milestone.
+1. Approve or revise the proposed evidence-first hybrid design for semantic
+   repository observations: deterministic clean-commit evidence plus an
+   optional selected loopback local-model candidate generator and deterministic
+   citation/abstention validation.
+2. Choose whether generated-answer v2 should retain full generation below
+   `500 ms`, or split the gate into retrieval/context below `500 ms` and a
+   separately measured human-usable generation target.
+3. Choose the first full-vault backup package: integrity-checked local package
+   or password-encrypted portable package.
+
+These decisions do not block independent local proof work. No overall project
+blocker is asserted.
