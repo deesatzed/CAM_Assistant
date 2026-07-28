@@ -1046,6 +1046,9 @@ individual proof gates are met.
   sources remained in Library.
 - Green: all 184 tests passed and the corrected unsigned package rebuilt and
   validated.
+- Green: a temporary non-local clone of pushed commit `e5a0238` independently
+  passed portability, all 184 tests, release builds, package validation, and
+  offline smoke from a clean source tree.
 - Boundary: proof used only ignored harmless files and the disposable
   application-support root. It does not yet prove a native cancellation
   journey, backup/restore, or the selected-model journey.

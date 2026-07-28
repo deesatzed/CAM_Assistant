@@ -4,7 +4,8 @@ Date: 2026-07-27
 Platform: macOS 15, Apple Silicon
 Package: `artifacts/CAM Assistant.app`
 Branch: `agent/portable-canonical-repo`
-Feature commit: `715dfc3701e0cc8358b73ca2a8cd05ed65bd60b1`
+Hotkey/isolation commit: `715dfc3701e0cc8358b73ca2a8cd05ed65bd60b1`
+Watched-refresh commit: `e5a02388c51f66f5a7785e1f085e0f18327a9866`
 
 ## Scope
 
@@ -110,6 +111,11 @@ offline capture/local-search smoke passed with cloud auto-routing disabled
 commit 715dfc3701e0cc8358b73ca2a8cd05ed65bd60b1
 source dirty false
 183 tests, release build, package, and smoke passed
+
+/bin/zsh scripts/verify.sh fresh-clone
+commit e5a02388c51f66f5a7785e1f085e0f18327a9866
+source dirty false
+184 tests, release build, package, and smoke passed
 ```
 
 Focused coverage includes:
