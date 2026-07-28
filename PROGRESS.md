@@ -49,7 +49,7 @@ These states are evidence, not cleanup authorization.
 | 9. CAM adapter | Complete | Codex | Fixture conformance, non-executing proposals, unavailable-state UI, and release verification |
 | 10. Research and knowledge | Complete | Codex | Local checkpoint/resume, citation-bound facts, separate inferences, contradiction candidates, and native status |
 | 11. Mac Care and repositories | Complete | Codex | Read-only repository intake/idea proposals and digest-bound Mac assessment plans with unavailable executors |
-| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/restart journey now passes; cancellation, backup/restore, model, full accessibility, and completion audit remain |
+| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/cancel/restart/resume journeys pass; backup/restore, model, full accessibility, and completion audit remain |
 
 ## Decision Links
 
@@ -73,8 +73,8 @@ individual proof gates are met.
 2. Run the packaged selected-model chat journey with a versioned local profile,
    recording exact runtime/model identity and retaining visible no-fallback
    behavior.
-3. Extend the isolated packaged journey through capture cancellation,
-   backup/restore, and the remaining accessibility states.
+3. Extend the isolated packaged journey through full-vault backup/restore and
+   the remaining keyboard, VoiceOver, reduced-motion, and error states.
 
 ## Verification Receipts
 
@@ -1052,6 +1052,41 @@ individual proof gates are met.
 - Boundary: proof used only ignored harmless files and the disposable
   application-support root. It does not yet prove a native cancellation
   journey, backup/restore, or the selected-model journey.
+
+### Native ingest cancellation and restart recovery — 2026-07-28
+
+- Expected red: focused ingest tests failed to compile because the queue had no
+  persisted job-listing, direct cancellation, or exact-job resume APIs.
+- Green: Activity reads status-only persisted job metadata without source
+  bytes. Pending jobs can be cancelled; cancelled/failed jobs can be resumed;
+  invalid transitions fail; exact resume cannot consume an unrelated older
+  pending item.
+- Green: cancellation preserves content-addressed source bytes. Cancelled state
+  survives packaged-app restart; Resume completes local extraction and
+  refreshes Library.
+- Green: automatic capture remains the default. Only the explicit disposable
+  `CAM_ASSISTANT_DEFER_CAPTURE_PROCESSING=1` proof harness stops after durable
+  enqueue for native lifecycle review.
+- Accessibility red and correction: SwiftUI List grouped the visual job action
+  into its row description. The final scrollable Activity stack exposes
+  separate `Cancel pending ingest` and `Resume ingest` accessibility buttons;
+  both were exercised through their accessibility elements.
+- Green: the final isolated packaged journey progressed
+  Pending/0 -> Cancelled/0 -> restart -> Cancelled/0 -> Completed/1, then
+  Library reported one active indexed source. The isolated database independently
+  reported one source and one derived document.
+- Evidence correction: an invalid direct-binary launch did not inherit the
+  isolation environment and added its harmless marker to the normal local
+  vault. It is excluded from the valid proof, was not transmitted, and remains
+  untouched because deletion was not authorized.
+- Green: 25 focused ingest tests, 6 app tests, all 188 tests, portability,
+  app/CLI release builds, unsigned package validation, offline smoke, and
+  `git diff --check` passed locally.
+- Saved receipt:
+  `docs/evidence/task-13-ingest-cancellation-recovery.md`.
+- Boundary: this closes the bounded capture cancellation/recovery slice, not
+  full-vault backup/restore, background ingestion, secure deletion, selected
+  model, or complete accessibility/release gates.
 
 ## Blockers
 

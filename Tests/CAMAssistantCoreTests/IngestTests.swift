@@ -415,6 +415,73 @@ func cancelledIngestionCanBeResumed() throws {
     #expect(resumed.status == .completed)
 }
 
+@Test("ingest activity lists persisted jobs without source bytes")
+func ingestActivityListsPersistedJobs() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let receipt = try harness.service.capture(
+        ClipboardCapture.envelope(
+            text: "activity metadata only",
+            capturedAt: Date(timeIntervalSince1970: 10)
+        )
+    )
+
+    let job = try #require(try harness.queue.jobs().first)
+
+    #expect(job.sourceID == receipt.sourceID)
+    #expect(job.status == .pending)
+    #expect(job.sourceName == "Clipboard.txt")
+    #expect(job.contentType == "text/plain")
+    #expect(job.attempts == 0)
+}
+
+@Test("explicit ingest cancellation prevents pending processing")
+func explicitIngestCancellationPreventsPendingProcessing() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let receipt = try harness.service.capture(
+        ClipboardCapture.envelope(
+            text: "cancel before extraction",
+            capturedAt: Date(timeIntervalSince1970: 11)
+        )
+    )
+
+    try harness.queue.cancel(receipt.sourceID)
+
+    #expect(try harness.queue.jobStatus(for: receipt.sourceID) == .cancelled)
+    #expect(try harness.queue.processNext() == nil)
+    #expect(
+        try harness.contentStore.data(for: receipt.sourceID)
+            == Data("cancel before extraction".utf8)
+    )
+}
+
+@Test("resume processes the exact cancelled ingest job")
+func resumeProcessesExactCancelledIngestJob() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let first = try harness.service.capture(
+        ClipboardCapture.envelope(
+            text: "first remains pending",
+            capturedAt: Date(timeIntervalSince1970: 12)
+        )
+    )
+    let second = try harness.service.capture(
+        ClipboardCapture.envelope(
+            text: "second resumes directly",
+            capturedAt: Date(timeIntervalSince1970: 13)
+        )
+    )
+    try harness.queue.cancel(second.sourceID)
+
+    let resumed = try harness.queue.resume(second.sourceID)
+
+    #expect(resumed.status == .completed)
+    #expect(resumed.sourceID == second.sourceID)
+    #expect(try harness.queue.jobStatus(for: first.sourceID) == .pending)
+    #expect(try harness.queue.jobStatus(for: second.sourceID) == .completed)
+}
+
 @Test("pending queue and provenance survive restart")
 func pendingQueueAndProvenanceSurviveRestart() throws {
     let harness = try IngestHarness()

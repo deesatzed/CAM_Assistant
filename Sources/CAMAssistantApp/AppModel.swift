@@ -77,6 +77,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var isRefreshingWorkspace = false
     @Published private(set) var isUpdatingLibraryLifecycle = false
     @Published private(set) var isInspectingRawSource = false
+    @Published private(set) var ingestJobs: [IngestJobRecord] = []
+    @Published private(set) var activityError: String?
+    @Published private(set) var isRefreshingActivity = false
+    @Published private(set) var isUpdatingIngestJob = false
     @Published private(set) var captureMessage: String?
     @Published private(set) var hotkeyError: String?
     @Published private(set) var hotkeyStatus: GlobalHotkeyStatus = .unregistered
@@ -120,6 +124,7 @@ final class AppModel: ObservableObject {
         Self.makeWatchedSourceService { [weak self] in
             Task { @MainActor [weak self] in
                 self?.watchedSourceCaptureRefresh.perform()
+                self?.reloadIngestJobs()
             }
         }
     private let repositorySourceService: RepositorySourceService?
@@ -143,6 +148,7 @@ final class AppModel: ObservableObject {
         reloadModelSettings()
         reloadTasks()
         reloadLibrary()
+        reloadIngestJobs()
         reloadWatchedSources()
         reloadRepositoryIdeaHistory()
         reloadRepositorySources()
@@ -421,6 +427,108 @@ final class AppModel: ObservableObject {
         reloadWorkspace()
     }
 
+    func reloadIngestJobs() {
+        let databaseURL: URL
+        let contentURL: URL
+        do {
+            databaseURL = try LocalVaultPaths.databaseURL()
+            contentURL = try LocalVaultPaths.contentURL()
+        } catch {
+            ingestJobs = []
+            activityError = "Local ingest activity could not be read."
+            return
+        }
+        isRefreshingActivity = true
+        Task { [weak self] in
+            do {
+                let records = try await Task.detached {
+                    let queue = try IngestQueue(
+                        databaseURL: databaseURL,
+                        contentStore: try ContentStore(
+                            rootDirectory: contentURL
+                        ),
+                        extractors: .localDefaults
+                    )
+                    let records = try queue.jobs()
+                    try queue.close()
+                    return records
+                }.value
+                self?.ingestJobs = records
+                self?.activityError = nil
+            } catch {
+                self?.activityError = "Local ingest activity could not be read."
+            }
+            self?.isRefreshingActivity = false
+        }
+    }
+
+    func cancelIngestJob(_ sourceID: ContentID) {
+        updateIngestJob(sourceID, operation: .cancel)
+    }
+
+    func resumeIngestJob(_ sourceID: ContentID) {
+        updateIngestJob(sourceID, operation: .resume)
+    }
+
+    private enum IngestJobOperation {
+        case cancel
+        case resume
+    }
+
+    private func updateIngestJob(
+        _ sourceID: ContentID,
+        operation: IngestJobOperation
+    ) {
+        let databaseURL: URL
+        let contentURL: URL
+        do {
+            databaseURL = try LocalVaultPaths.databaseURL()
+            contentURL = try LocalVaultPaths.contentURL()
+        } catch {
+            activityError = "The local ingest job could not be updated."
+            return
+        }
+        isUpdatingIngestJob = true
+        activityError = nil
+        Task { [weak self] in
+            do {
+                try await Task.detached {
+                    let queue = try IngestQueue(
+                        databaseURL: databaseURL,
+                        contentStore: try ContentStore(
+                            rootDirectory: contentURL
+                        ),
+                        extractors: .localDefaults
+                    )
+                    switch operation {
+                    case .cancel:
+                        try queue.cancel(sourceID)
+                    case .resume:
+                        _ = try queue.resume(sourceID)
+                    }
+                    try queue.close()
+                }.value
+                switch operation {
+                case .cancel:
+                    self?.captureMessage =
+                        "Ingest cancelled locally. Original source bytes remain available."
+                case .resume:
+                    self?.captureMessage =
+                        "Ingest resumed and indexed locally."
+                    self?.reloadLibrary()
+                }
+                self?.activityError = nil
+                self?.isUpdatingIngestJob = false
+                self?.reloadIngestJobs()
+            } catch {
+                self?.activityError =
+                    "The local ingest job changed before it could be updated. Refresh and try again."
+                self?.isUpdatingIngestJob = false
+                self?.reloadIngestJobs()
+            }
+        }
+    }
+
     func selectLibrarySource(_ sourceID: String) {
         if selectedLibrarySourceID != sourceID {
             rawSourceInspection = nil
@@ -585,13 +693,22 @@ final class AppModel: ObservableObject {
                 contentStore: contentStore,
                 extractors: .localDefaults
             )
+            defer { try? queue.close() }
             let receipt = try CaptureService(queue: queue).capture(envelope)
-            _ = try queue.processNext()
-            captureMessage = receipt.wasDuplicateSource
-                ? "Clipboard is already in your local vault."
-                : "Clipboard captured and indexed locally."
+            if receipt.wasDuplicateSource {
+                captureMessage = "Clipboard is already in your local vault."
+            } else if CaptureProcessingPolicy.shouldDefer() {
+                captureMessage =
+                    "Clipboard queued locally. Review or cancel it in Activity."
+            } else {
+                _ = try queue.processNext()
+                captureMessage = "Clipboard captured and indexed locally."
+                reloadLibrary()
+            }
+            reloadIngestJobs()
         } catch {
             captureMessage = "Clipboard could not be captured locally."
+            reloadIngestJobs()
         }
     }
 

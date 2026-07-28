@@ -38,7 +38,7 @@ struct AssistantWindow: View {
         case .library:
             LibraryView(model: model)
         case .activity:
-            ActionCardView(card: model.pendingActionCard)
+            ActivityView(model: model)
         case .tasks:
             TaskListView(presentation: model.taskPresentation, errorMessage: model.taskError, isRefreshing: model.isRefreshingWorkspace, reload: model.reloadTasks, complete: model.completeTask)
         case .cam:

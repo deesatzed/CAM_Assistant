@@ -13,6 +13,18 @@ public struct IngestResult: Equatable, Sendable {
     public let status: IngestJobStatus
 }
 
+public struct IngestJobRecord: Equatable, Sendable, Identifiable {
+    public var id: String { sourceID.rawValue }
+    public let sourceID: ContentID
+    public let status: IngestJobStatus
+    public let attempts: Int
+    public let maxAttempts: Int
+    public let sourceName: String
+    public let contentType: String
+    public let createdAt: Date
+    public let updatedAt: Date
+}
+
 public enum SourceLifecycle: String, Codable, Equatable, Sendable {
     case active
     case hidden
@@ -188,9 +200,22 @@ public enum IngestQueueError: Error, Equatable {
     case sourceNotFound(ContentID)
     case invalidStoredRecord
     case invalidPreviewCharacterLimit(Int)
+    case invalidJobTransition(
+        sourceID: ContentID,
+        from: IngestJobStatus,
+        to: IngestJobStatus
+    )
 }
 
 public final class IngestQueue {
+    private struct PendingJob {
+        let sourceID: ContentID
+        let attempts: Int
+        let maxAttempts: Int
+        let sourceName: String
+        let contentType: String
+    }
+
     private let database: SQLiteStore
     private let contentStore: ContentStore
     private let extractors: ExtractorRegistry
@@ -276,19 +301,34 @@ public final class IngestQueue {
     ) throws -> IngestResult? {
         lock.lock()
         defer { lock.unlock() }
-        let rows = try database.query(
-            """
-            SELECT j.source_id, j.attempts, j.max_attempts, s.source_name, s.content_type
+        guard let job = try pendingJob() else { return nil }
+        return try process(job, isCancelled: isCancelled)
+    }
+
+    private func pendingJob(
+        for requestedSourceID: ContentID? = nil
+    ) throws -> PendingJob? {
+        var statement = """
+            SELECT j.source_id, j.attempts, j.max_attempts,
+                   s.source_name, s.content_type
             FROM ingest_jobs j
             JOIN sources s ON s.source_id = j.source_id
             WHERE j.status = ?
+            """
+        var bindings = [IngestJobStatus.pending.rawValue]
+        if let requestedSourceID {
+            statement += " AND j.source_id = ?"
+            bindings.append(requestedSourceID.rawValue)
+        }
+        statement += """
+
             ORDER BY j.created_at ASC, j.source_id ASC
             LIMIT 1
-            """,
-            bindings: [IngestJobStatus.pending.rawValue]
-        )
-        guard let row = rows.first,
-              row.count == 5,
+            """
+
+        let rows = try database.query(statement, bindings: bindings)
+        guard let row = rows.first else { return nil }
+        guard row.count == 5,
               let sourceIDText = row[0],
               let attemptsText = row[1],
               let attempts = Int(attemptsText),
@@ -296,22 +336,39 @@ public final class IngestQueue {
               let maxAttempts = Int(maxAttemptsText),
               let sourceName = row[3],
               let contentType = row[4] else {
-            if rows.isEmpty { return nil }
             throw IngestQueueError.invalidStoredRecord
         }
-        let sourceID = ContentID(rawValue: sourceIDText)
+        return PendingJob(
+            sourceID: ContentID(rawValue: sourceIDText),
+            attempts: attempts,
+            maxAttempts: maxAttempts,
+            sourceName: sourceName,
+            contentType: contentType
+        )
+    }
 
+    private func process(
+        _ job: PendingJob,
+        isCancelled: () -> Bool
+    ) throws -> IngestResult {
         if isCancelled() {
-            try updateStatus(.cancelled, for: sourceID, attempts: attempts)
-            return IngestResult(sourceID: sourceID, status: .cancelled)
+            try updateStatus(
+                .cancelled,
+                for: job.sourceID,
+                attempts: job.attempts
+            )
+            return IngestResult(
+                sourceID: job.sourceID,
+                status: .cancelled
+            )
         }
 
-        let data = try contentStore.data(for: sourceID)
+        let data = try contentStore.data(for: job.sourceID)
         do {
             let payload = try extractors.extract(
                 data: data,
-                sourceName: sourceName,
-                contentType: contentType
+                sourceName: job.sourceName,
+                contentType: job.contentType
             )
             try database.transaction {
                 try database.execute(
@@ -321,19 +378,27 @@ public final class IngestQueue {
                     ) VALUES (?, ?, ?, ?, ?)
                     """,
                     bindings: [
-                        sourceID.rawValue,
+                        job.sourceID.rawValue,
                         payload.text,
                         payload.modality.rawValue,
                         payload.extractorID,
                         String(Date().timeIntervalSince1970),
                     ]
                 )
-                try updateStatus(.completed, for: sourceID, attempts: attempts + 1)
+                try updateStatus(
+                    .completed,
+                    for: job.sourceID,
+                    attempts: job.attempts + 1
+                )
             }
-            return IngestResult(sourceID: sourceID, status: .completed)
+            return IngestResult(
+                sourceID: job.sourceID,
+                status: .completed
+            )
         } catch let error as ExtractorError {
-            let nextAttempt = attempts + 1
-            let status: IngestJobStatus = nextAttempt >= maxAttempts ? .failed : .pending
+            let nextAttempt = job.attempts + 1
+            let status: IngestJobStatus =
+                nextAttempt >= job.maxAttempts ? .failed : .pending
             try database.transaction {
                 try database.execute(
                     """
@@ -342,17 +407,21 @@ public final class IngestQueue {
                     ) VALUES (?, ?, ?, ?, ?)
                     """,
                     bindings: [
-                        sourceID.rawValue,
+                        job.sourceID.rawValue,
                         String(nextAttempt),
                         error.warningCode,
                         error.safeMessage,
                         String(Date().timeIntervalSince1970),
                     ]
                 )
-                try updateStatus(status, for: sourceID, attempts: nextAttempt)
+                try updateStatus(
+                    status,
+                    for: job.sourceID,
+                    attempts: nextAttempt
+                )
             }
             return IngestResult(
-                sourceID: sourceID,
+                sourceID: job.sourceID,
                 status: status == .pending ? .retrying : .failed
             )
         }
@@ -383,6 +452,88 @@ public final class IngestQueue {
             bindings: [sourceID.rawValue]
         )
         return rows.first?.first.flatMap { $0 }.flatMap(IngestJobStatus.init(rawValue:))
+    }
+
+    public func jobs() throws -> [IngestJobRecord] {
+        lock.lock()
+        defer { lock.unlock() }
+        return try database.query(
+            """
+            SELECT j.source_id, j.status, j.attempts, j.max_attempts,
+                   s.source_name, s.content_type, j.created_at, j.updated_at
+            FROM ingest_jobs j
+            JOIN sources s ON s.source_id = j.source_id
+            ORDER BY j.updated_at DESC, j.source_id ASC
+            """
+        ).map { row in
+            guard row.count == 8,
+                  let sourceIDText = row[0],
+                  let statusText = row[1],
+                  let status = IngestJobStatus(rawValue: statusText),
+                  let attemptsText = row[2],
+                  let attempts = Int(attemptsText),
+                  let maxAttemptsText = row[3],
+                  let maxAttempts = Int(maxAttemptsText),
+                  let sourceName = row[4],
+                  let contentType = row[5],
+                  let createdAtText = row[6],
+                  let createdAt = TimeInterval(createdAtText),
+                  let updatedAtText = row[7],
+                  let updatedAt = TimeInterval(updatedAtText) else {
+                throw IngestQueueError.invalidStoredRecord
+            }
+            return IngestJobRecord(
+                sourceID: ContentID(rawValue: sourceIDText),
+                status: status,
+                attempts: attempts,
+                maxAttempts: maxAttempts,
+                sourceName: sourceName,
+                contentType: contentType,
+                createdAt: Date(timeIntervalSince1970: createdAt),
+                updatedAt: Date(timeIntervalSince1970: updatedAt)
+            )
+        }
+    }
+
+    public func cancel(_ sourceID: ContentID) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let state = try jobState(for: sourceID) else {
+            throw IngestQueueError.sourceNotFound(sourceID)
+        }
+        guard state.status == .pending else {
+            throw IngestQueueError.invalidJobTransition(
+                sourceID: sourceID,
+                from: state.status,
+                to: .cancelled
+            )
+        }
+        try updateStatus(
+            .cancelled,
+            for: sourceID,
+            attempts: state.attempts
+        )
+    }
+
+    @discardableResult
+    public func resume(_ sourceID: ContentID) throws -> IngestResult {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let state = try jobState(for: sourceID) else {
+            throw IngestQueueError.sourceNotFound(sourceID)
+        }
+        guard state.status == .cancelled || state.status == .failed else {
+            throw IngestQueueError.invalidJobTransition(
+                sourceID: sourceID,
+                from: state.status,
+                to: .pending
+            )
+        }
+        try updateStatus(.pending, for: sourceID, attempts: 0)
+        guard let job = try pendingJob(for: sourceID) else {
+            throw IngestQueueError.invalidStoredRecord
+        }
+        return try process(job, isCancelled: { false })
     }
 
     public func documents() throws -> [DerivedDocument] {
@@ -658,5 +809,23 @@ public final class IngestQueue {
                 sourceID.rawValue,
             ]
         )
+    }
+
+    private func jobState(
+        for sourceID: ContentID
+    ) throws -> (status: IngestJobStatus, attempts: Int)? {
+        let rows = try database.query(
+            "SELECT status, attempts FROM ingest_jobs WHERE source_id = ?",
+            bindings: [sourceID.rawValue]
+        )
+        guard let row = rows.first else { return nil }
+        guard row.count == 2,
+              let statusText = row[0],
+              let status = IngestJobStatus(rawValue: statusText),
+              let attemptsText = row[1],
+              let attempts = Int(attemptsText) else {
+            throw IngestQueueError.invalidStoredRecord
+        }
+        return (status, attempts)
     }
 }
