@@ -49,7 +49,7 @@ These states are evidence, not cleanup authorization.
 | 9. CAM adapter | Complete | Codex | Fixture conformance, non-executing proposals, unavailable-state UI, and release verification |
 | 10. Research and knowledge | Complete | Codex | Local checkpoint/resume, citation-bound facts, separate inferences, contradiction candidates, and native status |
 | 11. Mac Care and repositories | Complete | Codex | Read-only repository intake/idea proposals and digest-bound Mac assessment plans with unavailable executors |
-| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/restart journey now passes; watched-folder, model, full accessibility, and completion audit remain |
+| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/restart journey now passes; cancellation, backup/restore, model, full accessibility, and completion audit remain |
 
 ## Decision Links
 
@@ -73,8 +73,8 @@ individual proof gates are met.
 2. Run the packaged selected-model chat journey with a versioned local profile,
    recording exact runtime/model identity and retaining visible no-fallback
    behavior.
-3. Extend the isolated packaged journey through watched-folder pause/resume/
-   remove/cancel plus backup/restore and the remaining accessibility states.
+3. Extend the isolated packaged journey through capture cancellation,
+   backup/restore, and the remaining accessibility states.
 
 ## Verification Receipts
 
@@ -1026,6 +1026,29 @@ individual proof gates are met.
   excluded; its local content was neither committed nor transmitted and was
   not deleted without authorization. The valid isolated proof does not close
   watched-folder, backup/restore, selected-model, or full accessibility gates.
+
+### Packaged watched-folder lifecycle and live Library refresh — 2026-07-28
+
+- Expected red: after a real watched-folder event, the isolated database
+  advanced from one to three sources and derived documents while the packaged
+  Library remained visibly stale at one.
+- Green: successful watched capture now posts a local status and schedules a
+  main-actor Library reload. The focused regression test requires message
+  before refresh.
+- Green: the corrected package updated an already-visible Library from three
+  to four active sources automatically after a watched event.
+- Green: folder selection began Paused; explicit Enable showed
+  `Watching locally`. Pause prevented an immediate capture and Resume returned
+  to watching. The next event captured both pending and new files, producing
+  six isolated sources.
+- Green: Remove returned the UI to no configured folders, a later file event
+  did not change the six-source count, and all previously captured immutable
+  sources remained in Library.
+- Green: all 184 tests passed and the corrected unsigned package rebuilt and
+  validated.
+- Boundary: proof used only ignored harmless files and the disposable
+  application-support root. It does not yet prove a native cancellation
+  journey, backup/restore, or the selected-model journey.
 
 ## Blockers
 

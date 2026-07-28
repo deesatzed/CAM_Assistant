@@ -9,9 +9,11 @@ Feature commit: `715dfc3701e0cc8358b73ca2a8cd05ed65bd60b1`
 ## Scope
 
 This receipt covers a fresh packaged-app run, real global open and clipboard
-capture hotkeys, visible collision handling, and restart recovery against a
-disposable application-support root. It does not claim the remaining watched
-folder, backup/restore, selected-model, or complete accessibility journeys.
+capture hotkeys, visible collision handling, watched-folder add/pause/resume/
+remove behavior, automatic Library refresh, and restart recovery against a
+disposable application-support root. It does not claim the remaining capture
+cancellation, backup/restore, selected-model, or complete accessibility
+journeys.
 
 ## Expected reds and correction
 
@@ -62,11 +64,36 @@ override preserves the normal macOS Application Support location.
   root, Library reported one active indexed source, K/C reloaded, and
   `Global hotkeys active` remained visible.
 
+## Watched-folder lifecycle results
+
+- The picker added only the disposable ignored folder
+  `artifacts/gui-proof-watched`. It appeared Paused and did not watch until the
+  explicit Enable action.
+- Enabling changed its native status to `Watching locally`.
+- The watcher successfully indexed the existing harmless file plus a new
+  event, advancing the isolated vault from one to three sources and derived
+  documents.
+- Expected red: the database advanced to three while the visible Library
+  remained at one. Background capture had no path back to the main-actor
+  Library presentation.
+- A focused regression test now requires a successful watched capture to set a
+  local status message and then refresh Library. The packaged UI subsequently
+  changed in place from three to four active sources without navigation or a
+  manual Refresh action.
+- Pause changed the status to `Paused`; a new file event left vault and derived
+  counts at four while paused.
+- Resume restored `Watching locally`. The next event captured both the pending
+  paused-period file and the new file, bringing the isolated Library to six.
+- Remove returned the pane to `No folders are configured for automatic local
+  capture.` A later file event left both counts at six.
+- Removal stopped the watcher and removed only its configuration. The six
+  already captured immutable sources remained visible in Library.
+
 ## Automated verification
 
 ```text
 swift test --disable-sandbox --scratch-path .swift-build
-183 tests passed
+184 tests passed
 
 CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all
 portability, 183 tests, and app/CLI release build passed
@@ -91,6 +118,7 @@ Focused coverage includes:
 - collision-safe default shortcut;
 - explicit macOS virtual key codes;
 - the three reachable Settings panes;
+- successful watched-capture status followed by Library refresh;
 - isolated application-support routing; and
 - rejection of ambiguous isolation paths.
 
@@ -102,6 +130,7 @@ from this receipt, was not committed or transmitted, and remains untouched
 because deletion was not authorized. The valid proof above used only the
 disposable root and a harmless marker while restoring the existing clipboard.
 
-The temporary proof root is disposable runtime evidence, not a shipped fixture.
-This receipt proves the bounded packaged hotkey/capture/restart slice only; it
-does not close all CAM-013 or full-product gates.
+The temporary proof root and ignored watched-folder files are disposable
+runtime evidence, not shipped fixtures. This receipt proves the bounded
+packaged hotkey/capture/watched-source/restart slice only; it does not close all
+CAM-013 or full-product gates.

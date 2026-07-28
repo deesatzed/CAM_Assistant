@@ -108,7 +108,20 @@ final class AppModel: ObservableObject {
     @Published private(set) var isUpdatingWatchedSources = false
     private let hotkeyManager = HotkeyManager()
     private let foregroundActivation: AssistantForegroundActivation
-    private let watchedSourceService: WatchedSourceService?
+    private lazy var watchedSourceCaptureRefresh = WatchedSourceCaptureRefresh(
+        setMessage: { [weak self] message in
+            self?.captureMessage = message
+        },
+        reloadLibrary: { [weak self] in
+            self?.reloadLibrary()
+        }
+    )
+    private lazy var watchedSourceService: WatchedSourceService? =
+        Self.makeWatchedSourceService { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.watchedSourceCaptureRefresh.perform()
+            }
+        }
     private let repositorySourceService: RepositorySourceService?
     private var repositorySnapshot: RepositorySnapshot?
     private var repositoryObservationEvidence: [RepositoryObservation] = []
@@ -125,7 +138,6 @@ final class AppModel: ObservableObject {
     ) {
         self.health = health
         self.foregroundActivation = foregroundActivation
-        watchedSourceService = Self.makeWatchedSourceService()
         repositorySourceService = Self.makeRepositorySourceService()
         loadHotkeyConfiguration()
         reloadModelSettings()
@@ -691,7 +703,9 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private nonisolated static func makeWatchedSourceService() -> WatchedSourceService? {
+    private nonisolated static func makeWatchedSourceService(
+        onCapture: @escaping @Sendable () -> Void
+    ) -> WatchedSourceService? {
         do {
             let store = WatchedSourceConfigurationStore(
                 url: try LocalVaultPaths.rootURL().appending(path: "watched-sources.json")
@@ -706,6 +720,7 @@ final class AppModel: ObservableObject {
                     _ = try CaptureService(queue: queue).capture(envelope)
                     _ = try queue.processNext()
                     try queue.close()
+                    onCapture()
                 } catch {}
             }
             return WatchedSourceService(store: store, manager: manager)
