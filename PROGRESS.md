@@ -1326,6 +1326,30 @@ disabled until their individual proof gates are met.
   process, preference, account, credential, or system setting was changed.
   CAM-017 remains planned.
 
+### UX, accessibility, recovery, and release gap audit — 2026-07-28
+
+- Green foundation: four current focused accessibility tests and ten app tests
+  pass. Existing disposable packaged receipts remain valid for hotkeys,
+  watched sources, ingest recovery, selected local-model chat/citations,
+  question focus, sidebar keyboard traversal, and repaired accessibility
+  containment.
+- Proof boundary: several app accessibility tests are source-contract checks,
+  not runtime accessibility-tree or VoiceOver proof. Package validation checks
+  bundle syntax, and offline smoke executes a direct debug binary's special
+  mode rather than a packaged interaction.
+- Aggregate gap: `verify.sh all` does not automate the saved GUI journeys,
+  VoiceOver speech, contrast/text-scale/large-data matrices, full-vault
+  recovery, or a unified fresh-user/restart journey. There is no XCTest UI
+  target or repository-owned packaged journey harness.
+- Release gap: no final machine-readable requirement map, final package/evidence
+  privacy scan, embedded commit/build identity, signing, notarization, or
+  distribution proof exists. The latter three remain policy/credential gated.
+- Saved audit:
+  `docs/evidence/task-18-ux-release-gap-audit.md`.
+- Boundary: no packaged GUI, VoiceOver speech, visual measurement, backup,
+  signing, notarization, or distribution action occurred. CAM-012 and CAM-018
+  remain in progress.
+
 ## Blockers
 
 None.
