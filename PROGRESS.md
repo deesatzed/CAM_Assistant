@@ -1118,6 +1118,9 @@ individual proof gates are met.
 - Green verification: the focused red/green test passed, the aggregate
   verifier passed all 189 tests plus app/CLI release builds, the unsigned
   package rebuilt and validated, and `git diff --check` passed.
+- Green: a temporary non-local clone of pushed commit `5ea2395` independently
+  passed portability, all 189 tests, app/CLI release builds, package
+  validation, and offline smoke from a clean source tree.
 - Saved receipts:
   `docs/evidence/task-13-generated-answer-evaluation.md`,
   `docs/evidence/task-13-generated-answer-gemma-4-12b-optiq-report.json`, and
