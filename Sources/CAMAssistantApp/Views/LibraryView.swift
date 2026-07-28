@@ -189,6 +189,9 @@ struct LibraryView: View {
                 }
             }
             Spacer()
-        }.padding().accessibilityLabel("Library. \(model.libraryPresentation.documentCount) active and \(model.libraryPresentation.hiddenCount) hidden indexed local sources.")
+        }
+        .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Library. \(model.libraryPresentation.documentCount) active and \(model.libraryPresentation.hiddenCount) hidden indexed local sources.")
     }
 }

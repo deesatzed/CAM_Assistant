@@ -62,6 +62,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-28 | A successful watched-folder capture must publish a local status and refresh the native Library on the main actor. Pause stops event handling; Resume may capture files that appeared while paused when a later filesystem event causes a bounded rescan; Remove stops watching and removes only source configuration, never retained immutable vault content | Active |
 | 2026-07-28 | Native ingest cancellation is a persisted job-state transition, not source deletion. Only Pending may become Cancelled; only Cancelled/Failed may resume; exact resume processes the selected job and preserves immutable bytes. Normal capture remains automatic, while the explicit deferral environment is limited to disposable packaged verification. Activity must expose Cancel/Resume as independent accessibility actions | Active |
 | 2026-07-28 | Database-backed local chat must rebuild and open the persistent retrieval generation, then rank through `HybridRetriever`; it may not use a separate all-question-token substring filter. Retrieved chunks map to the existing canonical `source#0` derived-document citation so exact Library navigation and current retention boundaries remain stable | Active |
+| 2026-07-28 | A workspace summary accessibility label must preserve descendant controls and state descriptions with contained-child semantics. Summary labels may add context but cannot replace empty, error, recovery, or action elements in the native accessibility tree | Active |
 
 ## Initial Default Decisions
 

@@ -24,6 +24,9 @@ struct MacCareView: View {
             }
             else { Text("Selected storage, application, and startup facts can be assessed locally. Any maintenance plan needs exact approval and cannot apply or undo changes in this milestone.") }
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
-        }.padding().accessibilityLabel("Mac Care. Read-only assessment. Apply and undo are unavailable.")
+        }
+        .padding()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Mac Care. Read-only assessment. Apply and undo are unavailable.")
     }
 }

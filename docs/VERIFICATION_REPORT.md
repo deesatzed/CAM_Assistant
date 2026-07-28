@@ -8,13 +8,13 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 
 | Command | Result |
 |---|---|
-| `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` | Repository portability gate plus 189 tests pass; native app and CLI release build pass |
+| `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` | Repository portability gate plus 191 tests pass; native app and CLI release build pass |
 | `/bin/zsh scripts/verify.sh generated` | Frozen generated-answer evaluator, structured local-model inference, explicit abstention, and conversation-boundary tests pass |
 | `/bin/zsh scripts/verify.sh portability` | Required truth files are local; no external governing links or tracked generated artifacts; diff check passes |
 | `/bin/zsh scripts/verify.sh fresh-clone` | Temporary non-local clone of selected-model checkpoint `5ea2395` passes portability, 189 tests, app/CLI release builds, package validation, and offline smoke from a clean source tree |
 | `/bin/zsh scripts/verify.sh smoke` | Offline native smoke reports capture/local search available and cloud auto-routing disabled |
 | `/bin/zsh scripts/verify.sh package` | Builds unsigned `artifacts/CAM Assistant.app`; `Info.plist` validates |
-| Native accessibility inspection of `artifacts/CAM Assistant.app` | Real global open/capture hotkeys, watched-source lifecycle, persisted cancellation/restart/resume, independent Activity Cancel/Resume controls, exact selected-model health/generation identity, and generated-citation Library navigation pass against disposable roots |
+| Native accessibility inspection of `artifacts/CAM Assistant.app` | Real global open/capture hotkeys, watched-source lifecycle, persisted cancellation/restart/resume, independent Activity Cancel/Resume controls, exact selected-model health/generation identity, generated-citation Library navigation, initial/retained question focus, ordered keyboard sidebar navigation, primary-workspace labels/values, accessible empty/error/read-only states, and motion-free source scan pass against disposable roots |
 | `git diff --check` | Passes after the latest documentation update |
 
 ## Requirement-by-requirement evidence
@@ -27,7 +27,7 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 | Repository and idea intelligence | Persisted user-selected repository paths with explicit later inspection, read-only temporary Git intake, restart-safe local snapshot receipts keyed by canonical path and commit, digest-aware committed-byte snapshots, local permitted-file indexing with repository provenance, incremental local reindexing of added/content-changed files, visible cancellation that prevents a new receipt while preserving immutable captured bytes, native commit-cited TODO/FIXME, Swift declaration, and literal import-dependency review rows, and a user-authored counterevidence/validation-experiment idea that must first create a proposal then can be explicitly kept or rejected as a cited local card, saved as a cited local-read task, explicitly promoted into a kept local research plan, or saved as a cited proposal-authority Codex-plan handoff | Partial: indexing lacks persisted jobs and a background scheduler; observations remain deterministic markers/declarations/import facts rather than semantic analysis; the Codex handoff does not invoke a live Codex coordinator; no exact-approved CAM mining execution proof exists |
 | Research, Mac Care, modules | Citation-bound local facts/assumptions and unresolved contradiction candidates can be explicitly retained; native Library controls select two distinct claims, require a steelman, optionally retain a bridge, and keep both positions visible; research plans and citation-validated fact/inference packets have separate explicit local Keep stores and checkpoint resume; an explicit repository-idea promotion preserves source/commit/citation/confidence/counterevidence/validation provenance without repository bytes; user-triggered non-blocking read-only Mac assessment with free-space percentage plus bounded storage/startup/application inventory review findings; module tests | Partial: no web/document acquisition, outbound/cost receipts, native verified-packet authoring/review UI, app-usage/need assessment, or available Mac apply/undo executor |
 | CAM/Codex coordination | Fixture-pinned CAM contract/schema, unavailable/incompatible handling, proposal-only adapter; one bounded local loop with macOS OS-file-lock ownership, native child-process contention proof, content-addressed evidence, versioned reducer transitions, atomic v1-to-v2 event/snapshot migration, digest-bound snapshots, restart replay, stale-version/sequence refusal, integrity checks, and JSON/Markdown handoff packets | Partial: no remote/multi-machine lease, tool/retry executor, graph dispatch, live pinned runtime/database/config verification, or CLI/UI controls |
-| Usability, evidence, release | Native chat/capture surface, local task promotion, empty/offline/accessibility labels, real packaged hotkey, capture-source, ingest recovery, selected-model, and citation-navigation journeys, independent accessible ingest Cancel/Resume controls, package/smoke scripts, and exact-commit temporary fresh-clone proof with repository-local truth | Partial: no complete keyboard/focus/VoiceOver/reduced-motion matrix, full backup/recovery journey, signed/notarized distribution, or final release audit |
+| Usability, evidence, release | Native chat/capture surface, local task promotion, empty/offline/accessibility labels, real packaged hotkey, capture-source, ingest recovery, selected-model, and citation-navigation journeys, independent accessible ingest Cancel/Resume controls, initial/retained question focus, ordered keyboard sidebar navigation, primary-workspace labels/values, repaired empty/read-only child semantics, no app-authored motion APIs, package/smoke scripts, and exact-commit temporary fresh-clone proof with repository-local truth | Partial: no end-to-end VoiceOver spoken-audio/every-tab-stop/populated-large-data/contrast/dynamic-type matrix, full backup/recovery journey, signed/notarized distribution, or final release audit |
 
 ## Hard remaining gates
 
@@ -54,8 +54,10 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
    verifier postconditions, a closed safe tool/retry executor, and native
    controls before considering a graph or specialist agents. Remote or
    multi-machine coordination remains a separate future design.
-8. Complete keyboard/focus/VoiceOver/reduced-motion verification and final
-   release evidence after all above gates pass.
+8. Extend the now-passing keyboard/focus/primary-workspace accessibility and
+   motion-free slice with end-to-end VoiceOver spoken-audio, every-tab-stop,
+   populated-large-data, contrast, and dynamic-type verification, then complete
+   final release evidence after all above gates pass.
 
 ## Non-claims
 

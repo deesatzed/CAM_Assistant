@@ -37,6 +37,7 @@ struct TaskListView: View {
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
         .padding()
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Tasks. \(presentation.openCount) open local tasks.")
     }
 }

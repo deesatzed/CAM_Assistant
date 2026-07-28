@@ -1129,6 +1129,40 @@ individual proof gates are met.
   LM Studio adapter, not the frozen latency gate, native in-process MLX,
   full-vault backup/restore, or the remaining accessibility/release gates.
 
+### Packaged accessibility, keyboard, and motion slice — 2026-07-28
+
+- Green baseline: the isolated unsigned package opened with the local question
+  field focused; blank Return exposed the validation error and retained focus.
+  Tab selected the sidebar and Down traversed Library, Activity, Tasks, CAM,
+  Research, Repositories, Mac Care, and Settings in order.
+- Green semantics: Activity, CAM, Research, Repositories, Settings, Hotkeys,
+  and Capture Sources exposed their controls, selected values, empty/offline
+  states, and local/disabled-execution boundaries in the native accessibility
+  tree. A disposable duplicate-hotkey attempt exposed its error while retaining
+  field focus.
+- Expected red: Library, Tasks, and Mac Care collapsed their descendants into
+  repeated root summary labels, hiding meaningful empty/read-only descriptions
+  and controls from the accessibility tree.
+- TDD correction: the new source-contract regression failed against all three
+  views. Their root summary elements now preserve children with
+  `.accessibilityElement(children: .contain)`. Review then tightened the
+  regression to bind the exact root chain to each required state/action and
+  added a negative case that rejects unrelated containment; both focused tests
+  pass.
+- Green packaged recheck: the rebuilt Library exposes Refresh plus its empty
+  guidance, Tasks exposes Refresh plus its no-saved-tasks guidance, and Mac
+  Care exposes its assessment control plus exact read-only/approval boundary.
+- Green motion scan: the app target contains no explicit SwiftUI animation,
+  transition, matched-geometry, symbol-effect, or content-transition APIs.
+- Green verification: portability, all 191 tests, the release build, package
+  validation, native offline smoke, and `git diff --check` pass.
+- Saved receipt:
+  `docs/evidence/task-12-packaged-accessibility.md`.
+- Boundary: this is a strong accessibility matrix slice, not a complete
+  VoiceOver spoken-audio, every-tab-stop, populated-large-data, contrast,
+  dynamic-type, signed-distribution, or final release proof. CAM-012 and
+  CAM-018 remain in progress.
+
 ## Blockers
 
 None.
