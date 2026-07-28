@@ -89,8 +89,12 @@ case "$suite" in
       "$REPOSITORY_ROOT/artifacts/CAM Assistant.app" \
       "$REPOSITORY_ROOT/docs/evidence"
     ;;
+  goal-map)
+    "$REPOSITORY_ROOT/Tests/ReleaseProofTests/goal-gate-map-tests.sh"
+    ;;
   all)
     "$SCRIPT_DIR/verify-portability.sh"
+    "$SCRIPT_DIR/verify.sh" goal-map
     swift test --scratch-path .swift-build
     swift build --scratch-path .swift-build -c release
     "$SCRIPT_DIR/verify.sh" release-privacy
@@ -99,7 +103,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|all]"
     exit 64
     ;;
 esac

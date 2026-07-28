@@ -1392,6 +1392,27 @@ disabled until their individual proof gates are met.
   the final requirement map, recovery, packaged GUI, accessibility, signing,
   notarization, or distribution gates.
 
+### Machine-readable finish-goal gate map — 2026-07-28
+
+- Red: the release-proof test failed because no goal-gate validator or
+  machine-readable map existed; its aggregate-wiring assertion then failed
+  until `verify.sh all` invoked the new suite.
+- Green: `docs/evidence/goal-finish-wiki-gate-map.json` maps all `48`
+  Proof-of-Done bullets by exact source line to a stable ID, verdict, existing
+  repository evidence, and a limitation for every non-passed gate.
+- Green: the validator proves the controlling goal SHA-256, one-to-one bullet
+  coverage, unique ordered IDs/lines, repository-relative existing evidence,
+  legal verdicts, non-passed limitations, summary counts, and overall-status
+  consistency.
+- Current honest verdict: `10 passed`, `27 partial`, `11 missing`, `0
+  deferred`, overall `incomplete`.
+- Green: the focused contract and named `goal-map` verifier pass, and
+  `scripts/verify.sh all` now runs that validation before build and test work.
+- Claim boundary: a passing map validator proves completeness and consistency
+  of the audit map, not product completion. Only an all-`passed` map plus the
+  remaining packaged/recovery/reality evidence may support the final claim.
+- CAM-018 remains in progress.
+
 ## Blockers
 
 None.

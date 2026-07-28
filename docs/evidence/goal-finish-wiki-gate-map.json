@@ -1,0 +1,508 @@
+{
+  "schemaVersion": 1,
+  "sourceGoal": "GOAL_FINISH_WIKI.md",
+  "sourceGoalSHA256": "92f771c5edf9df76e827f2b7f13f87aa2cd1e8f690e053aa9bb113a448b1755a",
+  "overallStatus": "incomplete",
+  "summary": {
+    "total": 48,
+    "passed": 10,
+    "partial": 27,
+    "missing": 11,
+    "deferred": 0
+  },
+  "gates": [
+    {
+      "id": "wiki.capture-lifecycle",
+      "sourceLine": 96,
+      "title": "Packaged clipboard and watched-folder lifecycle",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-13-ingest-cancellation-recovery.md",
+        "docs/evidence/task-12-packaged-accessibility.md"
+      ],
+      "limitation": "Individual packaged lifecycle slices exist, but no repeatable automated packaged GUI journey covers every operation."
+    },
+    {
+      "id": "wiki.hotkeys",
+      "sourceLine": 98,
+      "title": "Packaged global hotkey dispatch",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-13-packaged-hotkey-journey.md"
+      ],
+      "limitation": "A real manual packaged journey exists, but collision and error behavior are not covered by a repository-owned GUI automation suite."
+    },
+    {
+      "id": "wiki.library-lifecycle",
+      "sourceLine": 100,
+      "title": "Library provenance knowledge and lifecycle",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-13-source-lifecycle.md",
+        "docs/evidence/task-13-raw-source-inspection.md",
+        "docs/evidence/task-10-research-knowledge.md"
+      ],
+      "limitation": "Source detail, citations, knowledge, and reversible visibility exist; the complete link and lifecycle journey is not proven end to end."
+    },
+    {
+      "id": "wiki.full-vault-backup",
+      "sourceLine": 103,
+      "title": "Full-vault backup and restore",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-18-full-vault-backup-gap-audit.md"
+      ],
+      "limitation": "Only component backups exist; no package restores the complete required state into a fresh application-support root."
+    },
+    {
+      "id": "wiki.stable-source-generations",
+      "sourceLine": 106,
+      "title": "Stable sources and replaceable generations",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-03-storage-audit.md",
+        "docs/evidence/task-05-ingestion.md",
+        "docs/evidence/task-06-retrieval.md"
+      ]
+    },
+    {
+      "id": "chat.local-model-selection",
+      "sourceLine": 111,
+      "title": "Explicit local-model selection and health",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-13-grounded-local-model-chat.md",
+        "docs/evidence/task-13-generated-answer-evaluation.md"
+      ]
+    },
+    {
+      "id": "chat.grounded-presentation",
+      "sourceLine": 113,
+      "title": "Grounded chat presentation",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-13-grounded-local-model-chat.md"
+      ],
+      "limitation": "Current retrieval, citations, identity, and bounded follow-up exist, but the full confidence and coverage presentation is not proven across the packaged journey."
+    },
+    {
+      "id": "chat.frozen-evaluation",
+      "sourceLine": 116,
+      "title": "Frozen generated-claim evaluation",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-13-generated-answer-evaluation.md",
+        "docs/evidence/task-13-generated-answer-gemma-4-12b-optiq-report.json"
+      ],
+      "limitation": "Quality and abstention gates pass for the selected Gemma run, but warm end-to-end p95 exceeds 500 ms."
+    },
+    {
+      "id": "chat.abstention",
+      "sourceLine": 121,
+      "title": "Unsupported synthesis abstention",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-13-generated-answer-evaluation.md"
+      ]
+    },
+    {
+      "id": "chat.ephemeral-promotion",
+      "sourceLine": 123,
+      "title": "Ephemeral answers and explicit promotion",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-13-grounded-local-model-chat.md"
+      ],
+      "limitation": "Keep, discard, and task promotion exist; all named research and claim promotion paths are not yet available from generated chat."
+    },
+    {
+      "id": "privacy.routing",
+      "sourceLine": 128,
+      "title": "Explicit route grammar and visible failure",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-07-model-routing.md"
+      ]
+    },
+    {
+      "id": "privacy.zero-egress",
+      "sourceLine": 131,
+      "title": "Zero outbound bytes for restricted fixtures",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-08-privacy-action-cards.md"
+      ]
+    },
+    {
+      "id": "models.live-catalog-promotion",
+      "sourceLine": 134,
+      "title": "Live catalog and atomic model promotions",
+      "status": "missing",
+      "evidence": [
+        "docs/VERIFICATION_REPORT.md"
+      ],
+      "limitation": "Live catalog fetching and embedding promotion remain unavailable; only local profile and recorded-catalog foundations exist."
+    },
+    {
+      "id": "approvals.exact-action",
+      "sourceLine": 137,
+      "title": "Exact outbound and mutation approval",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-08-privacy-action-cards.md"
+      ],
+      "limitation": "Exact action-card binding and stale/reuse refusal exist, but every future outbound and mutating executor is not yet bound to the full contract."
+    },
+    {
+      "id": "audit.redaction",
+      "sourceLine": 140,
+      "title": "Status-only audit and exported evidence",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-03-storage-audit.md",
+        "docs/evidence/task-08-privacy-action-cards.md",
+        "docs/evidence/task-18-release-privacy-scan.json"
+      ]
+    },
+    {
+      "id": "repositories.persistent-jobs",
+      "sourceLine": 145,
+      "title": "Persistent repository jobs and receipts",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-15-repository-job-lifecycle.md"
+      ],
+      "limitation": "Selected local repositories have durable jobs and removal lifecycle; approved remote clone and complete manifest coverage remain absent."
+    },
+    {
+      "id": "repositories.nonmutation",
+      "sourceLine": 149,
+      "title": "Repository intake nonmutation",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-11-repositories-mac-care.md",
+        "docs/evidence/task-15-repository-job-lifecycle.md"
+      ],
+      "limitation": "Read-only committed intake is tested, but byte and Git-status comparison is not saved for every required success, cancellation, retry, failure, and restart path."
+    },
+    {
+      "id": "repositories.index-coverage",
+      "sourceLine": 152,
+      "title": "Permitted repository content coverage",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-15-repository-job-lifecycle.md"
+      ],
+      "limitation": "Bounded documentation, code, test, and configuration capture exists; history, issue metadata, submodule, license, and secret-rule coverage is incomplete."
+    },
+    {
+      "id": "repositories.semantic-evaluation",
+      "sourceLine": 155,
+      "title": "Cited semantic observations and frozen evaluation",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-15-repository-job-lifecycle.md"
+      ],
+      "limitation": "Only deterministic markers, declarations, and import observations exist; semantic evidence and abstention evaluation awaits approved design."
+    },
+    {
+      "id": "repositories.idea-quality",
+      "sourceLine": 158,
+      "title": "Evidence-complete idea cards",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-11-repositories-mac-care.md"
+      ],
+      "limitation": "Evidence, counterevidence, confidence, and validation criteria exist; license status, rejected alternatives, and smallest-experiment enforcement are incomplete."
+    },
+    {
+      "id": "repositories.promotions",
+      "sourceLine": 160,
+      "title": "Explicit idea promotion",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-10-research-knowledge.md",
+        "docs/evidence/task-11-repositories-mac-care.md"
+      ],
+      "limitation": "Local task, research-plan, and Codex-plan proposals exist; retained research-packet promotion and live bounded coordination do not."
+    },
+    {
+      "id": "repositories.adaptation-provenance",
+      "sourceLine": 162,
+      "title": "Code adaptation provenance",
+      "status": "partial",
+      "evidence": [
+        "docs/research/agno/RISK_NOTES.md",
+        "DECISIONS.md"
+      ],
+      "limitation": "No donor code was copied in the reviewed Agno adaptation; a final provenance audit must cover any later code adaptation."
+    },
+    {
+      "id": "research.acquisition",
+      "sourceLine": 167,
+      "title": "Policy-gated research acquisition",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-14-research-acquisition-gap-audit.md"
+      ],
+      "limitation": "No approved web or document acquisition transport, durable job, or complete cost and source-quality receipt exists."
+    },
+    {
+      "id": "research.typed-results",
+      "sourceLine": 170,
+      "title": "Typed and separately cited research results",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-10-research-knowledge.md"
+      ],
+      "limitation": "Facts, inferences, and contradictions are distinct; complete unanswered-question and recommendation packet behavior is not proven."
+    },
+    {
+      "id": "research.native-review",
+      "sourceLine": 172,
+      "title": "Native validated-packet review",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-14-research-acquisition-gap-audit.md"
+      ],
+      "limitation": "A component Keep store exists, but no native acquired-packet review and discard surface is implemented."
+    },
+    {
+      "id": "research.untrusted-output",
+      "sourceLine": 174,
+      "title": "External output remains untrusted data",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-08-privacy-action-cards.md",
+        "docs/evidence/task-14-research-acquisition-gap-audit.md"
+      ],
+      "limitation": "Policy and prompt-injection fixtures exist, but there is no live acquisition path on which to prove the complete invariant."
+    },
+    {
+      "id": "research.offline-planning",
+      "sourceLine": 176,
+      "title": "Offline research planning and review",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-10-research-knowledge.md"
+      ]
+    },
+    {
+      "id": "cam.runtime-verification",
+      "sourceLine": 181,
+      "title": "Pinned live CAM runtime verification",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+      ],
+      "limitation": "Runtime, configuration, database, and corpus identity remain fixture-supplied rather than live-probed."
+    },
+    {
+      "id": "cam.bounded-loop",
+      "sourceLine": 183,
+      "title": "Bounded resumable coordination loop",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+      ],
+      "limitation": "Event-sourced planning, evidence, budget, cancellation, and replay exist; live execution and complete terminal integration do not."
+    },
+    {
+      "id": "cam.closed-executor",
+      "sourceLine": 185,
+      "title": "Closed typed CAM executor",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+      ],
+      "limitation": "No live closed tool registry with timeouts, retries, idempotency, postconditions, and failure receipts exists."
+    },
+    {
+      "id": "cam.mining-plan",
+      "sourceLine": 188,
+      "title": "Exact-approved CAM mining plan",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-09-cam-adapter.md"
+      ],
+      "limitation": "A digest-bound proposal and approval contract exists, but it is not bound to a live executor and disposable runtime."
+    },
+    {
+      "id": "cam.disposable-integration",
+      "sourceLine": 191,
+      "title": "Disposable CAM integration proof",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+      ],
+      "limitation": "No isolated disposable CAM corpus and configuration integration has run."
+    },
+    {
+      "id": "cam.failure-never-success",
+      "sourceLine": 193,
+      "title": "Failure cannot become verified success",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-09-cam-adapter.md",
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+      ],
+      "limitation": "Reducer and unavailable-executor tests fail closed, but the invariant is not yet proven against a live closed executor."
+    },
+    {
+      "id": "cam.advanced-disabled",
+      "sourceLine": 196,
+      "title": "Advanced orchestration remains proof-gated",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+        "DECISIONS.md"
+      ]
+    },
+    {
+      "id": "mac-care.assessment-evidence",
+      "sourceLine": 202,
+      "title": "Read-only Mac assessment evidence",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-17-mac-care-action-gap-audit.md"
+      ],
+      "limitation": "Space and application/startup counts exist; item-level duplicate and organization evidence with uncertainty is missing."
+    },
+    {
+      "id": "mac-care.no-necessity-inference",
+      "sourceLine": 204,
+      "title": "No unsupported application-necessity judgment",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-11-repositories-mac-care.md",
+        "docs/evidence/task-17-mac-care-action-gap-audit.md"
+      ]
+    },
+    {
+      "id": "mac-care.closed-actions",
+      "sourceLine": 206,
+      "title": "Closed reversible Mac action set",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-17-mac-care-action-gap-audit.md"
+      ],
+      "limitation": "No available action executor, postcondition receipt, cancellation, or tested undo exists."
+    },
+    {
+      "id": "mac-care.dangerous-deferral",
+      "sourceLine": 209,
+      "title": "Dangerous Mac actions remain deferred",
+      "status": "passed",
+      "evidence": [
+        "docs/evidence/task-17-mac-care-action-gap-audit.md",
+        "DECISIONS.md"
+      ]
+    },
+    {
+      "id": "modules.manifest-trust",
+      "sourceLine": 215,
+      "title": "Versioned trusted module manifests",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
+      ],
+      "limitation": "Versioned manifests declare core metadata, but signing or local-trust policy, uninstall behavior, and packaged resources are incomplete."
+    },
+    {
+      "id": "modules.no-grant-on-enable",
+      "sourceLine": 218,
+      "title": "Discovery and enablement grant no permission",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-04-module-registry.md",
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
+      ],
+      "limitation": "Permission storage is separate, but the current capabilities surface does not enforce grants before advertising enabled healthy capabilities."
+    },
+    {
+      "id": "modules.permissions-and-health",
+      "sourceLine": 219,
+      "title": "Explicit permission receipts and isolated health",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-04-module-registry.md",
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
+      ],
+      "limitation": "Health isolation is tested; permission-change receipts and dispatcher-side grant enforcement are incomplete."
+    },
+    {
+      "id": "modules.homegrown-lifecycle",
+      "sourceLine": 221,
+      "title": "Packaged home-grown module lifecycle",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
+      ],
+      "limitation": "No module is packaged, installed, granted, exercised, disabled, removed, and restart-verified end to end."
+    },
+    {
+      "id": "ux.workspace-set",
+      "sourceLine": 226,
+      "title": "Complete compact and expandable workspace",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-18-ux-release-gap-audit.md"
+      ],
+      "limitation": "The native shell is real, but Modules and Approvals workspaces are absent and CAM remains status-only."
+    },
+    {
+      "id": "ux.accessibility-and-states",
+      "sourceLine": 229,
+      "title": "Keyboard VoiceOver focus motion and state proof",
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/task-12-packaged-accessibility.md",
+        "docs/evidence/task-18-ux-release-gap-audit.md"
+      ],
+      "limitation": "Focused and manual slices exist; complete VoiceOver speech, tab order, visual, large-data, and every-state journeys are missing."
+    },
+    {
+      "id": "ux.fresh-restart-journeys",
+      "sourceLine": 232,
+      "title": "Fresh-user and restart/recovery journeys",
+      "status": "missing",
+      "evidence": [
+        "docs/evidence/task-18-ux-release-gap-audit.md"
+      ],
+      "limitation": "Individual isolated slices exist, but no unified fresh-user journey or whole-product restart and full-vault recovery journey passes."
+    },
+    {
+      "id": "release.aggregate-verifier",
+      "sourceLine": 234,
+      "title": "Complete aggregate verifier",
+      "status": "partial",
+      "evidence": [
+        "docs/VERIFICATION_REPORT.md",
+        "docs/evidence/task-18-release-privacy-scan.json"
+      ],
+      "limitation": "Unit, release, portability, package identity, and credential scan run; packaged GUI, full recovery, and broader accessibility proof are not automated."
+    },
+    {
+      "id": "release.reproducible-package",
+      "sourceLine": 237,
+      "title": "Reproducible unsigned package and gated distribution",
+      "status": "partial",
+      "evidence": [
+        "docs/VERIFICATION_REPORT.md",
+        "DECISIONS.md"
+      ],
+      "limitation": "Clean-clone packaging embeds exact deterministic identity, but byte-for-byte reproducibility is not yet compared; signing and distribution remain intentionally unauthorized."
+    },
+    {
+      "id": "release.final-report",
+      "sourceLine": 240,
+      "title": "Complete final release report",
+      "status": "partial",
+      "evidence": [
+        "docs/VERIFICATION_REPORT.md",
+        "docs/evidence/task-18-ux-release-gap-audit.md"
+      ],
+      "limitation": "The current report is honest and requirement-oriented, but it is not the final all-gates-passing report with the complete environment, artifact, performance, rollback, and non-claim record."
+    }
+  ]
+}
