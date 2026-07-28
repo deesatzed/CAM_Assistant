@@ -80,8 +80,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var captureMessage: String?
     @Published private(set) var hotkeyError: String?
     @Published private(set) var hotkeyStatus: GlobalHotkeyStatus = .unregistered
-    @Published var hotkeyOpenKey = "space"
-    @Published var hotkeyCaptureKey = "c"
+    @Published var hotkeyOpenKey = AssistantHotkeyDefaults.openKey
+    @Published var hotkeyCaptureKey = AssistantHotkeyDefaults.captureKey
     @Published var repositoryPath = ""
     @Published private(set) var repositoryPresentation: RepositoryPresentation?
     @Published private(set) var repositoryIndexPresentation: RepositoryIndexPresentation?
@@ -107,6 +107,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var watchedSourceError: String?
     @Published private(set) var isUpdatingWatchedSources = false
     private let hotkeyManager = HotkeyManager()
+    private let foregroundActivation: AssistantForegroundActivation
     private let watchedSourceService: WatchedSourceService?
     private let repositorySourceService: RepositorySourceService?
     private var repositorySnapshot: RepositorySnapshot?
@@ -119,9 +120,11 @@ final class AppModel: ObservableObject {
             localModelAvailable: false,
             camRuntimeAvailable: false,
             networkAvailable: false
-        )
+        ),
+        foregroundActivation: AssistantForegroundActivation = .live
     ) {
         self.health = health
+        self.foregroundActivation = foregroundActivation
         watchedSourceService = Self.makeWatchedSourceService()
         repositorySourceService = Self.makeRepositorySourceService()
         loadHotkeyConfiguration()
@@ -591,8 +594,7 @@ final class AppModel: ObservableObject {
                 switch action {
                 case .openAssistant:
                     self.selection = .assistant
-                    NSRunningApplication.current.activate()
-                    NSApp.windows.first?.makeKeyAndOrderFront(nil)
+                    self.foregroundActivation.perform()
                 case .captureClipboard:
                     self.captureCurrentClipboard()
                 }

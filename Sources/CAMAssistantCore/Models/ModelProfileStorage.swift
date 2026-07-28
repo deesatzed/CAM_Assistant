@@ -7,14 +7,21 @@ public enum ModelProfileStorage {
             .appending(path: "models.json")
     }
 
-    public static func defaultStateURL(fileManager: FileManager = .default) throws -> URL {
-        guard let root = fileManager.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first else {
+    public static func defaultStateURL(
+        fileManager: FileManager = .default,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws -> URL {
+        do {
+            return stateURL(
+                applicationSupportRoot: try LocalVaultPaths
+                    .applicationSupportRootURL(
+                        fileManager: fileManager,
+                        environment: environment
+                    )
+            )
+        } catch LocalVaultPathsError.applicationSupportUnavailable {
             throw ModelProfileStorageError.applicationSupportUnavailable
         }
-        return stateURL(applicationSupportRoot: root)
     }
 }
 

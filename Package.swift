@@ -29,5 +29,9 @@ let package = Package(
             name: "CAMAssistantCoreTests",
             dependencies: ["CAMAssistantCore"]
         ),
+        .testTarget(
+            name: "CAMAssistantAppTests",
+            dependencies: ["CAMAssistantApp"]
+        ),
     ]
 )

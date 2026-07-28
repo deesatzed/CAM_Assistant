@@ -99,6 +99,36 @@ func sqliteMigrationsAreDurableAcrossRestart() throws {
     try reopened.close()
 }
 
+@Test("application support can be isolated for packaged app verification")
+func applicationSupportCanBeIsolatedForPackagedVerification() throws {
+    let isolatedRoot = URL(filePath: "/tmp/cam-assistant-isolated-support")
+    let environment = [
+        LocalVaultPaths.applicationSupportRootEnvironmentKey:
+            isolatedRoot.path
+    ]
+
+    #expect(
+        try LocalVaultPaths.rootURL(environment: environment).path
+            == "/tmp/cam-assistant-isolated-support/CAMAssistant"
+    )
+    #expect(
+        try ModelProfileStorage.defaultStateURL(environment: environment).path
+            == "/tmp/cam-assistant-isolated-support/CAMAssistant/models.json"
+    )
+}
+
+@Test("application support isolation rejects ambiguous paths")
+func applicationSupportIsolationRejectsAmbiguousPaths() {
+    let key = LocalVaultPaths.applicationSupportRootEnvironmentKey
+
+    #expect(throws: LocalVaultPathsError.invalidApplicationSupportRoot) {
+        try LocalVaultPaths.rootURL(environment: [key: "relative/path"])
+    }
+    #expect(throws: LocalVaultPathsError.invalidApplicationSupportRoot) {
+        try LocalVaultPaths.rootURL(environment: [key: ""])
+    }
+}
+
 private func makeTemporaryDirectory() throws -> URL {
     let url = FileManager.default.temporaryDirectory
         .appending(path: "cam-assistant-tests")

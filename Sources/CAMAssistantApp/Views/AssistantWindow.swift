@@ -1,6 +1,22 @@
 import CAMAssistantCore
 import SwiftUI
 
+enum SettingsPane: String, CaseIterable, Identifiable {
+    case models
+    case hotkeys
+    case captureSources
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .models: "Models"
+        case .hotkeys: "Hotkeys"
+        case .captureSources: "Capture Sources"
+        }
+    }
+}
+
 struct AssistantWindow: View {
     @ObservedObject var model: AppModel
 
@@ -34,7 +50,27 @@ struct AssistantWindow: View {
         case .macCare:
             MacCareView(presentation: model.macCarePresentation, errorMessage: model.macCareError, isAssessing: model.isMacCareAssessing, assess: model.assessMacCareReadOnly)
         case .settings:
-            VStack(spacing: 0) {
+            SettingsWorkspace(model: model)
+        }
+    }
+}
+
+private struct SettingsWorkspace: View {
+    @ObservedObject var model: AppModel
+    @State private var selectedPane = SettingsPane.models
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Settings pane", selection: $selectedPane) {
+                ForEach(SettingsPane.allCases) { pane in
+                    Text(pane.title).tag(pane)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding()
+
+            switch selectedPane {
+            case .models:
                 ModelProfilesView(
                     settings: model.modelSettings,
                     errorMessage: model.modelSettingsError,
@@ -44,10 +80,13 @@ struct AssistantWindow: View {
                     reload: model.reloadModelSettings,
                     checkLocalModel: model.checkSelectedLocalModel
                 )
+            case .hotkeys:
                 HotkeySettingsView(model: model)
+            case .captureSources:
                 CaptureSourcesView(model: model)
             }
         }
+        .accessibilityLabel("Assistant settings")
     }
 }
 

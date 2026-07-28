@@ -49,7 +49,7 @@ These states are evidence, not cleanup authorization.
 | 9. CAM adapter | Complete | Codex | Fixture conformance, non-executing proposals, unavailable-state UI, and release verification |
 | 10. Research and knowledge | Complete | Codex | Local checkpoint/resume, citation-bound facts, separate inferences, contradiction candidates, and native status |
 | 11. Mac Care and repositories | Complete | Codex | Read-only repository intake/idea proposals and digest-bound Mac assessment plans with unavailable executors |
-| 12. UX, packaging, and aggregate proof | In progress | Codex | Local package/smoke and accessibility foundations exist; full completion audit remains red |
+| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/restart journey now passes; watched-folder, model, full accessibility, and completion audit remain |
 
 ## Decision Links
 
@@ -73,8 +73,8 @@ individual proof gates are met.
 2. Run the packaged selected-model chat journey with a versioned local profile,
    recording exact runtime/model identity and retaining visible no-fallback
    behavior.
-3. Complete fresh-user/restart GUI proof while preserving immutable source
-   bytes.
+3. Extend the isolated packaged journey through watched-folder pause/resume/
+   remove/cancel plus backup/restore and the remaining accessibility states.
 
 ## Verification Receipts
 
@@ -994,6 +994,35 @@ individual proof gates are met.
 - Boundary: this proves a usable evaluation surface and real negative model
   results, not a passing generated-answer model or packaged GUI journey.
   CAM-013 remains in progress and the overall goal is not blocked.
+
+### Isolated packaged hotkey, capture, and restart journey — 2026-07-27
+
+- Expected red: the first real Command-Option-K exercise remained in Finder.
+  A focused regression test proved the app incorrectly treated macOS letter
+  virtual key codes as alphabetically contiguous.
+- Green: every A-Z shortcut now maps to its explicit Carbon key constant. The
+  collision-safe default open shortcut is Command-Option-K; capture remains
+  Command-Option-C.
+- Green: the packaged global-open journey changed the frontmost process from
+  `Finder -> CAMAssistant`. A reversible harmless clipboard marker triggered
+  the real capture action and the native UI reported successful local indexing.
+- Green: a new absolute-path-only application-support override isolated vault,
+  model, and hotkey state. The isolated vault contained one 46-byte source and
+  one derived document; the normal vault counts and normal hotkey-file absence
+  remained unchanged during the valid proof.
+- Green: native Settings exposed Models, Hotkeys, and Capture Sources panes.
+  Duplicate C/C shortcuts produced a visible save error; K/C saved only inside
+  the disposable root.
+- Green: after packaged-app termination and relaunch on the same isolated root,
+  Library reported one active source and the K/C registration recovered.
+- Green: the non-recursive aggregate verifier passed portability, all 183
+  tests, and app/CLI release builds. Package validation and native offline
+  smoke also passed.
+- Saved receipt: `docs/evidence/task-13-packaged-hotkey-journey.md`.
+- Boundary: an earlier exploratory non-isolated clipboard capture is explicitly
+  excluded; its local content was neither committed nor transmitted and was
+  not deleted without authorization. The valid isolated proof does not close
+  watched-folder, backup/restore, selected-model, or full accessibility gates.
 
 ## Blockers
 

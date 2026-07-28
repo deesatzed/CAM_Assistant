@@ -1,10 +1,44 @@
 import CAMAssistantCore
+import AppKit
 import Carbon
 import Foundation
 
 enum HotkeyAction: Sendable {
     case openAssistant
     case captureClipboard
+}
+
+enum AssistantHotkeyDefaults {
+    static let openKey = "k"
+    static let captureKey = "c"
+}
+
+@MainActor
+struct AssistantForegroundActivation {
+    let prepare: @MainActor () -> Void
+    let activate: @MainActor () -> Void
+    let raiseWindow: @MainActor () -> Void
+
+    func perform() {
+        prepare()
+        activate()
+        raiseWindow()
+    }
+
+    static let live = Self(
+        prepare: {
+            _ = NSApplication.shared.setActivationPolicy(.regular)
+        },
+        activate: {
+            _ = NSRunningApplication.current.activate(
+                options: [.activateAllWindows]
+            )
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        },
+        raiseWindow: {
+            NSApp.windows.first?.makeKeyAndOrderFront(nil)
+        }
+    )
 }
 
 final class HotkeyManager {
@@ -88,13 +122,36 @@ final class HotkeyManager {
         }
     }
 
-    private static func keyCode(for key: String) -> UInt32? {
+    static func keyCode(for key: String) -> UInt32? {
         switch key {
         case "space": return UInt32(kVK_Space)
-        default:
-            guard key.count == 1, let scalar = key.unicodeScalars.first,
-                  scalar.value >= 97, scalar.value <= 122 else { return nil }
-            return UInt32(kVK_ANSI_A) + scalar.value - 97
+        case "a": return UInt32(kVK_ANSI_A)
+        case "b": return UInt32(kVK_ANSI_B)
+        case "c": return UInt32(kVK_ANSI_C)
+        case "d": return UInt32(kVK_ANSI_D)
+        case "e": return UInt32(kVK_ANSI_E)
+        case "f": return UInt32(kVK_ANSI_F)
+        case "g": return UInt32(kVK_ANSI_G)
+        case "h": return UInt32(kVK_ANSI_H)
+        case "i": return UInt32(kVK_ANSI_I)
+        case "j": return UInt32(kVK_ANSI_J)
+        case "k": return UInt32(kVK_ANSI_K)
+        case "l": return UInt32(kVK_ANSI_L)
+        case "m": return UInt32(kVK_ANSI_M)
+        case "n": return UInt32(kVK_ANSI_N)
+        case "o": return UInt32(kVK_ANSI_O)
+        case "p": return UInt32(kVK_ANSI_P)
+        case "q": return UInt32(kVK_ANSI_Q)
+        case "r": return UInt32(kVK_ANSI_R)
+        case "s": return UInt32(kVK_ANSI_S)
+        case "t": return UInt32(kVK_ANSI_T)
+        case "u": return UInt32(kVK_ANSI_U)
+        case "v": return UInt32(kVK_ANSI_V)
+        case "w": return UInt32(kVK_ANSI_W)
+        case "x": return UInt32(kVK_ANSI_X)
+        case "y": return UInt32(kVK_ANSI_Y)
+        case "z": return UInt32(kVK_ANSI_Z)
+        default: return nil
         }
     }
 }
