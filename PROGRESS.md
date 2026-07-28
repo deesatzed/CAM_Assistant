@@ -1261,6 +1261,25 @@ disabled until their individual proof gates are met.
 - Boundary: no live module was installed, enabled, granted permission,
   executed, disabled, or removed. CAM-017 remains planned.
 
+### Policy-gated research acquisition gap audit — 2026-07-28
+
+- Green foundation: seven current focused research tests pass for local
+  planning, expected-version resume, citation-verified facts, separately typed
+  inferences, explicit plan Keep, and component packet persistence.
+- Reality boundary: `WR`/`WRGR` stop at deferred policy, and no typed source
+  transport, persistent acquisition job, cancellation/retry, deduplication,
+  source-quality record, cost/byte/time receipt, or native packet review exists.
+- Correctness gap: `ResearchPacketStore.keep` can persist a packet, but the
+  packet still carries `ResearchRetention.ephemeral`; the store also has no
+  canonical AppModel-owned path or native history surface.
+- The audit defines the required zero-byte protected-data boundary,
+  exact request/target/budget binding, untrusted-content isolation,
+  citation-before-Keep rule, and visible partial/cancelled/failure semantics.
+- Saved audit:
+  `docs/evidence/task-14-research-acquisition-gap-audit.md`.
+- Boundary: no network, provider, paid request, live source, approval
+  consumption, or live-app packet retention occurred. CAM-014 remains planned.
+
 ## Blockers
 
 None.
