@@ -1433,20 +1433,44 @@ disabled until their individual proof gates are met.
   reference environment at one source/state. Signing, notarization, and
   distribution remain unapproved and unperformed.
 
+### Module authority and approval-churn consolidation — 2026-07-28
+
+- Approval recorded: the evidence-first hybrid design for semantic repository
+  observations is accepted. Deterministic clean-commit evidence remains
+  authoritative; a selected loopback model may generate only validated,
+  citation-bound candidates.
+- Expected red: the focused module suite produced four failing tests and seven
+  issues because enabled modules advertised capabilities with zero or partial
+  declared permission grants.
+- Green: `./scripts/verify.sh modules` passed all seven focused tests after the
+  registry required every declared permission before advertising capabilities.
+  Coverage includes zero grants, partial grants, full grants, restart, revoke,
+  disable, reload, health isolation, invalid manifests, and duplicate IDs.
+- Green: `./scripts/verify.sh all` passed the local `203`-test suite, release
+  build, two-build package reproducibility, package identity, 41-file
+  credential-signature scan with zero findings, offline smoke, and the
+  non-recursive fresh-clone verification of the previously committed baseline.
+- Verification automation: `scripts/verify.sh` now owns a named `modules`
+  suite, and every repository-owned Swift test/build/run entry uses
+  `--disable-sandbox`. Package and smoke helpers use the same SwiftPM policy.
+  Future Codex checks should use this single already-approved entry point
+  instead of issuing raw Swift command variants.
+- Environment boundary: the repeated approval dialogs were caused by the
+  managed Codex execution sandbox rejecting SwiftPM's nested `sandbox-exec`;
+  they were not CAM Assistant product permission prompts. Signing,
+  notarization, deployment, external accounts, secrets, sensitive egress, and
+  destructive Mac actions remain deliberate approval boundaries.
+
 ## Blockers
 
 None.
 
 ## Questions for User
 
-1. Approve or revise the proposed evidence-first hybrid design for semantic
-   repository observations: deterministic clean-commit evidence plus an
-   optional selected loopback local-model candidate generator and deterministic
-   citation/abstention validation.
-2. Choose whether generated-answer v2 should retain full generation below
+1. Choose whether generated-answer v2 should retain full generation below
    `500 ms`, or split the gate into retrieval/context below `500 ms` and a
    separately measured human-usable generation target.
-3. Choose the first full-vault backup package: integrity-checked local package
+2. Choose the first full-vault backup package: integrity-checked local package
    or password-encrypted portable package.
 
 These decisions do not block independent local proof work. No overall project

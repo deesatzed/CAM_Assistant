@@ -134,6 +134,10 @@ public final class ModuleRegistry {
         defer { lock.unlock() }
         return manifestsByID.values
             .filter { state.enabledModuleIDs.contains($0.id) }
+            .filter { manifest in
+                let granted = state.permissionGrants[manifest.id] ?? []
+                return Set(manifest.permissions).isSubset(of: granted)
+            }
             .filter {
                 if case .healthy = healthProvider($0) { return true }
                 return false

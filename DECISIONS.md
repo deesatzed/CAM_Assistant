@@ -68,6 +68,9 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-28 | Every unsigned app package embeds the exact Git commit, deterministic commit-count build number, and source dirty state in `Info.plist`; aggregate release verification rejects an identity mismatch. Wall-clock timestamps and branch names are excluded from package identity because they are not reproducible source identities | Active |
 | 2026-07-28 | The machine-readable finish-goal map keys every Proof-of-Done bullet to its exact source line, current verdict, evidence, and limitation under a pinned goal digest. Aggregate validation passes when the map is complete and honest even if its overall product verdict is `incomplete`; only an all-`passed` map may support final completion | Active |
 | 2026-07-28 | Unsigned package reproducibility compares two same-source builds through a canonical sorted manifest of every bundle entry type, permission mode, and content digest. Filesystem timestamps are intentionally excluded; exact package commit/build/dirty identity is verified separately after each build | Active |
+| 2026-07-28 | Module capabilities are advertised only when the module is enabled, healthy, and has every permission declared by its manifest. Discovery, enablement, and partial grants provide no capability authority; disable clears grants | Active |
+| 2026-07-28 | Repository semantic evidence uses the approved evidence-first hybrid: deterministic clean-commit observations remain authoritative; an explicitly selected loopback local model may propose candidates only when deterministic citation and abstention validation can fail closed | Active |
+| 2026-07-28 | Codex verification is batched through the repository-owned `scripts/verify.sh` entry point with SwiftPM's nested sandbox disabled. Repeated raw Swift command variants are not part of the normal workflow | Active |
 
 ## Initial Default Decisions
 

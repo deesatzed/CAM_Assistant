@@ -85,25 +85,36 @@ func enableDisableUpdatesCapabilitiesAndSurvivesRestart() throws {
         stateURL: stateURL
     )
 
-    #expect(try registry.capabilities().map(\.id) == ["memory.search"])
+    #expect(try registry.capabilities().isEmpty)
     #expect(try registry.grantedPermissions(for: "cam.capture").isEmpty)
 
+    try registry.grant([.readLocal], to: "cam.memory")
+    #expect(try registry.capabilities().map(\.id) == ["memory.search"])
+
     try registry.enable("cam.capture")
+    #expect(try registry.capabilities().map(\.id) == ["memory.search"])
+    try registry.grant([.readLocal], to: "cam.capture")
     #expect(Set(try registry.capabilities().map(\.id)) == [
         "memory.search",
         "capture.clipboard",
         "capture.folder",
     ])
-    #expect(try registry.grantedPermissions(for: "cam.capture").isEmpty)
+    #expect(try registry.grantedPermissions(for: "cam.capture") == [.readLocal])
 
     let restarted = try ModuleRegistry(
         manifestDirectory: root,
         stateURL: stateURL
     )
     #expect(try restarted.isEnabled("cam.capture"))
+    #expect(Set(try restarted.capabilities().map(\.id)) == [
+        "memory.search",
+        "capture.clipboard",
+        "capture.folder",
+    ])
 
     try restarted.disable("cam.capture")
     #expect(try restarted.capabilities().map(\.id) == ["memory.search"])
+    #expect(try restarted.grantedPermissions(for: "cam.capture").isEmpty)
 }
 
 @Test("module health failure degrades only its own capabilities")
@@ -136,7 +147,10 @@ func moduleHealthFailureIsIsolated() throws {
     )
     try registry.enable("cam.research")
 
+    #expect(try registry.capabilities().isEmpty)
+    try registry.grant([.readLocal], to: "cam.research")
     #expect(try registry.capabilities().map(\.id) == ["research.web"])
+    try registry.grant([.readLocal], to: "cam.memory")
     #expect(try registry.status(for: "cam.memory") == .degraded(reason: "index rebuilding"))
     #expect(try registry.status(for: "cam.research") == .available)
 
@@ -162,6 +176,7 @@ func reloadDiscoversNewManifestWithoutRestart() throws {
         manifestDirectory: root,
         stateURL: root.appending(path: "state.json")
     )
+    try registry.grant([.readLocal], to: "cam.memory")
 
     try Data(
         manifestJSON(
@@ -172,10 +187,48 @@ func reloadDiscoversNewManifestWithoutRestart() throws {
     try registry.reload()
     try registry.enable("cam.capture")
 
+    #expect(try registry.capabilities().map(\.id) == ["memory.search"])
+    try registry.grant([.readLocal], to: "cam.capture")
     #expect(Set(try registry.capabilities().map(\.id)) == [
         "memory.search",
         "capture.clipboard",
     ])
+}
+
+@Test("enabled healthy module requires every declared permission before advertising capabilities")
+func enabledHealthyModuleRequiresEveryDeclaredPermission() throws {
+    let root = try temporaryModuleDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Data(
+        manifestJSON(
+            id: "cam.research",
+            permissions: ["readLocal", "network"],
+            capabilities: ["research.web"]
+        ).utf8
+    ).write(to: root.appending(path: "research.json"))
+    let stateURL = root.appending(path: "state.json")
+    let registry = try ModuleRegistry(
+        manifestDirectory: root,
+        stateURL: stateURL
+    )
+
+    try registry.enable("cam.research")
+    #expect(try registry.capabilities().isEmpty)
+
+    try registry.grant([.readLocal], to: "cam.research")
+    #expect(try registry.capabilities().isEmpty)
+
+    try registry.grant([.readLocal, .network], to: "cam.research")
+    #expect(try registry.capabilities().map(\.id) == ["research.web"])
+
+    let restarted = try ModuleRegistry(
+        manifestDirectory: root,
+        stateURL: stateURL
+    )
+    #expect(try restarted.capabilities().map(\.id) == ["research.web"])
+
+    try restarted.grant([], to: "cam.research")
+    #expect(try restarted.capabilities().isEmpty)
 }
 
 private func repositoryRoot() -> URL {

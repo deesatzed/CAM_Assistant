@@ -11,41 +11,44 @@ export CLANG_MODULE_CACHE_PATH="$REPOSITORY_ROOT/.swift-build/module-cache"
 suite="${1:-all}"
 case "$suite" in
   routing)
-    swift test --scratch-path .swift-build --filter RoutingTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter RoutingTests
     ;;
   models)
-    swift test --scratch-path .swift-build --filter ModelProfileTests
-    swift test --scratch-path .swift-build --filter ModelCatalogTests
-    swift test --scratch-path .swift-build --filter ModelCommandTests
-    swift test --scratch-path .swift-build --filter LocalModelInferenceTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter ModelProfileTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter ModelCatalogTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter ModelCommandTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter LocalModelInferenceTests
     ;;
   privacy)
-    swift test --scratch-path .swift-build --filter PrivacyTests
-    swift test --scratch-path .swift-build --filter AuditTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter PrivacyTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter AuditTests
     ;;
   cam)
-    swift test --scratch-path .swift-build --filter CAMAdapterTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter CAMAdapterTests
     ;;
   research)
-    swift test --scratch-path .swift-build --filter ResearchTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter ResearchTests
     ;;
   knowledge)
-    swift test --scratch-path .swift-build --filter KnowledgeTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter KnowledgeTests
     ;;
   repositories)
-    swift test --scratch-path .swift-build --filter RepositoryTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter RepositoryTests
     ;;
   mac-care)
-    swift test --scratch-path .swift-build --filter MacCareTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter MacCareTests
     ;;
   conversation)
-    swift test --scratch-path .swift-build --filter ConversationTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter ConversationTests
     ;;
   tasks)
-    swift test --scratch-path .swift-build --filter TaskStoreTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter TaskStoreTests
     ;;
   coordination)
-    swift test --scratch-path .swift-build --filter CoordinationTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter CoordinationTests
+    ;;
+  modules)
+    swift test --disable-sandbox --scratch-path .swift-build --filter ModuleRegistryTests
     ;;
   portability)
     "$SCRIPT_DIR/verify-portability.sh"
@@ -54,23 +57,23 @@ case "$suite" in
     "$SCRIPT_DIR/verify-fresh-clone.sh"
     ;;
   retrieval)
-    swift test --scratch-path .swift-build --filter RetrievalTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter RetrievalTests
     ;;
   generated)
-    swift test --scratch-path .swift-build \
+    swift test --disable-sandbox --scratch-path .swift-build \
       --filter GeneratedAnswerEvaluationTests
-    swift test --scratch-path .swift-build \
+    swift test --disable-sandbox --scratch-path .swift-build \
       --filter LocalModelInferenceTests
-    swift test --scratch-path .swift-build \
+    swift test --disable-sandbox --scratch-path .swift-build \
       --filter ConversationTests
     ;;
   retrieval-report)
-    swift run --scratch-path .swift-build cam-assistant evaluate-retrieval \
+    swift run --disable-sandbox --scratch-path .swift-build cam-assistant evaluate-retrieval \
       Tests/Fixtures/Retrieval/v2/manifest.json \
       docs/evidence/task-06-retrieval-v2-report.json
     ;;
   retrieval-project-contract-report)
-    swift run --scratch-path .swift-build cam-assistant evaluate-retrieval \
+    swift run --disable-sandbox --scratch-path .swift-build cam-assistant evaluate-retrieval \
       Tests/Fixtures/Retrieval/project-contract-v1/manifest.json \
       docs/evidence/task-06-retrieval-project-contract-v1-report.json
     ;;
@@ -98,8 +101,8 @@ case "$suite" in
   all)
     "$SCRIPT_DIR/verify-portability.sh"
     "$SCRIPT_DIR/verify.sh" goal-map
-    swift test --scratch-path .swift-build
-    swift build --scratch-path .swift-build -c release
+    swift test --disable-sandbox --scratch-path .swift-build
+    swift build --disable-sandbox --scratch-path .swift-build -c release
     "$SCRIPT_DIR/verify.sh" package-reproducibility
     "$SCRIPT_DIR/verify.sh" release-privacy
     if [[ "${CAM_ASSISTANT_SKIP_FRESH_CLONE:-0}" != "1" ]]; then
@@ -107,7 +110,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|modules|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
     exit 64
     ;;
 esac

@@ -9,5 +9,5 @@ cd "$ROOT"
 export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/module-cache"
 export CLANG_MODULE_CACHE_PATH="$BUILD_DIR/module-cache"
 
-swift build --scratch-path "$BUILD_DIR" --product CAMAssistant
+swift build --disable-sandbox --scratch-path "$BUILD_DIR" --product CAMAssistant
 "$BUILD_DIR/arm64-apple-macosx/debug/CAMAssistant" --smoke-offline

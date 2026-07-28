@@ -17,7 +17,7 @@ cd "$ROOT"
 export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/module-cache"
 export CLANG_MODULE_CACHE_PATH="$BUILD_DIR/module-cache"
 
-swift build --scratch-path "$BUILD_DIR" -c release --product CAMAssistant
+swift build --disable-sandbox --scratch-path "$BUILD_DIR" -c release --product CAMAssistant
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR"
 cp "$BUILD_DIR/arm64-apple-macosx/release/CAMAssistant" "$MACOS_DIR/CAMAssistant"
