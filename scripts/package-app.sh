@@ -6,6 +6,12 @@ ROOT="${SCRIPT_DIR:h}"
 BUILD_DIR="$ROOT/.swift-build"
 APP_DIR="$ROOT/artifacts/CAM Assistant.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
+BUILD_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+BUILD_NUMBER="$(git -C "$ROOT" rev-list --count HEAD)"
+BUILD_SOURCE_DIRTY="false"
+if [[ -n "$(git -C "$ROOT" status --porcelain)" ]]; then
+  BUILD_SOURCE_DIRTY="true"
+fi
 
 cd "$ROOT"
 export SWIFTPM_MODULECACHE_OVERRIDE="$BUILD_DIR/module-cache"
@@ -28,5 +34,11 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 
+/usr/bin/plutil -insert CFBundleVersion -string "$BUILD_NUMBER" \
+  "$APP_DIR/Contents/Info.plist"
+/usr/bin/plutil -insert CAMBuildCommit -string "$BUILD_COMMIT" \
+  "$APP_DIR/Contents/Info.plist"
+/usr/bin/plutil -insert CAMBuildSourceDirty -bool "$BUILD_SOURCE_DIRTY" \
+  "$APP_DIR/Contents/Info.plist"
 plutil -lint "$APP_DIR/Contents/Info.plist"
 print "$APP_DIR"

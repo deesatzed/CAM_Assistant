@@ -1373,6 +1373,25 @@ disabled until their individual proof gates are met.
   recovery, final requirement mapping, broader accessibility proof, and the
   remaining product gates are still incomplete.
 
+### Reproducible package build identity — 2026-07-28
+
+- Red: the package identity test failed because the existing `Info.plist` had
+  no `CAMBuildCommit` key.
+- Green: package creation now derives `CAMBuildCommit` from exact repository
+  `HEAD`, `CFBundleVersion` from the deterministic commit count, and
+  `CAMBuildSourceDirty` from the current Git state.
+- Green: the focused test rejected the old package and then passed with commit
+  `650a90f9a3e1d804dfe127aac9b48b75107a1df7`, build `36`, and `dirty=true`,
+  exactly matching the implementation worktree at test time.
+- Green: the release-privacy integration now runs the identity assertion after
+  package creation and passes before scanning the package/evidence set.
+- Reproducibility boundary: no wall-clock timestamp or branch-dependent value
+  is embedded. A clean-clone run remains the authoritative proof that a
+  committed package reports `dirty=false`.
+- CAM-018 remains in progress; this closes embedded build identity only, not
+  the final requirement map, recovery, packaged GUI, accessibility, signing,
+  notarization, or distribution gates.
+
 ## Blockers
 
 None.

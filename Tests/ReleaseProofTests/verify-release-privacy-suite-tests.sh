@@ -18,6 +18,8 @@ trap cleanup EXIT
 /usr/bin/grep -q \
   'CAM_ASSISTANT_PRIVACY_SCAN_TESTS status=pass' "$OUTPUT"
 /usr/bin/grep -q \
+  'CAM_ASSISTANT_PACKAGE_IDENTITY status=pass' "$OUTPUT"
+/usr/bin/grep -q \
   'CAM_ASSISTANT_PRIVACY_SCAN status=pass' "$OUTPUT"
 /usr/bin/plutil -p "$REPORT" >/dev/null
 /usr/bin/grep -q '"status":"pass"' "$REPORT"
