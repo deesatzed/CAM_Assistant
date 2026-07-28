@@ -1018,6 +1018,9 @@ individual proof gates are met.
 - Green: the non-recursive aggregate verifier passed portability, all 183
   tests, and app/CLI release builds. Package validation and native offline
   smoke also passed.
+- Green: a temporary non-local clone of pushed commit `715dfc3` independently
+  passed portability, all 183 tests, release builds, package validation, and
+  offline smoke from a clean source tree.
 - Saved receipt: `docs/evidence/task-13-packaged-hotkey-journey.md`.
 - Boundary: an earlier exploratory non-isolated clipboard capture is explicitly
   excluded; its local content was neither committed nor transmitted and was
