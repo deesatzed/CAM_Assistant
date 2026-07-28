@@ -1350,6 +1350,29 @@ disabled until their individual proof gates are met.
   signing, notarization, or distribution action occurred. CAM-012 and CAM-018
   remain in progress.
 
+### Release credential-signature gate — 2026-07-28
+
+- Red: the release-proof integration test initially failed because
+  `verify.sh` had no `release-privacy` suite.
+- Green: the new scanner tests prove a clean scope passes, a synthetic
+  credential signature fails, JSON receipts parse, and neither the receipt nor
+  command output exposes the matching bytes.
+- Green: the real release integration builds the unsigned package, scans the
+  package and saved evidence, and records `40` scanned files, `0` findings, and
+  `status=pass` in
+  `docs/evidence/task-18-release-privacy-scan.json`.
+- Green: `scripts/verify.sh all` now invokes this release-privacy suite, making
+  the package/evidence credential scan part of aggregate verification.
+- Environment note: SwiftPM release building requires execution outside the
+  managed nested macOS sandbox; one bounded reusable approval now covers the
+  release-proof integration test instead of repeated Swift prompts.
+- Claim boundary: the scanner recognizes bounded credential/private-key token
+  signatures. It is not a general PII/PHI/content classifier and does not
+  replace zero-egress tests, action-policy proof, or human privacy review.
+- CAM-018 remains in progress because packaged GUI automation, full-vault
+  recovery, final requirement mapping, broader accessibility proof, and the
+  remaining product gates are still incomplete.
+
 ## Blockers
 
 None.

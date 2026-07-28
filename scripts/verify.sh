@@ -80,16 +80,25 @@ case "$suite" in
   package)
     "$SCRIPT_DIR/package-app.sh"
     ;;
+  release-privacy)
+    "$REPOSITORY_ROOT/Tests/ReleaseProofTests/scan-release-privacy-tests.sh"
+    "$SCRIPT_DIR/package-app.sh"
+    "$SCRIPT_DIR/scan-release-privacy.sh" \
+      "$REPOSITORY_ROOT/docs/evidence/task-18-release-privacy-scan.json" \
+      "$REPOSITORY_ROOT/artifacts/CAM Assistant.app" \
+      "$REPOSITORY_ROOT/docs/evidence"
+    ;;
   all)
     "$SCRIPT_DIR/verify-portability.sh"
     swift test --scratch-path .swift-build
     swift build --scratch-path .swift-build -c release
+    "$SCRIPT_DIR/verify.sh" release-privacy
     if [[ "${CAM_ASSISTANT_SKIP_FRESH_CLONE:-0}" != "1" ]]; then
       "$SCRIPT_DIR/verify-fresh-clone.sh"
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|mac-care|conversation|tasks|coordination|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|all]"
     exit 64
     ;;
 esac
