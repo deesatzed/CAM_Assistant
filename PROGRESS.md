@@ -1280,6 +1280,31 @@ disabled until their individual proof gates are met.
 - Boundary: no network, provider, paid request, live source, approval
   consumption, or live-app packet retention occurred. CAM-014 remains planned.
 
+### Live bounded CAM/Codex integration gap audit — 2026-07-28
+
+- Green foundation: seven current CAM adapter/mining tests and sixteen
+  coordination tests pass, including exact approval consumption, honest
+  unavailable execution, reducer evidence gates, restart replay,
+  snapshot/migration validation, handoff packets, and a native child-process
+  ownership probe.
+- Reality boundary: runtime identity remains caller-supplied fixture data; no
+  live runtime/config/database probe, disposable CAM corpus, closed tool
+  executor, retry/timeout/idempotency registry, postcondition/recovery
+  execution, persisted mining run, trajectory evaluation, or native/CLI run
+  controls exist.
+- Convergence gap: the simple `CoordinationRun` and event-sourced
+  `OrchestrationRunState` overlap with different budget behavior;
+  `verifiedPartial` has no reducer transition; and CAM mining has no persisted
+  failed/recovered/completed/verified-success lifecycle.
+- The audit defines the runtime-drift, exact-plan, untrusted-output,
+  closed-tool, disposable-state, verification, and failure-never-success
+  boundaries for a future integration.
+- Saved audit:
+  `docs/evidence/task-16-live-cam-codex-gap-audit.md`.
+- Boundary: no CAM runtime, MCP server, config, database, corpus, donor repo,
+  credential, network call, or live command was inspected or invoked. CAM-016
+  remains planned.
+
 ## Blockers
 
 None.
