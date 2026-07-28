@@ -1237,6 +1237,30 @@ disabled until their individual proof gates are met.
   performed. Full-vault backup/restore remains in progress pending the package
   choice and implementation.
 
+### Dynamic module lifecycle gap audit — 2026-07-28
+
+- Green foundation: versioned manifest decoding, repository fixture discovery,
+  enable/disable persistence, separate stored grants, undeclared-permission
+  refusal, and isolated health degradation remain verified. The current
+  focused `ModuleRegistryTests` rerun passed all six tests with SwiftPM's
+  required `--disable-sandbox` option after the unmodified command hit the
+  known nested-sandbox denial.
+- Reality boundary: manifests are not Swift package resources, the packaged
+  app does not initialize a registry or expose a Modules workspace, and no
+  module installer, uninstaller, typed dispatcher, real health executor,
+  lifecycle receipt, or home-grown module execution exists.
+- Authority gap: `ModuleRegistry.capabilities()` currently reflects enabled
+  healthy manifests without enforcing declared permissions against current
+  grants. No executor consumes this surface today, so it is not live leaked
+  authority; a future dispatcher must fail closed on missing grants.
+- The audit recommends a first native read-only synthetic module and a
+  disposable packaged install/enable/explicit-grant/exercise/disable/remove/
+  restart proof, while preserving Layer 1 data.
+- Saved audit:
+  `docs/evidence/task-17-module-lifecycle-gap-audit.md`.
+- Boundary: no live module was installed, enabled, granted permission,
+  executed, disabled, or removed. CAM-017 remains planned.
+
 ## Blockers
 
 None.
