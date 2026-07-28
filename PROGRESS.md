@@ -1305,6 +1305,27 @@ disabled until their individual proof gates are met.
   credential, network call, or live command was inspected or invoked. CAM-016
   remains planned.
 
+### Safe Mac Care action gap audit — 2026-07-28
+
+- Green foundation: all five current focused Mac Care tests pass for
+  deterministic read-only assessment, caller-selected temporary-directory
+  counts, bounded review findings, aggregate digest binding, stale refusal, and
+  honest apply/undo unavailability.
+- Reality boundary: assessment currently exposes free space plus application
+  and startup-entry counts only. It has no item-level evidence,
+  duplicate/organization analysis, action-specific precondition, preview,
+  action card, approval consumption, executor, cancellation, postcondition,
+  receipt, undo, restart, or packaged mutation journey.
+- Safety boundary: the audit keeps uninstall, delete, privilege, account,
+  credential, security-setting, and broad cleanup actions outside the initial
+  action set. A first candidate would operate only on synthetic files inside a
+  disposable caller-approved root.
+- Saved audit:
+  `docs/evidence/task-17-mac-care-action-gap-audit.md`.
+- Boundary: no live inventory was collected and no file, app, startup item,
+  process, preference, account, credential, or system setting was changed.
+  CAM-017 remains planned.
+
 ## Blockers
 
 None.
