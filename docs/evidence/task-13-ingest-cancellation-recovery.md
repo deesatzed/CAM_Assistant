@@ -92,10 +92,15 @@ offline capture/local-search smoke passed with cloud auto-routing disabled
 
 git diff --check
 passed
+
+/bin/zsh scripts/verify.sh fresh-clone
+commit 7d8b82026a6475c841a613cd8593da70d2e60979
+source dirty false
+188 tests, release builds, package validation, and offline smoke passed
 ```
 
-The checkpoint's clean-clone result is appended after the committed revision
-is pushed and verified independently.
+The fresh-clone verifier used a temporary non-local clone of the committed
+revision, not the working tree.
 
 ## Privacy and recovery boundary
 

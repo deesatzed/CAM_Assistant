@@ -1082,6 +1082,9 @@ individual proof gates are met.
 - Green: 25 focused ingest tests, 6 app tests, all 188 tests, portability,
   app/CLI release builds, unsigned package validation, offline smoke, and
   `git diff --check` passed locally.
+- Green: a temporary non-local clone of pushed commit `7d8b820` independently
+  passed portability, all 188 tests, app/CLI release builds, package
+  validation, and offline smoke from a clean source tree.
 - Saved receipt:
   `docs/evidence/task-13-ingest-cancellation-recovery.md`.
 - Boundary: this closes the bounded capture cancellation/recovery slice, not

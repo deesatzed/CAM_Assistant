@@ -11,7 +11,7 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 | `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` | Repository portability gate plus 188 tests pass; native app and CLI release build pass |
 | `/bin/zsh scripts/verify.sh generated` | Frozen generated-answer evaluator, structured local-model inference, explicit abstention, and conversation-boundary tests pass |
 | `/bin/zsh scripts/verify.sh portability` | Required truth files are local; no external governing links or tracked generated artifacts; diff check passes |
-| `/bin/zsh scripts/verify.sh fresh-clone` | Latest completed temporary clean-clone receipt at commit `e5a0238` passes portability, 184 tests, release build, package, and offline smoke; the 188-test ingest-lifecycle checkpoint awaits its committed clean-clone run |
+| `/bin/zsh scripts/verify.sh fresh-clone` | Temporary non-local clone of ingest-lifecycle commit `7d8b820` passes portability, 188 tests, app/CLI release builds, package validation, and offline smoke from a clean source tree |
 | `/bin/zsh scripts/verify.sh smoke` | Offline native smoke reports capture/local search available and cloud auto-routing disabled |
 | `/bin/zsh scripts/verify.sh package` | Builds unsigned `artifacts/CAM Assistant.app`; `Info.plist` validates |
 | Native accessibility inspection of `artifacts/CAM Assistant.app` | Real global open/capture hotkeys, watched-source lifecycle, persisted cancellation/restart/resume, and independent Activity Cancel/Resume accessibility controls pass against disposable roots |
