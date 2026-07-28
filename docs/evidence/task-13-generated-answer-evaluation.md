@@ -1,8 +1,8 @@
 # Task 13 Generated-Answer Evaluation
 
-**Date:** 2026-07-27
-**Status:** Valid evaluator and live local-model receipts; product gate remains
-red.
+**Date:** 2026-07-28
+**Status:** Best installed model passes every frozen quality and abstention
+check; the product gate remains red on latency only.
 
 ## Contract
 
@@ -40,6 +40,7 @@ donor-repository content was used.
 | Ollama `llama3.2:1b`, JSON Schema plus exact passage-ID enum | 1.00 | 1.00 | 0.3333 | 0.00 | 619.73 | Fail |
 | Ollama `ornith:9b`, baseline structured prompt | 1.00 | 1.00 | 0.00 | 1.00 | 60,614.74 | Fail |
 | LM Studio MLX `vibethinker-3b-optiq-5bpw-mlx`, exact-ID schema | 1.00 | 1.00 | 0.1667 | 1.00 | 1,393.37 | Fail |
+| LM Studio `gemma-4-12b-it-optiq`, exact-ID schema | 1.00 | 1.00 | 1.00 | 1.00 | 2,010.38 | Fail: latency |
 
 The saved machine-readable reports contain case-level answers, cited passage
 IDs, failures, runtime/model/endpoint identity, latency distributions, and
@@ -63,6 +64,7 @@ Archived report SHA-256 values:
 | `llama3.2-1b-exact-id-report.json` | `08f04bee90c0e90437a7d99fd398f4cb611f9ed4bc978c7c6dab4a55cdd121ba` |
 | `ornith-9b-metal-report.json` | `cbf0e96b7b3aa75dab0554c867a5006efa77fb9edc95ea17cdbdcf12a52b227c` |
 | `vibethinker-3b-mlx-report.json` | `d934ca4e1d5f746e268a1f6611f1ecd233a79741165ec332a3f504d266944a78` |
+| `gemma-4-12b-optiq-report.json` | `fd18e613f1dc0e2d87cdaf9b85302e1198150a9c43258605f9dfb70f1b81db4a` |
 
 ## Implementation outcome
 
@@ -93,12 +95,14 @@ swift run --scratch-path .swift-build cam-assistant evaluate-generated \
 ## Limitations and next decision
 
 The current deterministic retriever passes this narrow corpus, but no tested
-model meets the generated-answer gate. JSON Schema improved citation behavior
-for the 1B model but did not fix abstention or reach claim-support/latency
-thresholds. The 9B and 3B alternatives improved abstention but were too weak,
-too slow, or both.
+model meets the complete generated-answer gate. The 12B Gemma candidate is the
+first tested model to pass all six answer cases, the unsupported-case
+abstention, exact citations, and deterministic claim support across 21 measured
+samples. Its `2,010.38 ms` p95 is about four times the frozen `<500 ms` limit,
+so it is usable for the packaged local-chat workflow but cannot close the
+frozen performance gate.
 
-CAM-013 therefore remains in progress. The next safe track is a versioned
-generated-answer v2 experiment that preserves this v1 receipt and compares a
-small set of already-installed local models or a constrained evidence
-composition strategy. The packaged GUI journey remains separately required.
+CAM-013 therefore remains in progress. Preserve v1 unchanged. The next safe
+model track is a versioned v2 experiment that separates human-usable response
+latency from a fast deterministic retrieval gate, or tests a constrained
+evidence-composition strategy without weakening the existing receipt.

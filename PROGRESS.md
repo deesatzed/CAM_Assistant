@@ -49,7 +49,7 @@ These states are evidence, not cleanup authorization.
 | 9. CAM adapter | Complete | Codex | Fixture conformance, non-executing proposals, unavailable-state UI, and release verification |
 | 10. Research and knowledge | Complete | Codex | Local checkpoint/resume, citation-bound facts, separate inferences, contradiction candidates, and native status |
 | 11. Mac Care and repositories | Complete | Codex | Read-only repository intake/idea proposals and digest-bound Mac assessment plans with unavailable executors |
-| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/cancel/restart/resume journeys pass; backup/restore, model, full accessibility, and completion audit remain |
+| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/cancel/restart/resume/selected-model journeys pass; backup/restore, full accessibility, and completion audit remain |
 
 ## Decision Links
 
@@ -67,12 +67,11 @@ individual proof gates are met.
 ## Next Actions
 
 1. Preserve generated-answer v1 as the fixed baseline and run a versioned v2
-   experiment comparing a bounded set of already-installed local models or a
-   constrained evidence-composition strategy; do not tune v1 labels after the
-   observed failures.
-2. Run the packaged selected-model chat journey with a versioned local profile,
-   recording exact runtime/model identity and retaining visible no-fallback
-   behavior.
+   experiment that separates a human-usable generation target from the fast
+   deterministic retrieval gate, or tests a constrained evidence-composition
+   strategy; do not tune v1 labels after the observed results.
+2. Implement the approved full-vault backup/restore design after the user
+   selects integrity-checked local packaging or password-encrypted portability.
 3. Extend the isolated packaged journey through full-vault backup/restore and
    the remaining keyboard, VoiceOver, reduced-motion, and error states.
 
@@ -1090,6 +1089,42 @@ individual proof gates are met.
 - Boundary: this closes the bounded capture cancellation/recovery slice, not
   full-vault backup/restore, background ingestion, secure deletion, selected
   model, or complete accessibility/release gates.
+
+### Live Gemma evaluation and packaged selected-model journey — 2026-07-28
+
+- Green quality evidence: installed LM Studio model
+  `gemma-4-12b-it-optiq` passed all six frozen answer cases and the explicit
+  unsupported-case abstention across 21 measured samples. Recall@10, MRR,
+  cited-claim support, and abstention accuracy were all `1.0`; there were no
+  failed or unanswered cases.
+- Honest red: warm end-to-end p95 was `2,010.38 ms`, above the frozen
+  `<500 ms` threshold. The saved report verdict remains Fail and CAM-013 stays
+  in progress. The report SHA-256 is
+  `fd18e613f1dc0e2d87cdaf9b85302e1198150a9c43258605f9dfb70f1b81db4a`.
+- Packaged-journey red: a fresh isolated source completed ingestion, but
+  selected-model chat rejected it as missing context. Root-cause tracing showed
+  production chat required every raw question token to be an exact substring
+  while the evaluator used the persistent FTS/hybrid retrieval stack.
+- TDD correction: the database-backed regression first failed on empty context
+  and absent `retrieval-index/active-generation.json`. Production chat now
+  rebuilds/opens that persistent generation and ranks through
+  `HybridRetriever`, while preserving canonical `source#0` citations for exact
+  Library navigation.
+- Green packaged journey: isolated profile `gemma-local` revision 1
+  health-checked the exact loopback model; the rebuilt package generated a
+  supported cited answer, displayed model/endpoint identity, offered no
+  fallback, kept the answer ephemeral, and opened its exact citation in
+  Library. No normal-vault or cloud data was used.
+- Green verification: the focused red/green test passed, the aggregate
+  verifier passed all 189 tests plus app/CLI release builds, the unsigned
+  package rebuilt and validated, and `git diff --check` passed.
+- Saved receipts:
+  `docs/evidence/task-13-generated-answer-evaluation.md`,
+  `docs/evidence/task-13-generated-answer-gemma-4-12b-optiq-report.json`, and
+  `docs/evidence/task-13-grounded-local-model-chat.md`.
+- Boundary: this closes the packaged selected-model workflow for the tested
+  LM Studio adapter, not the frozen latency gate, native in-process MLX,
+  full-vault backup/restore, or the remaining accessibility/release gates.
 
 ## Blockers
 

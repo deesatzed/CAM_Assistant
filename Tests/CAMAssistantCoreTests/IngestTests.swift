@@ -272,6 +272,41 @@ func hiddenSourcesLeaveLocalConversationContextUntilRestored() throws {
 }
 
 @MainActor
+@Test("database conversation context uses the persistent retrieval generation")
+func databaseConversationContextUsesPersistentRetrievalGeneration() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let envelope = CaptureEnvelope(
+        id: UUID(),
+        capturedAt: Date(timeIntervalSince1970: 10),
+        sourceName: "grounding.txt",
+        contentType: "text/plain",
+        data: Data(
+            "CAM Assistant keeps raw vault material and secrets local.".utf8
+        ),
+        origin: .clipboard
+    )
+    let receipt = try harness.service.capture(envelope)
+    _ = try harness.queue.processNext()
+
+    let context = try LocalConversationContextProvider(
+        databaseURL: harness.databaseURL
+    ).context(
+        for: "Does CAM Assistant keep raw vault material and secrets local?"
+    )
+
+    #expect(context.passages.map(\.sourceID) == [receipt.sourceID.rawValue])
+    #expect(
+        FileManager.default.fileExists(
+            atPath: harness.root
+                .appending(path: "retrieval-index")
+                .appending(path: "active-generation.json")
+                .path
+        )
+    )
+}
+
+@MainActor
 @Test("clipboard and folder inputs ingest every required local modality")
 func clipboardAndFolderIngestEveryRequiredModality() throws {
     let harness = try IngestHarness()

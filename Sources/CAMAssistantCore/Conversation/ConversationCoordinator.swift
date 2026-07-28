@@ -215,6 +215,14 @@ public final class LocalConversationContextProvider {
 
     public func context(for question: String, limit: Int = 5) throws -> ContextBundle {
         let documents = try suppliedDocuments ?? loadDocuments()
+        if let databaseURL {
+            return try contextFromPersistentRetrievalGeneration(
+                documents: documents,
+                databaseURL: databaseURL,
+                question: question,
+                limit: limit
+            )
+        }
         let terms = question.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
         let matches = documents.filter { document in
             !terms.isEmpty && terms.allSatisfy { document.text.localizedCaseInsensitiveContains($0) }
@@ -236,6 +244,59 @@ public final class LocalConversationContextProvider {
             totalCharacters: passages.map(\.text.count).reduce(0, +),
             estimatedTokens: passages.map { ($0.text.count + 3) / 4 }.reduce(0, +),
             droppedPassages: max(0, matches.count - passages.count),
+            thrashRate: 0
+        )
+    }
+
+    private func contextFromPersistentRetrievalGeneration(
+        documents: [DerivedDocument],
+        databaseURL: URL,
+        question: String,
+        limit: Int
+    ) throws -> ContextBundle {
+        let builder = try RetrievalIndexBuilder(
+            rootDirectory: databaseURL.deletingLastPathComponent()
+                .appending(path: "retrieval-index"),
+            baseFingerprint: IndexFingerprint(
+                schemaVersion: 1,
+                sourceManifestHash: "pending",
+                tokenizer: "unicode61",
+                preprocessing: "lowercase-stopwords-v1",
+                chunking: "words-200-v1",
+                semanticProvider: "none",
+                semanticModel: "none",
+                semanticDimensions: 0,
+                fusionVersion: "hybrid-v1"
+            )
+        )
+        _ = try builder.rebuild(documents: documents)
+        let index = try builder.openActive()
+        defer { try? index.close() }
+        let ranked = try HybridRetriever(fullTextIndex: index)
+            .retrieve(query: question, limit: max(0, limit))
+        var seenSourceIDs: Set<String> = []
+        let selected = ranked.filter {
+            seenSourceIDs.insert($0.sourceID).inserted
+        }
+        let passages = selected.map {
+            ContextPassage(
+                sourceID: $0.sourceID,
+                passageID: "\($0.sourceID)#0",
+                modality: $0.modality,
+                text: $0.text
+            )
+        }
+        return ContextBundle(
+            formatVersion: "context-v1",
+            passages: passages,
+            serializedContext: passages.map {
+                "[source=\($0.sourceID); passage=\($0.passageID)]\n\($0.text)\n"
+            }.joined(),
+            totalCharacters: passages.map(\.text.count).reduce(0, +),
+            estimatedTokens: passages.map {
+                ($0.text.count + 3) / 4
+            }.reduce(0, +),
+            droppedPassages: max(0, ranked.count - passages.count),
             thrashRate: 0
         )
     }
