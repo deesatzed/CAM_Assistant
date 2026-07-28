@@ -104,6 +104,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var repositoryIdeaDisposition: RepositoryIdeaDisposition?
     @Published private(set) var repositoryIdeaHistory = RepositoryIdeaListPresentation(records: [])
     @Published private(set) var repositorySources: [RepositorySource] = []
+    @Published private(set) var repositoryJobs: [RepositoryJobPresentation] = []
     @Published private(set) var macCarePresentation: MacCarePresentation?
     @Published private(set) var macCareError: String?
     @Published private(set) var isMacCareAssessing = false
@@ -128,10 +129,12 @@ final class AppModel: ObservableObject {
             }
         }
     private let repositorySourceService: RepositorySourceService?
+    private let repositoryJobStore: RepositoryJobStore?
     private var repositorySnapshot: RepositorySnapshot?
     private var repositoryObservationEvidence: [RepositoryObservation] = []
     private var repositoryIdeaCard: RepositoryIdeaCard?
     private var repositoryIndexCancellation: RepositoryIndexCancellation?
+    private var activeRepositoryJobID: UUID?
 
     init(
         health: AppHealth = .evaluate(
@@ -139,11 +142,20 @@ final class AppModel: ObservableObject {
             camRuntimeAvailable: false,
             networkAvailable: false
         ),
-        foregroundActivation: AssistantForegroundActivation = .live
+        foregroundActivation: AssistantForegroundActivation = .live,
+        repositorySourceService: RepositorySourceService? = AppModel.makeRepositorySourceService(),
+        repositoryJobStore: RepositoryJobStore? = AppModel.makeRepositoryJobStore(),
+        initializeFullWorkspace: Bool = true
     ) {
         self.health = health
         self.foregroundActivation = foregroundActivation
-        repositorySourceService = Self.makeRepositorySourceService()
+        self.repositorySourceService = repositorySourceService
+        self.repositoryJobStore = repositoryJobStore
+        guard initializeFullWorkspace else {
+            reloadRepositorySources()
+            reloadRepositoryJobs(recoverInterrupted: true)
+            return
+        }
         loadHotkeyConfiguration()
         reloadModelSettings()
         reloadTasks()
@@ -152,6 +164,7 @@ final class AppModel: ObservableObject {
         reloadWatchedSources()
         reloadRepositoryIdeaHistory()
         reloadRepositorySources()
+        reloadRepositoryJobs(recoverInterrupted: true)
         reloadRetainedResearchPlans()
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
@@ -848,14 +861,22 @@ final class AppModel: ObservableObject {
 
     private nonisolated static func makeRepositorySourceService() -> RepositorySourceService? {
         do {
+            let lifecycleStore = try RepositorySourceLifecycleStore(
+                databaseURL: LocalVaultPaths.databaseURL()
+            )
             return RepositorySourceService(
                 store: RepositorySourceConfigurationStore(
                     url: try LocalVaultPaths.rootURL().appending(path: "repository-sources.json")
-                )
+                ),
+                lifecycleStore: lifecycleStore
             )
         } catch {
             return nil
         }
+    }
+
+    private nonisolated static func makeRepositoryJobStore() -> RepositoryJobStore? {
+        try? RepositoryJobStore(databaseURL: LocalVaultPaths.databaseURL())
     }
 
     private nonisolated static func researchPlanStoreURL() throws -> URL {
@@ -939,6 +960,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func reloadRepositoryJobs(recoverInterrupted: Bool = false) {
+        guard let repositoryJobStore else {
+            repositoryJobs = []
+            return
+        }
+        do {
+            if recoverInterrupted {
+                _ = try repositoryJobStore.recoverInterrupted()
+            }
+            repositoryJobs = try repositoryJobStore.all()
+                .reversed()
+                .map(RepositoryJobPresentation.init)
+        } catch {
+            repositoryJobs = []
+            repositoryError = "Repository job history could not be read locally."
+        }
+    }
+
     func indexSelectedRepository() {
         let path = repositoryPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !path.isEmpty else {
@@ -957,18 +996,101 @@ final class AppModel: ObservableObject {
             return
         }
         let root = URL(filePath: path)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        let sourceID = repositorySources.first {
+            URL(filePath: $0.canonicalPath)
+                .standardizedFileURL
+                .resolvingSymlinksInPath().path == root.path
+        }?.id
+        guard let repositoryJobStore else {
+            repositoryIndexPresentation = nil
+            repositoryError = "Repository job history could not be opened locally."
+            return
+        }
+        let job: RepositoryJobRecord
+        do {
+            job = try repositoryJobStore.create(
+                sourceID: sourceID,
+                canonicalPath: root.path
+            )
+            reloadRepositoryJobs()
+        } catch {
+            repositoryIndexPresentation = nil
+            repositoryError = "A durable local repository job could not be created."
+            return
+        }
+        runRepositoryJob(
+            job.id,
+            root: root,
+            databaseURL: databaseURL,
+            contentRootURL: contentRootURL
+        )
+    }
+
+    func cancelRepositoryJob(_ jobID: UUID) {
+        guard let job = repositoryJobs.first(where: { $0.id == jobID }),
+              job.availableAction == .cancel else {
+            return
+        }
+        if activeRepositoryJobID == jobID {
+            if repositoryIndexCancellation?.cancel() == false {
+                repositoryError = "This repository job is already finishing its local snapshot receipt."
+            }
+            return
+        }
+        do {
+            _ = try repositoryJobStore?.cancel(jobID)
+            reloadRepositoryJobs()
+            repositoryError = nil
+        } catch {
+            repositoryError = "This repository job could not be cancelled locally."
+        }
+    }
+
+    func resumeRepositoryJob(_ jobID: UUID) {
+        guard !isRepositoryIndexing,
+              let repositoryJobStore,
+              let presentation = repositoryJobs.first(where: { $0.id == jobID }),
+              presentation.availableAction == .resume else {
+            return
+        }
+        do {
+            guard let job = try repositoryJobStore.record(id: jobID) else {
+                repositoryError = "This repository job is no longer available."
+                return
+            }
+            runRepositoryJob(
+                job.id,
+                root: URL(filePath: job.canonicalPath),
+                databaseURL: try LocalVaultPaths.databaseURL(),
+                contentRootURL: try LocalVaultPaths.contentURL()
+            )
+        } catch {
+            repositoryError = "This repository job could not be resumed locally."
+        }
+    }
+
+    private func runRepositoryJob(
+        _ jobID: UUID,
+        root: URL,
+        databaseURL: URL,
+        contentRootURL: URL
+    ) {
         isRepositoryIndexing = true
+        activeRepositoryJobID = jobID
         let cancellation = RepositoryIndexCancellation()
         repositoryIndexCancellation = cancellation
         repositoryError = nil
         Task { [weak self] in
             do {
                 let result = try await Task.detached(priority: .userInitiated) {
-                    try RepositoryLocalIndexOperation.index(
+                    try RepositoryJobRunner.run(
+                        jobID: jobID,
                         root: root,
                         databaseURL: databaseURL,
                         contentRootURL: contentRootURL,
-                        shouldCancel: { cancellation.isCancelled }
+                        cancellation: cancellation
                     )
                 }.value
                 self?.repositoryPresentation = RepositoryPresentation(snapshot: result.snapshot)
@@ -983,11 +1105,14 @@ final class AppModel: ObservableObject {
             }
             self?.isRepositoryIndexing = false
             self?.repositoryIndexCancellation = nil
+            self?.activeRepositoryJobID = nil
+            self?.reloadRepositoryJobs()
         }
     }
 
     func cancelRepositoryIndexing() {
-        repositoryIndexCancellation?.cancel()
+        guard let activeRepositoryJobID else { return }
+        cancelRepositoryJob(activeRepositoryJobID)
     }
 
     func scanSelectedRepositoryObservations() {

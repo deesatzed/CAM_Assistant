@@ -1163,6 +1163,51 @@ individual proof gates are met.
   dynamic-type, signed-distribution, or final release proof. CAM-012 and
   CAM-018 remain in progress.
 
+### Durable repository-job and source lifecycle slice — 2026-07-28
+
+- Expected red: focused tests failed to compile because repository indexing
+  had no durable job store, state machine, persistent runner, lifecycle writer,
+  or status-only presentation.
+- Green: schema version 8 adds `repository_jobs` and
+  `repository_source_lifecycle`. Jobs persist pending/running/cancelled/failed/
+  completed state, bounded attempts, stable status-only failures, and exact
+  completed snapshot commit/source-count linkage.
+- Green: app startup converts persisted running work into a visible
+  failed/interrupted row only after acquiring that job's OS `flock` lease.
+  Work held by another live app process remains running. Cancelled and failed
+  work below its attempt limit can resume under the same job ID; completed or
+  exhausted work exposes no action.
+- Review correction: persistent runners now require one stateful cancellation
+  token. Cancellation can win before the terminal snapshot phase; after that
+  boundary it is explicitly refused, so the app cannot claim cancellation
+  while saving or completing a snapshot receipt.
+- Green: the persistent runner's cancellation/retry test proves no cancelled
+  snapshot receipt, exact successful snapshot linkage on retry, three derived
+  local documents, byte-identical repository source, and unchanged
+  `git status --porcelain`.
+- Green: SQLite saved-source lifecycle is authoritative. JSON remains a
+  compatibility/cache surface and reload repairs either stale-JSON direction
+  after a simulated crash split. Synchronous failures roll back; removal
+  preserves snapshot history and has no cascade into vault bytes, provenance,
+  derived documents, jobs, or ideas.
+- Green: Repositories shows status-only recent jobs with independent bounded
+  Cancel/Resume controls and explicit local/no-network/no-CAM/no-repository-
+  write language. Removal text explicitly states its evidence-preservation
+  boundary.
+- Review: the first adversarial pass found four Important consistency/test
+  gaps. After the lease, terminal-boundary, authoritative lifecycle, and
+  injected AppModel corrections, re-review reports zero Critical, Important,
+  or Minor findings.
+- Verification: all 33 repository-focused tests, all 10 app tests, and all 202
+  aggregate tests pass; portability checks, app/CLI production builds,
+  unsigned package validation, offline smoke, and `git diff --check` pass.
+- Saved receipt:
+  `docs/evidence/task-15-repository-job-lifecycle.md`.
+- Boundary: this closes the durable foreground repository-job/removal slice,
+  not background scheduling, remote cloning, submodule or issue ingestion,
+  secret scanning, semantic observation evaluation, live Codex/CAM execution,
+  network authority, or source-byte deletion.
+
 ## Blockers
 
 None.

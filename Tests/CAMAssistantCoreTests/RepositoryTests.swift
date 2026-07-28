@@ -110,6 +110,317 @@ func repositoryLocalIndexOperationOwnsVaultDependenciesAndReturnsAReceipt() thro
     #expect(result.capturedSourceIDs.count == 3)
 }
 
+@Test("repository jobs recover interrupted running work after restart")
+func repositoryJobsRecoverInterruptedRunningWorkAfterRestart() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appending(path: "vault.sqlite")
+    let sourceID = UUID()
+    let createdAt = Date(timeIntervalSince1970: 100)
+
+    let initialStore = try RepositoryJobStore(databaseURL: databaseURL)
+    let created = try initialStore.create(
+        sourceID: sourceID,
+        canonicalPath: "/tmp/example-repository",
+        maxAttempts: 3,
+        createdAt: createdAt
+    )
+    #expect(created.status == .pending)
+    #expect(created.attempts == 0)
+    #expect(
+        try initialStore.start(
+            created.id,
+            at: Date(timeIntervalSince1970: 101)
+        ).status == .running
+    )
+    try initialStore.close()
+
+    let reopenedStore = try RepositoryJobStore(databaseURL: databaseURL)
+    let recovered = try reopenedStore.recoverInterrupted(
+        at: Date(timeIntervalSince1970: 102)
+    )
+    let record = try #require(try reopenedStore.record(id: created.id))
+
+    #expect(recovered.map(\.id) == [created.id])
+    #expect(record.sourceID == sourceID)
+    #expect(record.canonicalPath == "/tmp/example-repository")
+    #expect(record.status == .failed)
+    #expect(record.attempts == 1)
+    #expect(record.maxAttempts == 3)
+    #expect(record.errorCode == "interrupted")
+    #expect(record.createdAt == createdAt)
+    #expect(record.updatedAt == Date(timeIntervalSince1970: 102))
+    #expect(record.snapshotCommit == nil)
+    #expect(record.capturedSourceCount == nil)
+}
+
+@Test("repository restart recovery skips a job owned by a live process lease")
+func repositoryRecoverySkipsLiveJobLease() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appending(path: "vault.sqlite")
+    let store = try RepositoryJobStore(databaseURL: databaseURL)
+    let job = try store.create(
+        sourceID: nil,
+        canonicalPath: "/tmp/live-repository-job"
+    )
+    let lease = try #require(
+        try RepositoryJobLease.acquire(
+            databaseURL: databaseURL,
+            jobID: job.id
+        )
+    )
+    _ = try store.start(job.id)
+
+    #expect(try store.recoverInterrupted().isEmpty)
+    #expect(try store.record(id: job.id)?.status == .running)
+
+    lease.release()
+    #expect(try store.recoverInterrupted().map(\.id) == [job.id])
+    #expect(try store.record(id: job.id)?.status == .failed)
+}
+
+@Test("repository job transitions fail closed and preserve bounded attempts")
+func repositoryJobTransitionsFailClosedAndPreserveBoundedAttempts() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try RepositoryJobStore(
+        databaseURL: root.appending(path: "vault.sqlite")
+    )
+    let job = try store.create(
+        sourceID: nil,
+        canonicalPath: "/tmp/example-repository",
+        maxAttempts: 2,
+        createdAt: Date(timeIntervalSince1970: 200)
+    )
+
+    #expect(
+        throws: RepositoryJobTransitionError.invalidTransition(
+            from: .pending,
+            to: .completed
+        )
+    ) {
+        _ = try store.complete(
+            job.id,
+            snapshotCommit: String(repeating: "a", count: 40),
+            capturedSourceCount: 1,
+            at: Date(timeIntervalSince1970: 201)
+        )
+    }
+
+    _ = try store.start(job.id, at: Date(timeIntervalSince1970: 202))
+    let cancelled = try store.cancel(
+        job.id,
+        at: Date(timeIntervalSince1970: 203)
+    )
+    #expect(cancelled.status == .cancelled)
+    #expect(cancelled.attempts == 1)
+
+    _ = try store.start(job.id, at: Date(timeIntervalSince1970: 204))
+    let failed = try store.fail(
+        job.id,
+        errorCode: "ingestion_failed",
+        at: Date(timeIntervalSince1970: 205)
+    )
+    #expect(failed.status == .failed)
+    #expect(failed.attempts == 2)
+    #expect(failed.errorCode == "ingestion_failed")
+    #expect(
+        throws: RepositoryJobTransitionError.attemptLimitReached(job.id)
+    ) {
+        _ = try store.start(
+            job.id,
+            at: Date(timeIntervalSince1970: 206)
+        )
+    }
+}
+
+@Test("repository job presentation exposes only valid bounded actions")
+func repositoryJobPresentationExposesOnlyValidBoundedActions() {
+    let jobID = UUID()
+    let base = RepositoryJobRecord(
+        id: jobID,
+        sourceID: nil,
+        canonicalPath: "/tmp/example-repository",
+        status: .pending,
+        attempts: 0,
+        maxAttempts: 2,
+        snapshotCommit: nil,
+        capturedSourceCount: nil,
+        errorCode: nil,
+        createdAt: Date(timeIntervalSince1970: 1),
+        updatedAt: Date(timeIntervalSince1970: 1)
+    )
+
+    let pending = RepositoryJobPresentation(record: base)
+    #expect(pending.statusLabel == "Pending local indexing")
+    #expect(pending.attemptLabel == "0 of 2 attempts")
+    #expect(pending.availableAction == .cancel)
+
+    let cancelled = RepositoryJobPresentation(
+        record: repositoryJobRecord(
+            from: base,
+            status: .cancelled,
+            attempts: 1
+        )
+    )
+    #expect(cancelled.statusLabel == "Cancelled")
+    #expect(cancelled.availableAction == .resume)
+
+    let interrupted = RepositoryJobPresentation(
+        record: repositoryJobRecord(
+            from: base,
+            status: .failed,
+            attempts: 1,
+            errorCode: "interrupted"
+        )
+    )
+    #expect(interrupted.failureLabel == "Interrupted by app restart")
+    #expect(interrupted.availableAction == .resume)
+
+    let exhausted = RepositoryJobPresentation(
+        record: repositoryJobRecord(
+            from: base,
+            status: .failed,
+            attempts: 2,
+            errorCode: "operation_failed"
+        )
+    )
+    #expect(exhausted.failureLabel == "Local repository indexing failed")
+    #expect(exhausted.availableAction == nil)
+
+    let completed = RepositoryJobPresentation(
+        record: repositoryJobRecord(
+            from: base,
+            status: .completed,
+            attempts: 1,
+            snapshotCommit: String(repeating: "a", count: 40),
+            capturedSourceCount: 3
+        )
+    )
+    #expect(completed.statusLabel == "Completed")
+    #expect(completed.resultLabel == "Commit aaaaaaaaaaaa · 3 local sources")
+    #expect(completed.availableAction == nil)
+}
+
+@Test("persistent repository job cancels and retries without changing the repository")
+func persistentRepositoryJobCancelsAndRetriesWithoutChangingRepository() throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let vaultRoot = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: vaultRoot) }
+    let databaseURL = vaultRoot.appending(path: "vault.sqlite")
+    let contentRootURL = vaultRoot.appending(path: "content")
+    let sourceURL = fixture.root.appending(path: "Sources/example.swift")
+    let bytesBefore = try Data(contentsOf: sourceURL)
+    let statusBefore = try fixture.git("status", "--porcelain")
+    let jobStore = try RepositoryJobStore(databaseURL: databaseURL)
+    let job = try jobStore.create(
+        sourceID: UUID(),
+        canonicalPath: fixture.root.path,
+        maxAttempts: 3,
+        createdAt: Date(timeIntervalSince1970: 300)
+    )
+    try jobStore.close()
+
+    let firstCancellation = RepositoryIndexCancellation()
+    #expect(firstCancellation.cancel())
+    #expect(throws: RepositoryIncrementalIndexError.cancelled) {
+        _ = try RepositoryJobRunner.run(
+            jobID: job.id,
+            root: fixture.root,
+            databaseURL: databaseURL,
+            contentRootURL: contentRootURL,
+            cancellation: firstCancellation,
+            capturedAt: Date(timeIntervalSince1970: 301)
+        )
+    }
+    let cancelledStore = try RepositoryJobStore(databaseURL: databaseURL)
+    let cancelled = try #require(try cancelledStore.record(id: job.id))
+    #expect(cancelled.status == .cancelled)
+    #expect(cancelled.attempts == 1)
+    #expect(cancelled.snapshotCommit == nil)
+    #expect(
+        try RepositorySnapshotStore(databaseURL: databaseURL)
+            .snapshots(forCanonicalPath: fixture.root.path)
+            .isEmpty
+    )
+    try cancelledStore.close()
+    #expect(try Data(contentsOf: sourceURL) == bytesBefore)
+    #expect(try fixture.git("status", "--porcelain") == statusBefore)
+
+    let result = try RepositoryJobRunner.run(
+        jobID: job.id,
+        root: fixture.root,
+        databaseURL: databaseURL,
+        contentRootURL: contentRootURL,
+        cancellation: RepositoryIndexCancellation(),
+        capturedAt: Date(timeIntervalSince1970: 302)
+    )
+
+    let completedStore = try RepositoryJobStore(databaseURL: databaseURL)
+    let completed = try #require(try completedStore.record(id: job.id))
+    #expect(completed.status == .completed)
+    #expect(completed.attempts == 2)
+    #expect(completed.snapshotCommit == result.snapshot.commit)
+    #expect(completed.capturedSourceCount == result.capturedSourceIDs.count)
+    #expect(
+        try RepositorySnapshotStore(databaseURL: databaseURL)
+            .snapshots(forCanonicalPath: fixture.root.path)
+            .last?.commit == completed.snapshotCommit
+    )
+    let queue = try IngestQueue(
+        databaseURL: databaseURL,
+        contentStore: try ContentStore(rootDirectory: contentRootURL),
+        extractors: .localDefaults
+    )
+    #expect(try queue.documents().count == 3)
+    #expect(try Data(contentsOf: sourceURL) == bytesBefore)
+    #expect(try fixture.git("status", "--porcelain") == statusBefore)
+}
+
+@Test("repository cancellation is refused after the terminal snapshot boundary")
+func repositoryCancellationRefusesAfterTerminalBoundary() throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let vaultRoot = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: vaultRoot) }
+    let databaseURL = vaultRoot.appending(path: "vault.sqlite")
+    let contentRootURL = vaultRoot.appending(path: "content")
+    let store = try RepositoryJobStore(databaseURL: databaseURL)
+    let job = try store.create(
+        sourceID: nil,
+        canonicalPath: fixture.root.path
+    )
+    try store.close()
+    let cancellation = RepositoryIndexCancellation()
+    let result = try RepositoryJobRunner.run(
+        jobID: job.id,
+        root: fixture.root,
+        databaseURL: databaseURL,
+        contentRootURL: contentRootURL,
+        cancellation: cancellation,
+        beforeSnapshotSave: {
+            #expect(cancellation.cancel() == false)
+        }
+    )
+
+    let reopened = try RepositoryJobStore(databaseURL: databaseURL)
+    let completed = try #require(try reopened.record(id: job.id))
+    #expect(completed.status == .completed)
+    #expect(completed.snapshotCommit == result.snapshot.commit)
+    #expect(
+        try RepositorySnapshotStore(databaseURL: databaseURL)
+            .snapshots(forCanonicalPath: fixture.root.path)
+            .last?.commit == result.snapshot.commit
+    )
+}
+
 @Test("cancelled repository indexing never records a new snapshot receipt")
 func cancelledRepositoryIndexingNeverRecordsSnapshotReceipt() throws {
     let fixture = try TemporaryRepository.make()
@@ -400,6 +711,139 @@ func selectedRepositorySourcesPersistAndCanBeRemoved() throws {
 
     try service.remove(added.id)
     #expect(try RepositorySourceConfigurationStore(url: configurationURL).load().isEmpty)
+}
+
+@Test("repository source removal persists lifecycle without deleting snapshot history")
+func repositorySourceRemovalPersistsLifecycleWithoutDeletingHistory() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let configurationURL = root.appending(path: "repository-sources.json")
+    let databaseURL = root.appending(path: "vault.sqlite")
+    let lifecycleStore = try RepositorySourceLifecycleStore(
+        databaseURL: databaseURL
+    )
+    let service = RepositorySourceService(
+        store: RepositorySourceConfigurationStore(url: configurationURL),
+        lifecycleStore: lifecycleStore
+    )
+    let added = try service.add(path: "/tmp/example-repository")
+    let active = try #require(
+        try lifecycleStore.record(sourceID: added.id)
+    )
+    #expect(active.status == .active)
+
+    let snapshot = RepositorySnapshot(
+        canonicalPath: added.canonicalPath,
+        remote: nil,
+        branch: "main",
+        commit: String(repeating: "a", count: 40),
+        isDirty: false,
+        license: "MIT",
+        files: []
+    )
+    let snapshotStore = try RepositorySnapshotStore(databaseURL: databaseURL)
+    #expect(try snapshotStore.saveIfNew(snapshot) == .recorded)
+
+    try service.remove(added.id)
+
+    #expect(
+        try RepositorySourceConfigurationStore(url: configurationURL)
+            .load()
+            .isEmpty
+    )
+    let reopenedLifecycle = try RepositorySourceLifecycleStore(
+        databaseURL: databaseURL
+    )
+    let removed = try #require(
+        try reopenedLifecycle.record(sourceID: added.id)
+    )
+    #expect(removed.canonicalPath == added.canonicalPath)
+    #expect(removed.status == .removed)
+    #expect(
+        try RepositorySnapshotStore(databaseURL: databaseURL)
+            .snapshots(forCanonicalPath: added.canonicalPath) == [snapshot]
+    )
+}
+
+@Test("repository source lifecycle failure rolls configuration back")
+func repositorySourceLifecycleFailureRollsConfigurationBack() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let configurationURL = root.appending(path: "repository-sources.json")
+    let configurationStore = RepositorySourceConfigurationStore(
+        url: configurationURL
+    )
+    let failingLifecycle = FailingRepositorySourceLifecycleWriter()
+    let addService = RepositorySourceService(
+        store: configurationStore,
+        lifecycleStore: failingLifecycle
+    )
+
+    #expect(throws: SyntheticRepositoryLifecycleError.writeFailed) {
+        _ = try addService.add(path: "/tmp/add-rollback")
+    }
+    #expect(try configurationStore.load().isEmpty)
+
+    let existing = try RepositorySource(path: "/tmp/remove-rollback")
+    try configurationStore.save([existing])
+    let failingRemoveLifecycle = FailingRepositorySourceLifecycleWriter(
+        records: [
+            RepositorySourceLifecycleRecord(
+                sourceID: existing.id,
+                canonicalPath: existing.canonicalPath,
+                status: .active,
+                updatedAt: Date()
+            ),
+        ]
+    )
+    let removeService = RepositorySourceService(
+        store: configurationStore,
+        lifecycleStore: failingRemoveLifecycle
+    )
+    _ = try removeService.reload()
+
+    #expect(throws: SyntheticRepositoryLifecycleError.writeFailed) {
+        try removeService.remove(existing.id)
+    }
+    #expect(try configurationStore.load() == [existing])
+}
+
+@Test("repository source reload reconciles JSON from authoritative lifecycle")
+func repositorySourceReloadReconcilesCrashSplitState() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let configurationURL = root.appending(path: "repository-sources.json")
+    let configurationStore = RepositorySourceConfigurationStore(
+        url: configurationURL
+    )
+    let lifecycleStore = try RepositorySourceLifecycleStore(
+        databaseURL: root.appending(path: "vault.sqlite")
+    )
+    let service = RepositorySourceService(
+        store: configurationStore,
+        lifecycleStore: lifecycleStore
+    )
+    let source = try service.add(path: "/tmp/crash-split-repository")
+
+    try configurationStore.save([])
+    let addRecovered = RepositorySourceService(
+        store: configurationStore,
+        lifecycleStore: lifecycleStore
+    )
+    #expect(try addRecovered.reload() == [source])
+    #expect(try configurationStore.load() == [source])
+
+    _ = try lifecycleStore.record(source, status: .removed)
+    try configurationStore.save([source])
+    let removeRecovered = RepositorySourceService(
+        store: configurationStore,
+        lifecycleStore: lifecycleStore
+    )
+    #expect(try removeRecovered.reload().isEmpty)
+    #expect(try configurationStore.load().isEmpty)
 }
 
 @Test("repository intake receipts persist snapshots idempotently across restart")
@@ -752,3 +1196,52 @@ private struct TemporaryRepository {
 }
 
 private enum TemporaryRepositoryError: Error { case gitFailure }
+
+private func repositoryJobRecord(
+    from base: RepositoryJobRecord,
+    status: RepositoryJobStatus,
+    attempts: Int,
+    snapshotCommit: String? = nil,
+    capturedSourceCount: Int? = nil,
+    errorCode: String? = nil
+) -> RepositoryJobRecord {
+    RepositoryJobRecord(
+        id: base.id,
+        sourceID: base.sourceID,
+        canonicalPath: base.canonicalPath,
+        status: status,
+        attempts: attempts,
+        maxAttempts: base.maxAttempts,
+        snapshotCommit: snapshotCommit,
+        capturedSourceCount: capturedSourceCount,
+        errorCode: errorCode,
+        createdAt: base.createdAt,
+        updatedAt: base.updatedAt
+    )
+}
+
+private enum SyntheticRepositoryLifecycleError: Error {
+    case writeFailed
+}
+
+private struct FailingRepositorySourceLifecycleWriter:
+    RepositorySourceLifecycleWriting
+{
+    let records: [RepositorySourceLifecycleRecord]
+
+    init(records: [RepositorySourceLifecycleRecord] = []) {
+        self.records = records
+    }
+
+    func all() throws -> [RepositorySourceLifecycleRecord] {
+        records
+    }
+
+    func record(
+        _ source: RepositorySource,
+        status: RepositorySourceLifecycleStatus,
+        at updatedAt: Date
+    ) throws -> RepositorySourceLifecycleRecord {
+        throw SyntheticRepositoryLifecycleError.writeFailed
+    }
+}

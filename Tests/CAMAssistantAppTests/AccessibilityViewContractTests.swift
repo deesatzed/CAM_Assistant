@@ -68,6 +68,30 @@ func workspaceAccessibilityContractRejectsUnrelatedContainment() {
     #expect(!contract.isSatisfied(by: unrelatedContainment))
 }
 
+@Test("repository view exposes durable local job lifecycle without deletion authority")
+func repositoryViewExposesDurableJobLifecycle() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(path: "Sources/CAMAssistantApp/Views/RepositoryView.swift"),
+        encoding: .utf8
+    )
+
+    let requiredContracts = [
+        "Section(\"Recent repository jobs\")",
+        "case .cancel:",
+        "case .resume:",
+        "model.cancelRepositoryJob(job.id)",
+        "model.resumeRepositoryJob(job.id)",
+        "preserves vault bytes, provenance, snapshots, jobs, and ideas",
+        "Repository job \\(job.statusLabel)",
+    ]
+
+    #expect(
+        requiredContracts.allSatisfy(source.contains),
+        "RepositoryView must expose persistent status-only jobs, bounded actions, and non-destructive source removal"
+    )
+}
+
 private struct AccessibilitySourceContract {
     let fileName: String
     let rootLabelPrefix: String

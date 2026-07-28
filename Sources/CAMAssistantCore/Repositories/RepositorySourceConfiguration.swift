@@ -19,6 +19,7 @@ public enum RepositorySourceConfigurationError: Error, Equatable {
     case duplicatePath(String)
     case duplicateID(UUID)
     case sourceNotFound(UUID)
+    case rollbackFailed
 }
 
 public final class RepositorySourceConfigurationStore {
@@ -57,38 +58,121 @@ public final class RepositorySourceConfigurationStore {
 /// actions with their own authority checks.
 public final class RepositorySourceService {
     private let store: RepositorySourceConfigurationStore
+    private let lifecycleStore: (any RepositorySourceLifecycleWriting)?
     private var sources: [RepositorySource] = []
 
-    public init(store: RepositorySourceConfigurationStore) {
+    public init(
+        store: RepositorySourceConfigurationStore,
+        lifecycleStore: (any RepositorySourceLifecycleWriting)? = nil
+    ) {
         self.store = store
+        self.lifecycleStore = lifecycleStore
     }
 
     @discardableResult
     public func reload() throws -> [RepositorySource] {
-        sources = try store.load()
+        let configured = try store.load()
+        guard let lifecycleStore else {
+            sources = configured
+            return sources
+        }
+        let lifecycle = try lifecycleStore.all()
+        if lifecycle.isEmpty {
+            for source in configured {
+                _ = try lifecycleStore.record(
+                    source,
+                    status: .active,
+                    at: Date()
+                )
+            }
+            sources = configured
+            return sources
+        }
+        let active = try lifecycle
+            .filter { $0.status == .active }
+            .map {
+                try RepositorySource(
+                    id: $0.sourceID,
+                    path: $0.canonicalPath
+                )
+            }
+        if active != configured {
+            try store.save(active)
+        }
+        sources = active
         return sources
     }
 
     @discardableResult
     public func add(path: String) throws -> RepositorySource {
         let source = try RepositorySource(path: path)
-        try update { $0.append(source) }
+        let previous = sources
+        var next = previous
+        next.append(source)
+        guard let lifecycleStore else {
+            try store.save(next)
+            sources = next
+            return source
+        }
+        guard !previous.contains(where: {
+            $0.canonicalPath == source.canonicalPath
+        }) else {
+            throw RepositorySourceConfigurationError.duplicatePath(
+                source.canonicalPath
+            )
+        }
+        _ = try lifecycleStore.record(
+            source,
+            status: .active,
+            at: Date()
+        )
+        do {
+            try store.save(next)
+        } catch {
+            do {
+                _ = try lifecycleStore.record(
+                    source,
+                    status: .removed,
+                    at: Date()
+                )
+            } catch {
+                throw RepositorySourceConfigurationError.rollbackFailed
+            }
+            throw error
+        }
+        sources = next
         return source
     }
 
     public func remove(_ sourceID: UUID) throws {
-        try update { sources in
-            guard sources.contains(where: { $0.id == sourceID }) else {
-                throw RepositorySourceConfigurationError.sourceNotFound(sourceID)
-            }
-            sources.removeAll { $0.id == sourceID }
+        guard let source = sources.first(where: { $0.id == sourceID }) else {
+            throw RepositorySourceConfigurationError.sourceNotFound(sourceID)
         }
-    }
-
-    private func update(_ change: (inout [RepositorySource]) throws -> Void) throws {
-        var next = sources
-        try change(&next)
-        try store.save(next)
+        let next = sources.filter { $0.id != sourceID }
+        guard let lifecycleStore else {
+            try store.save(next)
+            sources = next
+            return
+        }
+        _ = try lifecycleStore.record(
+            source,
+            status: .removed,
+            at: Date()
+        )
+        do {
+            try store.save(next)
+        } catch {
+            do {
+                _ = try lifecycleStore.record(
+                    source,
+                    status: .active,
+                    at: Date()
+                )
+            } catch {
+                throw RepositorySourceConfigurationError.rollbackFailed
+            }
+            throw error
+        }
         sources = next
     }
 }

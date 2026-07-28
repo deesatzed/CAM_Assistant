@@ -9,7 +9,7 @@ public struct Migration: Sendable {
 }
 
 public enum Migrations {
-    public static let currentVersion = 7
+    public static let currentVersion = 8
 
     public static let all: [Migration] = [
         Migration(
@@ -176,6 +176,46 @@ public enum Migrations {
                 """
                 CREATE INDEX IF NOT EXISTS source_lifecycle_status_idx
                     ON source_lifecycle(status, updated_at)
+                """,
+            ]
+        ),
+        Migration(
+            version: 8,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS repository_jobs (
+                    job_id TEXT PRIMARY KEY NOT NULL,
+                    source_id TEXT,
+                    canonical_path TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    attempts INTEGER NOT NULL,
+                    max_attempts INTEGER NOT NULL,
+                    snapshot_commit TEXT,
+                    captured_source_count INTEGER,
+                    error_code TEXT,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS repository_jobs_path_idx
+                    ON repository_jobs(canonical_path, updated_at DESC, job_id)
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS repository_jobs_status_idx
+                    ON repository_jobs(status, updated_at, job_id)
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS repository_source_lifecycle (
+                    source_id TEXT PRIMARY KEY NOT NULL,
+                    canonical_path TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS repository_source_lifecycle_status_idx
+                    ON repository_source_lifecycle(status, updated_at, source_id)
                 """,
             ]
         ),

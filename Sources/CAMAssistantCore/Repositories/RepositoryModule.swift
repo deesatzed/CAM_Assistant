@@ -533,12 +533,42 @@ public enum RepositoryIncrementalIndexError: Error, Equatable {
 
 /// Thread-safe cancellation token for an explicit local indexing request.
 public final class RepositoryIndexCancellation: @unchecked Sendable {
+    private enum State {
+        case active
+        case cancelled
+        case terminalCommit
+    }
+
     private let lock = NSLock()
-    private var cancelled = false
+    private var state = State.active
 
     public init() {}
-    public func cancel() { lock.lock(); cancelled = true; lock.unlock() }
-    public var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
+
+    /// Returns true only when cancellation won the terminal-state race.
+    @discardableResult
+    public func cancel() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard state == .active else { return state == .cancelled }
+        state = .cancelled
+        return true
+    }
+
+    public var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return state == .cancelled
+    }
+
+    /// Begins the terminal snapshot phase. Later cancellation is refused
+    /// instead of falsely reporting that an in-flight receipt was cancelled.
+    public func beginTerminalCommit() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard state == .active else { return false }
+        state = .terminalCommit
+        return true
+    }
 }
 
 /// Self-contained local-derived repository indexing operation. Its explicit
@@ -550,7 +580,9 @@ public struct RepositoryLocalIndexOperation: Sendable {
         databaseURL: URL,
         contentRootURL: URL,
         capturedAt: Date = Date(),
-        shouldCancel: @Sendable () -> Bool = { false }
+        shouldCancel: @Sendable () -> Bool = { false },
+        beforeSnapshotCommit: @Sendable () -> Bool = { true },
+        beforeSnapshotSave: @Sendable () -> Void = {}
     ) throws -> RepositoryIncrementalIndexResult {
         let queue = try IngestQueue(
             databaseURL: databaseURL,
@@ -560,7 +592,13 @@ public struct RepositoryLocalIndexOperation: Sendable {
         return try RepositoryIncrementalIndexService(
             snapshotStore: RepositorySnapshotStore(databaseURL: databaseURL),
             queue: queue
-        ).indexChangedFiles(root: root, capturedAt: capturedAt, shouldCancel: shouldCancel)
+        ).indexChangedFiles(
+            root: root,
+            capturedAt: capturedAt,
+            shouldCancel: shouldCancel,
+            beforeSnapshotCommit: beforeSnapshotCommit,
+            beforeSnapshotSave: beforeSnapshotSave
+        )
     }
 }
 
@@ -588,12 +626,17 @@ public final class RepositoryIncrementalIndexService {
     public func indexChangedFiles(
         root: URL,
         capturedAt: Date = Date(),
-        shouldCancel: @Sendable () -> Bool = { false }
+        shouldCancel: @Sendable () -> Bool = { false },
+        beforeSnapshotCommit: @Sendable () -> Bool = { true },
+        beforeSnapshotSave: @Sendable () -> Void = {}
     ) throws -> RepositoryIncrementalIndexResult {
         guard !shouldCancel() else { throw RepositoryIncrementalIndexError.cancelled }
         let snapshot = try repositoryModule.intake(root: root)
         let prior = try snapshotStore.snapshots(forCanonicalPath: snapshot.canonicalPath).last
         guard prior?.commit != snapshot.commit else {
+            guard !shouldCancel(), beforeSnapshotCommit() else {
+                throw RepositoryIncrementalIndexError.cancelled
+            }
             return RepositoryIncrementalIndexResult(
                 snapshot: snapshot,
                 comparison: prior.map { try? RepositoryComparator().compare(before: $0, after: snapshot) } ?? nil,
@@ -636,6 +679,10 @@ public final class RepositoryIncrementalIndexService {
             throw RepositoryIncrementalIndexError.ingestionFailed
         }
         guard !shouldCancel() else { throw RepositoryIncrementalIndexError.cancelled }
+        guard beforeSnapshotCommit() else {
+            throw RepositoryIncrementalIndexError.cancelled
+        }
+        beforeSnapshotSave()
         let saveResult = try snapshotStore.saveIfNew(snapshot)
         return RepositoryIncrementalIndexResult(
             snapshot: snapshot,

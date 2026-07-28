@@ -42,7 +42,7 @@ struct RepositoryView: View {
 
             if !model.repositorySources.isEmpty {
                 Section("Saved local repositories") {
-                    Text("Choose a saved path, then inspect it explicitly. Saving a source does not grant repository or CAM access.")
+                    Text("Choose a saved path, then inspect it explicitly. Saving a source does not grant repository or CAM access. Removing a saved path preserves vault bytes, provenance, snapshots, jobs, and ideas.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     ForEach(model.repositorySources) { source in
@@ -57,7 +57,53 @@ struct RepositoryView: View {
                                 model.removeRepositorySource(source.id)
                             }
                             .accessibilityLabel("Remove saved repository path \(source.canonicalPath)")
+                            .accessibilityHint("Removes only the saved path selection. Existing local evidence and history are preserved.")
                         }
+                    }
+                }
+            }
+
+            if !model.repositoryJobs.isEmpty {
+                Section("Recent repository jobs") {
+                    Text("Status-only local history. These jobs never invoke CAM, use a network, or write to the selected repository.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(model.repositoryJobs) { job in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(job.canonicalPath)
+                                .font(.subheadline)
+                                .lineLimit(2)
+                            Text("\(job.statusLabel) · \(job.attemptLabel)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let result = job.resultLabel {
+                                Text(result)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let failure = job.failureLabel {
+                                Text(failure)
+                                    .font(.caption2)
+                                    .foregroundStyle(.red)
+                            }
+                            if let action = job.availableAction {
+                                switch action {
+                                case .cancel:
+                                    Button("Cancel") {
+                                        model.cancelRepositoryJob(job.id)
+                                    }
+                                    .accessibilityHint("Cancels only this local repository indexing job.")
+                                case .resume:
+                                    Button("Resume") {
+                                        model.resumeRepositoryJob(job.id)
+                                    }
+                                    .disabled(model.isRepositoryIndexing)
+                                    .accessibilityHint("Retries this same local job within its bounded attempt limit.")
+                                }
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel("Repository job \(job.statusLabel), \(job.attemptLabel), path \(job.canonicalPath)")
                     }
                 }
             }

@@ -96,6 +96,19 @@ func sqliteMigrationsAreDurableAcrossRestart() throws {
 
     let reopened = try SQLiteStore(databaseURL: databaseURL)
     #expect(try reopened.schemaVersion() == Migrations.currentVersion)
+    #expect(Migrations.currentVersion == 8)
+    let repositoryTables = try reopened.query(
+        """
+        SELECT name FROM sqlite_master
+        WHERE type = 'table'
+          AND name IN ('repository_jobs', 'repository_source_lifecycle')
+        ORDER BY name ASC
+        """
+    )
+    #expect(
+        repositoryTables.compactMap(\.first).compactMap { $0 }
+            == ["repository_jobs", "repository_source_lifecycle"]
+    )
     try reopened.close()
 }
 
