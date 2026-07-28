@@ -1201,6 +1201,9 @@ individual proof gates are met.
 - Verification: all 33 repository-focused tests, all 10 app tests, and all 202
   aggregate tests pass; portability checks, app/CLI production builds,
   unsigned package validation, offline smoke, and `git diff --check` pass.
+- Green: a temporary non-local clone of pushed code checkpoint `3762c2c`
+  independently passed portability, all 202 tests, app/CLI release builds,
+  package validation, and offline smoke from a clean source tree.
 - Saved receipt:
   `docs/evidence/task-15-repository-job-lifecycle.md`.
 - Boundary: this closes the durable foreground repository-job/removal slice,

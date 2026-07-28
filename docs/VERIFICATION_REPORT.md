@@ -13,7 +13,7 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 | `swift test --filter CAMAssistantAppTests` | All 10 app tests pass, including injected AppModel live-lease recovery and cancellation reload |
 | `/bin/zsh scripts/verify.sh generated` | Frozen generated-answer evaluator, structured local-model inference, explicit abstention, and conversation-boundary tests pass |
 | `/bin/zsh scripts/verify.sh portability` | Required truth files are local; no external governing links or tracked generated artifacts; diff check passes |
-| `/bin/zsh scripts/verify.sh fresh-clone` | Temporary non-local clone of selected-model checkpoint `5ea2395` passes portability, 189 tests, app/CLI release builds, package validation, and offline smoke from a clean source tree |
+| `/bin/zsh scripts/verify.sh fresh-clone` | Temporary non-local clone of repository-lifecycle code checkpoint `3762c2c` passes portability, 202 tests, app/CLI release builds, package validation, and offline smoke from a clean source tree |
 | `/bin/zsh scripts/verify.sh smoke` | Offline native smoke reports capture/local search available and cloud auto-routing disabled |
 | `/bin/zsh scripts/verify.sh package` | Builds unsigned `artifacts/CAM Assistant.app`; `Info.plist` validates |
 | Native accessibility inspection of `artifacts/CAM Assistant.app` | Real global open/capture hotkeys, watched-source lifecycle, persisted cancellation/restart/resume, independent Activity Cancel/Resume controls, exact selected-model health/generation identity, generated-citation Library navigation, initial/retained question focus, ordered keyboard sidebar navigation, primary-workspace labels/values, accessible empty/error/read-only states, and motion-free source scan pass against disposable roots |

@@ -47,6 +47,7 @@ CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all
 ./scripts/verify.sh package
 ./scripts/verify.sh smoke
 git diff --check
+./scripts/verify.sh fresh-clone
 ```
 
 Results:
@@ -59,6 +60,10 @@ Results:
 - portability checks, app/CLI production builds, unsigned package validation,
   and offline smoke: pass;
 - diff check: pass.
+- pushed code checkpoint
+  `3762c2c7e55c49a5f161f0d21d3ae78cfc2f7c1c`: temporary non-local clone,
+  202 tests, release builds, package validation, offline smoke, and clean source
+  status all pass.
 
 The final adversarial re-review reported zero Critical, Important, or Minor
 findings after removing the unsafe closure-only persistent-runner API.
