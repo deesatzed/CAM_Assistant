@@ -1213,6 +1213,30 @@ disabled until their individual proof gates are met.
   secret scanning, semantic observation evaluation, live Codex/CAM execution,
   network authority, or source-byte deletion.
 
+### Full-vault backup and restore gap audit — 2026-07-28
+
+- Green inventory: current app-owned durable state is mapped across
+  `vault.sqlite`, immutable `content/` objects, model/hotkey/watched-source/
+  repository-source preferences, kept research plans, knowledge, and
+  contradictions.
+- Existing proof remains correctly bounded: exact immutable-byte component
+  backup/restore and a separate SQLite audit backup pass, but they do not prove
+  one consistent full-vault snapshot or fresh-root recovery.
+- Gap: verified research packets, approvals, module state, and orchestration
+  artifacts have store types but no canonical app-owned paths; retrieval
+  generations are derived, while process leases and temporary files must not be
+  restored.
+- The saved audit defines the common requirements for either package choice:
+  SQLite online backup, object re-hashing, a versioned relative-path manifest,
+  path/symlink rejection, staging validation, authority-safe restore, and
+  post-restore reopening.
+- Saved audit:
+  `docs/evidence/task-18-full-vault-backup-gap-audit.md`.
+- Boundary: no backup archive was created, no live application-support data
+  was inspected, and no restore, overwrite, merge, deletion, or encryption was
+  performed. Full-vault backup/restore remains in progress pending the package
+  choice and implementation.
+
 ## Blockers
 
 None.
