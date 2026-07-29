@@ -232,6 +232,47 @@ func camRuntimeInspectionPinsSelectedBytesWithoutExecution() throws {
     #expect(pin.identitySHA256.count == 64)
 }
 
+@Test("closed CAM tool request accepts only a bounded enumerated operation")
+func camClosedToolRequestValidatesClosedContract() throws {
+    let identity = String(repeating: "a", count: 64)
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: identity,
+        idempotencyKey: "stats-checkpoint-1",
+        maximumAttempts: 2,
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+
+    #expect(request.toolID == .statistics)
+    #expect(request.runtimeIdentitySHA256 == identity)
+    #expect(request.idempotencyKey == "stats-checkpoint-1")
+    #expect(request.maximumAttempts == 2)
+
+    #expect(throws: CAMClosedToolRequestError.invalidRuntimeIdentity) {
+        _ = try CAMClosedToolRequest(
+            toolID: .statistics,
+            runtimeIdentitySHA256: "not-a-digest",
+            idempotencyKey: "stats-checkpoint-1"
+        )
+    }
+    #expect(throws: CAMClosedToolRequestError.invalidIdempotencyKey) {
+        _ = try CAMClosedToolRequest(
+            toolID: .statistics,
+            runtimeIdentitySHA256: identity,
+            idempotencyKey: "../escape"
+        )
+    }
+    #expect(throws: CAMClosedToolRequestError.invalidBounds) {
+        _ = try CAMClosedToolRequest(
+            toolID: .statistics,
+            runtimeIdentitySHA256: identity,
+            idempotencyKey: "stats-checkpoint-1",
+            maximumAttempts: 4
+        )
+    }
+}
+
 @Test("closed CAM statistics probe reads only a disposable snapshot and returns typed evidence")
 func closedCAMStatisticsProbeReadsOnlyDisposableSnapshot() async throws {
     let fixture = try CAMInstalledRuntimeFixture()
