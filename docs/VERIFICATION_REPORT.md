@@ -13,7 +13,7 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 | `swift test --filter CAMAssistantAppTests` | All 10 app tests pass, including injected AppModel live-lease recovery and cancellation reload |
 | `/bin/zsh scripts/verify.sh generated` | Frozen generated-answer evaluator, structured local-model inference, explicit abstention, and conversation-boundary tests pass |
 | `/bin/zsh scripts/verify.sh portability` | Required truth files are local; no external governing links or tracked generated artifacts; diff check passes |
-| `/bin/zsh scripts/verify.sh fresh-clone` | Temporary non-local clone of repository-lifecycle code checkpoint `3762c2c` passes portability, 202 tests, app/CLI release builds, package validation, and offline smoke from a clean source tree |
+| `./scripts/verify.sh fresh-clone` | Temporary non-local clone of semantic feature checkpoint `e5770f04abf80781da7ce9527786b71b3d65e77a` passes portability, goal-map validation, 221 tests, app/CLI release builds, package reproducibility/identity, 42-file zero-finding privacy scan, and offline smoke from a clean source tree |
 | `/bin/zsh scripts/verify.sh smoke` | Offline native smoke reports capture/local search available and cloud auto-routing disabled |
 | `/bin/zsh scripts/verify.sh package` | Builds unsigned `artifacts/CAM Assistant.app`; `Info.plist` validates and embeds exact Git commit, deterministic commit-count build number, and source dirty state |
 | `/bin/zsh scripts/verify.sh package-reproducibility` | Two same-source release package builds have identical canonical entry-type, permission-mode, and content-hash manifests; identity is checked after each build |

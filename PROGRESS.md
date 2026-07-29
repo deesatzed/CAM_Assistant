@@ -1514,6 +1514,11 @@ disabled until their individual proof gates are met.
   - Needs investigation: none for this synthetic-validator checkpoint. Broad
     repository quality and a named live-model result remain explicit future
     proof gates rather than claims from this slice.
+- Exact-commit receipt: `./scripts/verify.sh fresh-clone` passed from a clean
+  temporary clone of feature commit
+  `e5770f04abf80781da7ce9527786b71b3d65e77a`: 221 tests, release app/CLI,
+  reproducible package, package identity, 42-file zero-finding privacy scan,
+  offline smoke, and the honest 48-gate map.
 
 ## Blockers
 
