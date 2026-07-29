@@ -1851,8 +1851,14 @@ workflows remain disabled until their individual proof gates are met.
   and the honest 48-gate map, all `287` Swift tests, app/CLI release builds,
   two-build package
   reproducibility, package identity, a `54`-file zero-finding
-  credential-signature scan, and offline smoke pass with recursive
-  fresh-clone verification intentionally deferred until commit.
+  credential-signature scan, and offline smoke pass.
+- Green exact-commit proof: `/bin/zsh scripts/verify.sh fresh-clone` passed
+  from a clean temporary non-local clone of implementation checkpoint
+  `8d2dc163f3a516598967f9700406cd58b9d2c098`: all `287` tests, release
+  app/CLI, reproducible package
+  (`29f454a176ab2fdd38d1e02bdb6e70ccee73fea47d109fce55c9eba11c1cbc9f`),
+  exact package identity with `dirty=false`, the `54`-file zero-finding scan,
+  and offline smoke pass.
 - Saved evidence: `docs/evidence/task-14-research-acquisition.md`.
 - Boundary: V1 does not provide provider search, arbitrary HTML/browser
   acquisition, model-generated findings, paid APIs, cloud models, link

@@ -48,6 +48,7 @@ recommendations.
 | `/bin/zsh scripts/verify.sh backup` | 18 full-vault tests pass, including a representative completed acquisition job after restore |
 | `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` | All 287 Swift tests pass with portability, the honest 48-gate map, release app/CLI builds, reproducible package, package identity, and a 54-file zero-finding credential-signature scan |
 | `/bin/zsh scripts/verify.sh smoke` | Offline launch contract passes: capture and local search available; automatic cloud routing disabled |
+| `/bin/zsh scripts/verify.sh fresh-clone` | Exact implementation checkpoint `8d2dc163f3a516598967f9700406cd58b9d2c098` passes all 287 tests, release builds, reproducible package, clean package identity, 54-file privacy scan, and offline smoke from a temporary non-local clone |
 
 ## One live public-document receipt
 
@@ -93,9 +94,10 @@ cannot enforce `--max-filesize` while streaming a response with unknown length.
 
 The hardened live binary was built from source base `c15f7f4` with the implementation
 worktree dirty; the package truthfully embedded `CAMBuildSourceDirty=true`.
-The final clean-commit and fresh-clone receipts are recorded separately after
-publication. This evidence does not mislabel the pre-commit live binary as a
-clean exact-commit build.
+The clean implementation checkpoint is
+`8d2dc163f3a516598967f9700406cd58b9d2c098`; its fresh-clone package embedded
+that exact commit with `dirty=false`. This evidence does not mislabel the
+pre-commit live binary as a clean exact-commit build.
 
 ## Packaged native journey
 
