@@ -86,6 +86,12 @@ native app and CLI, reproduced two packages with canonical manifest
 scanned 55 package/evidence files with zero credential-signature findings, and
 passed direct offline smoke.
 
+A clean temporary non-local clone of pushed checkpoint
+`ef2a7bf8e03d2de4b58317bb83885483fa42396f` independently passed the same
+307-test, release-build, package, identity, privacy, and offline-smoke path.
+The clean clone reported `dirty=false` and package reproducibility manifest
+`eecd0db30b046519a1ba12bf9643d4186cac611ef5aa33f3671462b3932db596`.
+
 ## Real installed-runtime receipt
 
 The selected installation was:

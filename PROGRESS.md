@@ -1938,6 +1938,13 @@ workflows remain disabled until their individual proof gates are met.
   the 55-file credential-signature scan has zero findings; and direct current
   debug-binary offline smoke reports capture/search available with no automatic
   cloud route.
+- Green exact-commit proof: `/bin/zsh scripts/verify.sh fresh-clone` passed
+  from a clean temporary non-local clone of pushed implementation checkpoint
+  `ef2a7bf8e03d2de4b58317bb83885483fa42396f`: all `307` tests, release
+  app/CLI builds, reproducible package
+  (`eecd0db30b046519a1ba12bf9643d4186cac611ef5aa33f3671462b3932db596`),
+  exact package identity with `dirty=false`, the `55`-file zero-finding scan,
+  and offline smoke pass.
 
 ## Blockers
 
