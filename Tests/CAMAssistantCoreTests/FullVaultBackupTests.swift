@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import CAMAssistantCore
@@ -290,6 +291,314 @@ func fullVaultPackageRejectsUnsafeSourceFiles() throws {
         )
     }
     try database.close()
+}
+
+@Test("full-vault restore round-trips durable state and pauses restored authority")
+func fullVaultRestoreRoundTripsStateAndPausesAuthority() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "RoundTrip.camvault")
+    let destinationRoot = workspace.appending(path: "Restored")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    let contentStore = try ContentStore(
+        rootDirectory: sourceRoot.appending(path: "content")
+    )
+    let payload = Data("restored immutable bytes".utf8)
+    let stored = try contentStore.put(payload)
+    let watched = try WatchedSource(
+        id: UUID(uuidString: "00000000-0000-0000-0000-000000000101")!,
+        path: "/tmp/source-to-review",
+        isEnabled: true
+    )
+    try WatchedSourceConfigurationStore(
+        url: sourceRoot.appending(path: "watched-sources.json")
+    ).save([watched])
+    let repository = try RepositorySource(
+        id: UUID(uuidString: "00000000-0000-0000-0000-000000000102")!,
+        path: "/tmp/repository-to-review"
+    )
+    try RepositorySourceConfigurationStore(
+        url: sourceRoot.appending(path: "repository-sources.json")
+    ).save([repository])
+    let emptyStores = [
+        "research-plans.json",
+        "research-packets.json",
+        "knowledge-claims.json",
+        "contradictions.json",
+    ]
+    for name in emptyStores {
+        try Data("[]".utf8).write(to: sourceRoot.appending(path: name))
+    }
+    let approvalHistory = Data(
+        #"{"schemaVersion":1,"approvals":[]}"#.utf8
+    )
+    try approvalHistory.write(
+        to: sourceRoot.appending(path: "approvals.json")
+    )
+    let moduleHistory = Data(
+        #"{"enabledModuleIDs":["cam.research"],"permissionGrants":{"cam.research":["network"]}}"#.utf8
+    )
+    try moduleHistory.write(
+        to: sourceRoot.appending(path: "module-state.json")
+    )
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL,
+        createdAt: Date(timeIntervalSince1970: 100)
+    )
+    try database.close()
+
+    let receipt = try FullVaultBackupService().restorePackage(
+        at: packageURL,
+        to: destinationRoot,
+        restoredAt: Date(timeIntervalSince1970: 200)
+    )
+
+    let restoredDatabase = try SQLiteStore(
+        databaseURL: destinationRoot.appending(path: "vault.sqlite")
+    )
+    #expect(try restoredDatabase.schemaVersion() == Migrations.currentVersion)
+    try restoredDatabase.close()
+    let restoredContent = try ContentStore(
+        rootDirectory: destinationRoot.appending(path: "content")
+    )
+    #expect(try restoredContent.data(for: stored.id) == payload)
+    let restoredWatched = try WatchedSourceConfigurationStore(
+        url: destinationRoot.appending(path: "watched-sources.json")
+    ).load()
+    #expect(restoredWatched.count == 1)
+    #expect(restoredWatched[0].canonicalPath == watched.canonicalPath)
+    #expect(!restoredWatched[0].isEnabled)
+    #expect(
+        try RepositorySourceConfigurationStore(
+            url: destinationRoot.appending(path: "repository-sources.json")
+        ).load() == [repository]
+    )
+    #expect(
+        try ResearchPlanStore(
+            url: destinationRoot.appending(path: "research-plans.json")
+        ).load().isEmpty
+    )
+    #expect(
+        try ResearchPacketStore(
+            url: destinationRoot.appending(path: "research-packets.json")
+        ).load().isEmpty
+    )
+    #expect(
+        try KnowledgeStore(
+            url: destinationRoot.appending(path: "knowledge-claims.json")
+        ).load().isEmpty
+    )
+    #expect(
+        try ContradictionStore(
+            url: destinationRoot.appending(path: "contradictions.json")
+        ).load().isEmpty
+    )
+    #expect(
+        !FileManager.default.fileExists(
+            atPath: destinationRoot.appending(path: "approvals.json").path
+        )
+    )
+    #expect(
+        try Data(
+            contentsOf: destinationRoot
+                .appending(path: "recovery-review/approvals.json")
+        ) == approvalHistory
+    )
+    #expect(
+        !FileManager.default.fileExists(
+            atPath: destinationRoot.appending(path: "module-state.json").path
+        )
+    )
+    #expect(
+        try Data(
+            contentsOf: destinationRoot
+                .appending(path: "recovery-review/module-state.json")
+        ) == moduleHistory
+    )
+    #expect(
+        !FileManager.default.fileExists(
+            atPath: destinationRoot.appending(path: "retrieval-index").path
+        )
+    )
+    #expect(receipt.entryCount == 10)
+    #expect(receipt.restoredAt == Date(timeIntervalSince1970: 200))
+    #expect(receipt.watchedSourcesPaused == 1)
+    #expect(receipt.authorityRecordsQuarantined == 2)
+}
+
+@Test("full-vault restore validates all bytes before creating a destination")
+func fullVaultRestoreValidatesBeforeDestinationCreation() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Tampered.camvault")
+    let destinationRoot = workspace.appending(path: "Restored")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    try Data("{}".utf8).write(
+        to: sourceRoot.appending(path: "models.json")
+    )
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL
+    )
+    try database.close()
+    try Data(#"{"tampered":true}"#.utf8).write(
+        to: packageURL.appending(path: "payload/models.json"),
+        options: .atomic
+    )
+
+    #expect(
+        throws: FullVaultBackupError.payloadEntryMismatch("models.json")
+    ) {
+        try FullVaultBackupService().restorePackage(
+            at: packageURL,
+            to: destinationRoot
+        )
+    }
+    #expect(!FileManager.default.fileExists(atPath: destinationRoot.path))
+}
+
+@Test("full-vault validation rejects corrupt SQLite even when manifest hashes match")
+func fullVaultValidationRejectsCorruptSQLite() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Corrupt.camvault")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL
+    )
+    try database.close()
+    let corrupt = Data("not a sqlite database".utf8)
+    try corrupt.write(
+        to: packageURL.appending(path: "payload/vault.sqlite"),
+        options: .atomic
+    )
+    try rewriteBackupManifest(
+        at: packageURL,
+        replacing: "vault.sqlite",
+        with: corrupt
+    )
+
+    #expect(throws: FullVaultBackupError.databaseIntegrityFailed) {
+        try FullVaultBackupService().validatePackage(at: packageURL)
+    }
+}
+
+@Test("full-vault validation rejects unsupported schema and unexpected payload")
+func fullVaultValidationRejectsUnsupportedSchemaAndExtraFiles() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Schema.camvault")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL
+    )
+    try database.close()
+    let manifestURL = packageURL.appending(path: "manifest.json")
+    let manifest = try JSONDecoder().decode(
+        FullVaultManifest.self,
+        from: Data(contentsOf: manifestURL)
+    )
+    let unsupported = try FullVaultManifest(
+        createdAt: manifest.createdAt,
+        sourceSchemaVersion: Migrations.currentVersion + 1,
+        entries: manifest.entries
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    try encoder.encode(unsupported).write(to: manifestURL, options: .atomic)
+
+    #expect(
+        throws: FullVaultBackupError.unsupportedSourceSchemaVersion(
+            Migrations.currentVersion + 1
+        )
+    ) {
+        try FullVaultBackupService().validatePackage(at: packageURL)
+    }
+
+    try encoder.encode(manifest).write(to: manifestURL, options: .atomic)
+    try Data("unexpected".utf8).write(
+        to: packageURL.appending(path: "payload/extra.json")
+    )
+    #expect(
+        throws: FullVaultBackupError.unexpectedPayloadEntry("extra.json")
+    ) {
+        try FullVaultBackupService().validatePackage(at: packageURL)
+    }
+}
+
+@Test("full-vault restore refuses any existing destination")
+func fullVaultRestoreRefusesExistingDestination() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "ExistingRoot.camvault")
+    let destinationRoot = workspace.appending(path: "Restored")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL
+    )
+    try database.close()
+    try FileManager.default.createDirectory(
+        at: destinationRoot,
+        withIntermediateDirectories: true
+    )
+
+    #expect(throws: FullVaultBackupError.restoreDestinationExists) {
+        try FullVaultBackupService().restorePackage(
+            at: packageURL,
+            to: destinationRoot
+        )
+    }
+}
+
+private func rewriteBackupManifest(
+    at packageURL: URL,
+    replacing relativePath: String,
+    with data: Data
+) throws {
+    let manifestURL = packageURL.appending(path: "manifest.json")
+    let manifest = try JSONDecoder().decode(
+        FullVaultManifest.self,
+        from: Data(contentsOf: manifestURL)
+    )
+    let entries = manifest.entries.map { entry in
+        guard entry.relativePath == relativePath else { return entry }
+        return FullVaultManifestEntry(
+            relativePath: entry.relativePath,
+            role: entry.role,
+            byteCount: data.count,
+            sha256: SHA256.hash(data: data)
+                .map { String(format: "%02x", $0) }
+                .joined(),
+            isRequired: entry.isRequired
+        )
+    }
+    let rewritten = try FullVaultManifest(
+        createdAt: manifest.createdAt,
+        sourceSchemaVersion: manifest.sourceSchemaVersion,
+        entries: entries
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    try encoder.encode(rewritten).write(to: manifestURL, options: .atomic)
 }
 
 private func makeBackupTestDirectory() throws -> URL {
