@@ -1891,6 +1891,13 @@ workflows remain disabled until their individual proof gates are met.
   the `56`-file credential-signature scan has zero findings; and the current
   debug binary reports offline capture/search available with automatic cloud
   routing disabled.
+- Green exact-commit proof: `/bin/zsh scripts/verify.sh fresh-clone` passed
+  from a clean temporary non-local clone of pushed implementation checkpoint
+  `0528cb8aca357504d2292fbf4bf876878c20c76a`: all `312` tests, release
+  app/CLI builds, reproducible package
+  (`e2707e1c1f948551004a8a949011dce89e12a629a04520b1e1568fd93f0c1830`),
+  exact package identity with `dirty=false`, the `56`-file zero-finding scan,
+  and offline smoke pass.
 - Saved evidence:
   `docs/evidence/task-16-cam-runtime-restart-state.md`.
 - Boundary: no packaged GUI restart journey, live CAM process, capability

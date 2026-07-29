@@ -60,6 +60,12 @@ CLI release builds, deterministic two-build package manifest
 offline smoke. The validated 48-gate map remains honestly incomplete at
 16 passed, 27 partial, and 5 missing.
 
+A clean temporary non-local clone of pushed checkpoint
+`0528cb8aca357504d2292fbf4bf876878c20c76a` independently passed the same
+312-test, release-build, package, identity, privacy, and offline-smoke path.
+It reported `dirty=false` and clean-clone reproducibility manifest
+`e2707e1c1f948551004a8a949011dce89e12a629a04520b1e1568fd93f0c1830`.
+
 ## Non-claims
 
 No CAM process, capability discovery, mining executor, provider, MCP server,
