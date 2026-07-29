@@ -1803,6 +1803,77 @@ workflows remain disabled until their individual proof gates are met.
 - CAM-015 remains in progress. No named model passes V3, and no packaged
   live-model clean-repository journey has been claimed.
 
+### Policy-gated research acquisition V1 — 2026-07-29
+
+- Approved direct-document boundary implemented: canonical public HTTPS only,
+  same-origin redirects, fixed document MIME types, streamed 5 MiB maximum,
+  credential/cookie/cache-free GET, fixed tool and route, and USD 0 maximum
+  and actual provider cost.
+- Schema v9 stores durable typed acquisition jobs with exact request,
+  consumed approval, status-only failure, attempt/state version, cancellation,
+  restart interruption, safe resume, receipt, and late-completion refusal.
+- Research capture enters the immutable vault and processes only its exact
+  ingest job. Repeated bytes preserve a new attempt receipt while resolving to
+  one stable content identity.
+- Acquired content remains inert untrusted data. Every protected privacy
+  fixture blocks before transport and persistence; prompt-like content can
+  create only a visible review signal.
+- Research packets now expose source receipts plus typed facts, inferences,
+  contradictions, unanswered questions, recommendations, and limitations.
+  Acquisition creates no fabricated finding and stays ephemeral until Keep.
+- Native Research exposes the exact target/limits/route/tool, progress,
+  cancellation, safe resume, status-only failures, source quality and safety
+  signals, typed packet review, Keep, and Discard. A completed durable receipt
+  can reopen an ephemeral review packet after restart without automatic
+  retention.
+- Fixed a real cancellation propagation defect: cancelling the AppModel task
+  now cancels its detached transport worker, rejects late results, waits for
+  durable cancellation, and only then returns to idle.
+- Green focused proof: research `27`, app `22`, privacy `8` plus audit `3`,
+  ingest `27`, storage `8`, and full-vault backup `18` tests pass.
+- One exact-approved live CLI run acquired
+  `https://www.rfc-editor.org/rfc/rfc9110.txt` into a disposable vault:
+  `502941` bytes, SHA-256
+  `21c1cdce6ab0e5509b04d84a28000836c7a087cf786efe6f04877ebfff47232a`,
+  completed job and ingest, USD `0`, unreviewed/unknown source quality, a
+  conservative PII review signal, and an ephemeral packet. SQLite
+  `quick_check` and immutable-object identity passed; response text was not
+  saved in evidence.
+- The packaged app reopened the completed job without a second request,
+  reconstructed its ephemeral review packet, displayed the typed receipt and
+  review signal, explicitly kept it, discarded only the ephemeral
+  presentation, and reopened the kept packet after restart.
+- Goal-map effect: `research.acquisition`, `research.native-review`, and
+  `research.untrusted-output` move to `passed`; `research.typed-results` stays
+  `partial`. Totals are now `16 passed`, `26 partial`, and `6 missing`,
+  overall `incomplete`.
+- Green aggregate proof after adversarial hardening: repository portability
+  and the honest 48-gate map, all `287` Swift tests, app/CLI release builds,
+  two-build package
+  reproducibility, package identity, a `54`-file zero-finding
+  credential-signature scan, and offline smoke pass with recursive
+  fresh-clone verification intentionally deferred until commit.
+- Saved evidence: `docs/evidence/task-14-research-acquisition.md`.
+- Boundary: V1 does not provide provider search, arbitrary HTML/browser
+  acquisition, model-generated findings, paid APIs, cloud models, link
+  following, or automatic knowledge promotion.
+- Adversarial review adjudication:
+  - Accepted: pin production TLS to validated addresses; revalidate redirects;
+    refuse transition/private address forms; make native cancellation
+    lifecycle-atomic; distinguish production transport/DNS/ingestion failures;
+    classify recursively decoded targets; show full digest, timing, and binary
+    inspection state; and correct resume design truth.
+  - Rejected: none.
+  - Needs investigation: none for the V1 checkpoint. A future in-process
+    Network.framework transport may replace the fail-closed macOS system-curl
+    adapter if it preserves SNI/TLS validation, address pinning, redirect
+    control, and the streaming byte cap.
+- Hardened live receipt: the pinned adapter acquired the same RFC in one
+  exact-approved disposable run as job
+  `1628f604-c1ce-4cc3-9ec0-da37111da780`, preserving the exact prior
+  `502941` byte count and SHA-256 while identifying tool
+  `pinned-curl-public-document-v1`.
+
 ## Blockers
 
 None.

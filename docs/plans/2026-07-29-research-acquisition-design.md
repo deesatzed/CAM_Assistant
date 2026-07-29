@@ -89,9 +89,10 @@ job document plus indexed job ID, status, and update time. It preserves:
 
 - query, canonical target, route, tool, limits, and idempotency identity;
 - pending, running, cancelled, failed, and completed state;
-- state version, attempt count, safe error code, and resume cursor;
+- state version, attempt count, and distinct safe error code;
 - approval/card identities and consumed-at time;
-- request and response byte counts, content digest and content ID;
+- approved maximum byte count plus completed response byte count, content
+  digest, and content ID;
 - start/end time and zero-dollar actual cost;
 - canonical/final origin, MIME type, duplicate identity, source-quality
   metadata, and untrusted-content signals.
@@ -106,11 +107,21 @@ that can be resumed. Cancellation is terminal for the current attempt but
 resumable under the same job identity and incremented state version. A late
 result cannot turn a cancelled job into completed.
 
+V1 resume deliberately means a new full-document attempt after a new exact
+approval. It does not persist partial response bytes or a byte-range cursor.
+That avoids treating an unverified prefix as durable source evidence and avoids
+combining bytes across source-version drift. Resumable partial download is
+deferred until an ETag/content-range binding can prove one immutable version.
+
 ## Transport and content
 
 `ResearchAcquisitionTransport` is an injected async protocol. Tests use
-deterministic transport spies. The live adapter uses an ephemeral
-`URLSession`, streams bytes while enforcing the bound, rejects unsupported
+deterministic transport spies. The live adapter requires the macOS system curl
+with streaming `--max-filesize` support (8.4 or newer), disables ambient curl
+configuration and proxies, pins every TLS request to the already validated
+public DNS addresses with `--resolve`, and follows no redirect automatically.
+CAM validates and re-resolves each same-origin redirect before another
+connection. It enforces the byte bound, rejects unsupported
 status/MIME/final URLs, and returns only typed response metadata and bytes.
 
 The coordinator writes accepted bytes to the existing `ContentStore` through

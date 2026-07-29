@@ -9,7 +9,7 @@ public struct Migration: Sendable {
 }
 
 public enum Migrations {
-    public static let currentVersion = 8
+    public static let currentVersion = 9
 
     /// The minimum structural contract required to safely open a database at
     /// each migration version. Backup validation uses this read-only map so a
@@ -134,6 +134,15 @@ public enum Migrations {
                 "source_id",
                 "canonical_path",
                 "status",
+                "updated_at",
+            ]
+        }
+        if schemaVersion >= 9 {
+            result["research_acquisition_jobs"] = [
+                "job_id",
+                "status",
+                "record_json",
+                "created_at",
                 "updated_at",
             ]
         }
@@ -345,6 +354,25 @@ public enum Migrations {
                 """
                 CREATE INDEX IF NOT EXISTS repository_source_lifecycle_status_idx
                     ON repository_source_lifecycle(status, updated_at, source_id)
+                """,
+            ]
+        ),
+        Migration(
+            version: 9,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS research_acquisition_jobs (
+                    job_id TEXT PRIMARY KEY NOT NULL,
+                    status TEXT NOT NULL,
+                    record_json TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS
+                    research_acquisition_jobs_status_idx
+                ON research_acquisition_jobs(status, updated_at, job_id)
                 """,
             ]
         ),

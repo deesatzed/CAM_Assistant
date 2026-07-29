@@ -3,6 +3,35 @@ import Foundation
 import Testing
 @testable import CAMAssistantCore
 
+@Test("targeted ingestion never processes an unrelated pending source")
+func targetedIngestionNeverProcessesUnrelatedPendingSource() throws {
+    let harness = try IngestHarness()
+    defer { harness.remove() }
+    let first = try harness.queue.enqueue(
+        CaptureEnvelope(
+            sourceName: "first.txt",
+            contentType: "text/plain",
+            data: Data("first pending source".utf8),
+            origin: .clipboard
+        )
+    )
+    let second = try harness.queue.enqueue(
+        CaptureEnvelope(
+            sourceName: "second.txt",
+            contentType: "text/plain",
+            data: Data("second selected source".utf8),
+            origin: .clipboard
+        )
+    )
+
+    let result = try harness.queue.process(sourceID: second.sourceID)
+
+    #expect(result.sourceID == second.sourceID)
+    #expect(result.status == .completed)
+    #expect(try harness.queue.jobStatus(for: first.sourceID) == .pending)
+    #expect(try harness.queue.jobStatus(for: second.sourceID) == .completed)
+}
+
 @Test("library presentation summarizes derived local documents by modality")
 func libraryPresentationSummarizesDerivedLocalDocumentsByModality() {
     let documents = [

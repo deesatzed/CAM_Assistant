@@ -801,6 +801,67 @@ func fullVaultRestorePreservesRepresentativeProductState() throws {
             "103",
         ]
     )
+    let acquisitionID = UUID(
+        uuidString: "00000000-0000-0000-0000-000000000205"
+    )!
+    let acquisitionRequest = try ResearchAcquisitionRequest(
+        runID: "recovery-research",
+        query: "PUBLIC: How is HTTP recovery verified?",
+        target: #require(
+            URL(string: "https://www.rfc-editor.org/rfc/rfc9110.txt")
+        ),
+        stateVersion: 0,
+        maxBytes: 1_048_576
+    )
+    let acquisitionStore = try ResearchAcquisitionJobStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    _ = try acquisitionStore.create(
+        id: acquisitionID,
+        request: acquisitionRequest,
+        createdAt: Date(timeIntervalSince1970: 103)
+    )
+    _ = try acquisitionStore.start(
+        acquisitionID,
+        approvedRequest: acquisitionRequest,
+        cardID: UUID(
+            uuidString: "00000000-0000-0000-0000-000000000206"
+        )!,
+        approvalID: UUID(
+            uuidString: "00000000-0000-0000-0000-000000000207"
+        )!,
+        approvalConsumedAt: Date(timeIntervalSince1970: 103),
+        at: Date(timeIntervalSince1970: 103)
+    )
+    let acquisitionReceipt = try ResearchSourceReceipt(
+        acquisitionID: acquisitionID,
+        sourceID: storedObject.id,
+        requestedURL: acquisitionRequest.target.absoluteString,
+        finalURL: acquisitionRequest.target.absoluteString,
+        contentType: "text/plain",
+        byteCount: sourceBytes.count,
+        sha256: storedObject.id.rawValue,
+        route: acquisitionRequest.route,
+        toolID: acquisitionRequest.toolID,
+        startedAt: Date(timeIntervalSince1970: 103),
+        completedAt: Date(timeIntervalSince1970: 104),
+        maximumCostUSD: 0,
+        actualCostUSD: 0,
+        wasDuplicateSource: false,
+        quality: ResearchSourceQuality(
+            publisherHost: "www.rfc-editor.org",
+            kind: .unknown,
+            reviewed: false,
+            retrievedAt: Date(timeIntervalSince1970: 104),
+            sourceModifiedAt: nil
+        ),
+        safetySignals: []
+    )
+    _ = try acquisitionStore.complete(
+        acquisitionID,
+        receipt: acquisitionReceipt,
+        at: Date(timeIntervalSince1970: 104)
+    )
 
     let run = try ResearchCoordinator().begin(
         id: "recovery-research",
@@ -926,6 +987,11 @@ func fullVaultRestorePreservesRepresentativeProductState() throws {
             "SELECT COUNT(*) FROM repository_jobs"
         ).first?.first == "1"
     )
+    #expect(
+        try restoredDatabase.query(
+            "SELECT COUNT(*) FROM research_acquisition_jobs"
+        ).first?.first == "1"
+    )
     try restoredDatabase.close()
     #expect(
         try ContentStore(
@@ -946,6 +1012,11 @@ func fullVaultRestorePreservesRepresentativeProductState() throws {
         try ResearchPacketStore(
             url: destinationRoot.appending(path: "research-packets.json")
         ).load() == [packet]
+    )
+    #expect(
+        try ResearchAcquisitionJobStore(
+            databaseURL: destinationRoot.appending(path: "vault.sqlite")
+        ).all().first?.receipt == acquisitionReceipt
     )
     #expect(
         try KnowledgeStore(

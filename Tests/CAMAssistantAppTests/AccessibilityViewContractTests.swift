@@ -150,6 +150,46 @@ func backupRecoveryViewExposesBoundedNonDestructiveActions() throws {
     #expect(forbiddenContracts.allSatisfy { !source.contains($0) })
 }
 
+@Test("research view exposes exact acquisition and ephemeral packet review")
+func researchViewExposesExactAcquisitionAndPacketReview() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(
+                path: "Sources/CAMAssistantApp/Views/ResearchView.swift"
+            ),
+        encoding: .utf8
+    )
+    let requiredContracts = [
+        "TextField(\"Public HTTPS document URL\"",
+        "Button(\"Prepare Public Document Acquisition\"",
+        "Section(\"Exact public-document proposal\")",
+        "LabeledContent(\"Target\"",
+        "LabeledContent(\"Maximum response\"",
+        "LabeledContent(\"Cost limit\"",
+        "Button(\"Approve & Acquire\"",
+        "Button(\"Cancel Acquisition\"",
+        "Button(\"Review Ephemeral Packet\"",
+        "Section(\"Ephemeral research packet\")",
+        "LabeledContent(\"Route\"",
+        "LabeledContent(\"Tool\"",
+        "Source quality",
+        "Untrusted content signals",
+        "Button(\"Keep Packet\"",
+        "Button(\"Discard Packet\"",
+        "No provider search, browser automation, cookies, credentials, cloud model, CAM call, or automatic retention",
+        ".accessibilityElement(children: .contain)",
+        "\"Research. Bounded public document acquisition",
+    ]
+
+    let compactSource = source.filter { !$0.isWhitespace }
+    #expect(
+        requiredContracts.allSatisfy {
+            compactSource.contains($0.filter { !$0.isWhitespace })
+        },
+        "ResearchView must expose one exact bounded acquisition and explicit ephemeral packet retention"
+    )
+}
+
 private struct AccessibilitySourceContract {
     let fileName: String
     let rootLabelPrefix: String

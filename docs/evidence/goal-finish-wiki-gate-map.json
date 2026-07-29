@@ -5,9 +5,9 @@
   "overallStatus": "incomplete",
   "summary": {
     "total": 48,
-    "passed": 13,
-    "partial": 27,
-    "missing": 8,
+    "passed": 16,
+    "partial": 26,
+    "missing": 6,
     "deferred": 0
   },
   "gates": [
@@ -150,9 +150,10 @@
       "title": "Exact outbound and mutation approval",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-08-privacy-action-cards.md"
+        "docs/evidence/task-08-privacy-action-cards.md",
+        "docs/evidence/task-14-research-acquisition.md"
       ],
-      "limitation": "Exact action-card binding and stale/reuse refusal exist, but every future outbound and mutating executor is not yet bound to the full contract."
+      "limitation": "Exact action-card binding, stale/reuse refusal, and the direct public-document executor are proven, but every remaining outbound and mutating executor is not yet bound to the full contract."
     },
     {
       "id": "audit.redaction",
@@ -250,11 +251,11 @@
       "id": "research.acquisition",
       "sourceLine": 167,
       "title": "Policy-gated research acquisition",
-      "status": "missing",
+      "status": "passed",
       "evidence": [
-        "docs/evidence/task-14-research-acquisition-gap-audit.md"
-      ],
-      "limitation": "No approved web or document acquisition transport, durable job, or complete cost and source-quality receipt exists."
+        "docs/evidence/task-14-research-acquisition-gap-audit.md",
+        "docs/evidence/task-14-research-acquisition.md"
+      ]
     },
     {
       "id": "research.typed-results",
@@ -263,30 +264,31 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/task-10-research-knowledge.md",
-        "docs/evidence/goal-map-reality-audit-2026-07-28.md"
+        "docs/evidence/goal-map-reality-audit-2026-07-28.md",
+        "docs/evidence/task-14-research-acquisition.md"
       ],
-      "limitation": "Citation-verified facts, fact-bound inferences, and contradiction records are distinct; ResearchPacket has no typed unanswered-question or recommendation collections."
+      "limitation": "Facts, inferences, contradictions, unanswered questions, recommendations, and limitations are distinct typed collections; the acquired-source workflow does not yet populate and citation-validate every result type."
     },
     {
       "id": "research.native-review",
       "sourceLine": 172,
       "title": "Native validated-packet review",
-      "status": "missing",
+      "status": "passed",
       "evidence": [
-        "docs/evidence/task-14-research-acquisition-gap-audit.md"
-      ],
-      "limitation": "A component Keep store exists, but no native acquired-packet review and discard surface is implemented."
+        "docs/evidence/task-14-research-acquisition-gap-audit.md",
+        "docs/evidence/task-14-research-acquisition.md"
+      ]
     },
     {
       "id": "research.untrusted-output",
       "sourceLine": 174,
       "title": "External output remains untrusted data",
-      "status": "partial",
+      "status": "passed",
       "evidence": [
         "docs/evidence/task-08-privacy-action-cards.md",
-        "docs/evidence/task-14-research-acquisition-gap-audit.md"
-      ],
-      "limitation": "Policy and prompt-injection fixtures exist, but there is no live acquisition path on which to prove the complete invariant."
+        "docs/evidence/task-14-research-acquisition-gap-audit.md",
+        "docs/evidence/task-14-research-acquisition.md"
+      ]
     },
     {
       "id": "research.offline-planning",

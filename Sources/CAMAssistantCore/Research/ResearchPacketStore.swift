@@ -16,7 +16,7 @@ public final class ResearchPacketStore {
     public func keep(_ packet: ResearchPacket) throws {
         var packets = try load()
         packets.removeAll { $0.runID == packet.runID }
-        packets.append(packet)
+        packets.append(packet.retained())
         packets.sort { $0.runID < $1.runID }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder().encode(packets).write(to: url, options: .atomic)

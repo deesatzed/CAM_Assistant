@@ -687,6 +687,9 @@ public final class FullVaultBackupService {
                 databaseURL: vaultRoot.appending(path: "vault.sqlite")
             )
             try database.close()
+            _ = try ResearchAcquisitionJobStore(
+                databaseURL: vaultRoot.appending(path: "vault.sqlite")
+            ).all()
             _ = try ContentStore(
                 rootDirectory: vaultRoot.appending(path: "content")
             ).objectCount()

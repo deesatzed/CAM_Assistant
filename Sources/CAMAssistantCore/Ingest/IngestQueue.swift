@@ -90,6 +90,8 @@ public struct LibraryCaptureRow: Equatable, Sendable, Identifiable {
             "Watched folder: \(path)"
         case let .repository(canonicalPath, commit):
             "Repository: \(canonicalPath) @ \(commit)"
+        case let .research(runID, canonicalURL):
+            "Research: \(canonicalURL) · run \(runID)"
         }
     }
 }
@@ -302,6 +304,25 @@ public final class IngestQueue {
         lock.lock()
         defer { lock.unlock() }
         guard let job = try pendingJob() else { return nil }
+        return try process(job, isCancelled: isCancelled)
+    }
+
+    public func process(
+        sourceID: ContentID,
+        isCancelled: () -> Bool = { false }
+    ) throws -> IngestResult {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let job = try pendingJob(for: sourceID) else {
+            guard let status = try jobStatus(for: sourceID) else {
+                throw IngestQueueError.sourceNotFound(sourceID)
+            }
+            throw IngestQueueError.invalidJobTransition(
+                sourceID: sourceID,
+                from: status,
+                to: .completed
+            )
+        }
         return try process(job, isCancelled: isCancelled)
     }
 

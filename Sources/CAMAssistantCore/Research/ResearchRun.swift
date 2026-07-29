@@ -118,11 +118,192 @@ public enum ResearchFinding: Codable, Equatable, Sendable {
     }
 }
 
+public struct ResearchContradiction: Codable, Equatable, Sendable {
+    public let id: String
+    public let statement: String
+    public let citations: [Citation]
+
+    public init(
+        id: String,
+        statement: String,
+        citations: [Citation]
+    ) throws {
+        guard Self.nonblank(id),
+              Self.nonblank(statement),
+              !citations.isEmpty else {
+            throw ResearchAcquisitionError.invalidTypedResult
+        }
+        self.id = id
+        self.statement = statement
+        self.citations = citations
+    }
+
+    private static func nonblank(_ value: String) -> Bool {
+        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+public struct ResearchUnansweredQuestion: Codable, Equatable, Sendable {
+    public let id: String
+    public let question: String
+    public let reason: String
+
+    public init(id: String, question: String, reason: String) throws {
+        guard Self.nonblank(id),
+              Self.nonblank(question),
+              Self.nonblank(reason) else {
+            throw ResearchAcquisitionError.invalidTypedResult
+        }
+        self.id = id
+        self.question = question
+        self.reason = reason
+    }
+
+    private static func nonblank(_ value: String) -> Bool {
+        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+public struct ResearchRecommendation: Codable, Equatable, Sendable {
+    public let id: String
+    public let statement: String
+    public let basedOnFindingIDs: [String]
+
+    public init(
+        id: String,
+        statement: String,
+        basedOnFindingIDs: [String]
+    ) throws {
+        guard Self.nonblank(id),
+              Self.nonblank(statement),
+              !basedOnFindingIDs.isEmpty,
+              basedOnFindingIDs.allSatisfy(Self.nonblank),
+              Set(basedOnFindingIDs).count == basedOnFindingIDs.count else {
+            throw ResearchAcquisitionError.invalidTypedResult
+        }
+        self.id = id
+        self.statement = statement
+        self.basedOnFindingIDs = basedOnFindingIDs
+    }
+
+    private static func nonblank(_ value: String) -> Bool {
+        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+public struct ResearchLimitation: Codable, Equatable, Sendable {
+    public let id: String
+    public let statement: String
+
+    public init(id: String, statement: String) throws {
+        guard !id.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).isEmpty,
+        !statement.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).isEmpty else {
+            throw ResearchAcquisitionError.invalidTypedResult
+        }
+        self.id = id
+        self.statement = statement
+    }
+}
+
 public struct ResearchPacket: Codable, Equatable, Sendable {
     public let runID: String
+    public let sourceReceipts: [ResearchSourceReceipt]
     public let verifiedFacts: [ResearchFinding]
     public let inferences: [ResearchFinding]
+    public let contradictions: [ResearchContradiction]
+    public let unansweredQuestions: [ResearchUnansweredQuestion]
+    public let recommendations: [ResearchRecommendation]
+    public let limitations: [ResearchLimitation]
     public let retention: ResearchRetention
+
+    public init(
+        runID: String,
+        sourceReceipts: [ResearchSourceReceipt] = [],
+        verifiedFacts: [ResearchFinding],
+        inferences: [ResearchFinding],
+        contradictions: [ResearchContradiction] = [],
+        unansweredQuestions: [ResearchUnansweredQuestion] = [],
+        recommendations: [ResearchRecommendation] = [],
+        limitations: [ResearchLimitation] = [],
+        retention: ResearchRetention
+    ) {
+        self.runID = runID
+        self.sourceReceipts = sourceReceipts
+        self.verifiedFacts = verifiedFacts
+        self.inferences = inferences
+        self.contradictions = contradictions
+        self.unansweredQuestions = unansweredQuestions
+        self.recommendations = recommendations
+        self.limitations = limitations
+        self.retention = retention
+    }
+
+    public func retained() -> ResearchPacket {
+        ResearchPacket(
+            runID: runID,
+            sourceReceipts: sourceReceipts,
+            verifiedFacts: verifiedFacts,
+            inferences: inferences,
+            contradictions: contradictions,
+            unansweredQuestions: unansweredQuestions,
+            recommendations: recommendations,
+            limitations: limitations,
+            retention: .explicitlyKept
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case runID
+        case sourceReceipts
+        case verifiedFacts
+        case inferences
+        case contradictions
+        case unansweredQuestions
+        case recommendations
+        case limitations
+        case retention
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        runID = try container.decode(String.self, forKey: .runID)
+        sourceReceipts = try container.decodeIfPresent(
+            [ResearchSourceReceipt].self,
+            forKey: .sourceReceipts
+        ) ?? []
+        verifiedFacts = try container.decode(
+            [ResearchFinding].self,
+            forKey: .verifiedFacts
+        )
+        inferences = try container.decode(
+            [ResearchFinding].self,
+            forKey: .inferences
+        )
+        contradictions = try container.decodeIfPresent(
+            [ResearchContradiction].self,
+            forKey: .contradictions
+        ) ?? []
+        unansweredQuestions = try container.decodeIfPresent(
+            [ResearchUnansweredQuestion].self,
+            forKey: .unansweredQuestions
+        ) ?? []
+        recommendations = try container.decodeIfPresent(
+            [ResearchRecommendation].self,
+            forKey: .recommendations
+        ) ?? []
+        limitations = try container.decodeIfPresent(
+            [ResearchLimitation].self,
+            forKey: .limitations
+        ) ?? []
+        retention = try container.decode(
+            ResearchRetention.self,
+            forKey: .retention
+        )
+    }
 }
 
 /// Read-only native presentation state. Starting an external research run and

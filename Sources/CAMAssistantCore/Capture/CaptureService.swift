@@ -4,6 +4,7 @@ public enum CaptureOrigin: Equatable, Sendable {
     case clipboard
     case watchedFolder(path: String)
     case repository(canonicalPath: String, commit: String)
+    case research(runID: String, canonicalURL: String)
 
     var storedKind: String {
         return switch self {
@@ -13,6 +14,8 @@ public enum CaptureOrigin: Equatable, Sendable {
             "watchedFolder"
         case .repository:
             "repository"
+        case .research:
+            "research"
         }
     }
 
@@ -24,6 +27,13 @@ public enum CaptureOrigin: Equatable, Sendable {
             return path
         case let .repository(canonicalPath, commit):
             let detail = RepositoryCaptureOriginDetail(canonicalPath: canonicalPath, commit: commit)
+            return (try? JSONEncoder().encode(detail))
+                .flatMap { String(data: $0, encoding: .utf8) }
+        case let .research(runID, canonicalURL):
+            let detail = ResearchCaptureOriginDetail(
+                runID: runID,
+                canonicalURL: canonicalURL
+            )
             return (try? JSONEncoder().encode(detail))
                 .flatMap { String(data: $0, encoding: .utf8) }
         }
@@ -42,6 +52,18 @@ public enum CaptureOrigin: Equatable, Sendable {
                 return .clipboard
             }
             return .repository(canonicalPath: decoded.canonicalPath, commit: decoded.commit)
+        case "research":
+            guard let detail,
+                  let decoded = try? JSONDecoder().decode(
+                    ResearchCaptureOriginDetail.self,
+                    from: Data(detail.utf8)
+                  ) else {
+                return .clipboard
+            }
+            return .research(
+                runID: decoded.runID,
+                canonicalURL: decoded.canonicalURL
+            )
         default:
             return .clipboard
         }
@@ -51,6 +73,11 @@ public enum CaptureOrigin: Equatable, Sendable {
 private struct RepositoryCaptureOriginDetail: Codable {
     let canonicalPath: String
     let commit: String
+}
+
+private struct ResearchCaptureOriginDetail: Codable {
+    let runID: String
+    let canonicalURL: String
 }
 
 public struct CaptureEnvelope: Equatable, Sendable {

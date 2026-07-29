@@ -5,6 +5,8 @@ let arguments = Array(CommandLine.arguments.dropFirst())
 
 if arguments.first == "vault" {
     exit(runVaultCommand(arguments: arguments))
+} else if arguments.first == "research" {
+    exit(await runResearchCommand(arguments: arguments))
 } else if arguments.first == "models" || arguments.first == "embeddings" {
     exit(runModelCommand(arguments: arguments))
 } else if arguments.first == "orchestration-lock-probe" {

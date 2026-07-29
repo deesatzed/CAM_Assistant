@@ -29,6 +29,9 @@ case "$suite" in
   research)
     swift test --disable-sandbox --scratch-path .swift-build --filter ResearchTests
     ;;
+  ingest)
+    swift test --disable-sandbox --scratch-path .swift-build --filter IngestTests
+    ;;
   knowledge)
     swift test --disable-sandbox --scratch-path .swift-build --filter KnowledgeTests
     ;;
@@ -55,6 +58,9 @@ case "$suite" in
     ;;
   backup)
     swift test --disable-sandbox --scratch-path .swift-build --filter FullVaultBackupTests
+    ;;
+  storage)
+    swift test --disable-sandbox --scratch-path .swift-build --filter StorageTests
     ;;
   app)
     swift test --disable-sandbox --scratch-path .swift-build --filter CAMAssistantAppTests
@@ -119,7 +125,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|app|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
     exit 64
     ;;
 esac

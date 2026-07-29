@@ -98,6 +98,99 @@ struct RepositorySemanticOperations: Sendable {
     }
 }
 
+struct ResearchAcquisitionOperations: Sendable {
+    let prepare: @Sendable (
+        _ vaultRoot: URL,
+        _ runID: String,
+        _ query: String,
+        _ target: URL
+    ) throws -> ResearchAcquisitionProposal
+    let execute: @Sendable (
+        _ vaultRoot: URL,
+        _ proposal: ResearchAcquisitionProposal
+    ) async throws -> ResearchAcquisitionResult
+    let resume: @Sendable (
+        _ vaultRoot: URL,
+        _ jobID: UUID
+    ) throws -> ResearchAcquisitionProposal
+    let cancel: @Sendable (
+        _ vaultRoot: URL,
+        _ jobID: UUID
+    ) async throws -> Void
+    let recoverAndLoadJobs: @Sendable (
+        _ vaultRoot: URL
+    ) throws -> [ResearchAcquisitionJobRecord]
+    let loadJobs: @Sendable (
+        _ vaultRoot: URL
+    ) throws -> [ResearchAcquisitionJobRecord]
+    let keep: @Sendable (
+        _ vaultRoot: URL,
+        _ packet: ResearchPacket
+    ) async throws -> [ResearchPacket]
+    let loadPackets: @Sendable (
+        _ vaultRoot: URL
+    ) throws -> [ResearchPacket]
+
+    static let live = ResearchAcquisitionOperations(
+        prepare: { root, runID, query, target in
+            try makeCoordinator(vaultRoot: root).proposal(
+                runID: runID,
+                query: query,
+                target: target,
+                stateVersion: 0,
+                expiresAt: Date().addingTimeInterval(600)
+            )
+        },
+        execute: { root, proposal in
+            try await makeCoordinator(vaultRoot: root).execute(
+                proposal,
+                approvalSource: "native-user-explicit"
+            )
+        },
+        resume: { root, jobID in
+            try makeCoordinator(vaultRoot: root).resumeProposal(
+                jobID: jobID,
+                expiresAt: Date().addingTimeInterval(600)
+            )
+        },
+        cancel: { root, jobID in
+            _ = try ResearchAcquisitionJobStore(
+                databaseURL: root.appending(path: "vault.sqlite")
+            ).cancel(jobID)
+        },
+        recoverAndLoadJobs: { root in
+            let store = try ResearchAcquisitionJobStore(
+                databaseURL: root.appending(path: "vault.sqlite")
+            )
+            _ = try store.recoverInterrupted()
+            return try store.all()
+        },
+        loadJobs: { root in
+            try ResearchAcquisitionJobStore(
+                databaseURL: root.appending(path: "vault.sqlite")
+            ).all()
+        },
+        keep: { root, packet in
+            let store = ResearchPacketStore(
+                url: root.appending(path: "research-packets.json")
+            )
+            try store.keep(packet)
+            return try store.load()
+        },
+        loadPackets: { root in
+            try ResearchPacketStore(
+                url: root.appending(path: "research-packets.json")
+            ).load()
+        }
+    )
+
+    private static func makeCoordinator(
+        vaultRoot: URL
+    ) throws -> ResearchAcquisitionCoordinator {
+        try ResearchAcquisitionCoordinator.live(vaultRoot: vaultRoot)
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selection: AssistantSection = .assistant
@@ -115,6 +208,21 @@ final class AppModel: ObservableObject {
     @Published private(set) var retainedResearchPlans: [StoredResearchPlan] = []
     @Published var researchQuery = ""
     @Published private(set) var researchError: String?
+    @Published var researchSourceURL = ""
+    @Published private(set) var researchAcquisitionProposal:
+        ResearchAcquisitionProposal?
+    @Published private(set) var researchAcquisitionResult:
+        ResearchAcquisitionResult?
+    @Published private(set) var researchAcquisitionJobs:
+        [ResearchAcquisitionJobRecord] = []
+    @Published private(set) var retainedResearchPackets:
+        [ResearchPacket] = []
+    @Published private(set) var researchAcquisitionStatus: String?
+    @Published private(set) var researchAcquisitionError: String?
+    @Published private(set) var isPreparingResearchAcquisition = false
+    @Published private(set) var isResearchAcquiring = false
+    @Published private(set) var isResearchPacketRetentionRunning = false
+    @Published private(set) var isResearchStateReloading = false
     @Published var conversationQuestion = ""
     @Published private(set) var conversationResponse: ConversationResponse?
     @Published private(set) var conversationRecord: ConversationRecord?
@@ -198,6 +306,8 @@ final class AppModel: ObservableObject {
     private let repositorySourceService: RepositorySourceService?
     private let repositoryJobStore: RepositoryJobStore?
     private let repositorySemanticOperations: RepositorySemanticOperations
+    private let researchAcquisitionOperations:
+        ResearchAcquisitionOperations
     private let vaultRecoveryOperations: VaultRecoveryOperations
     private let vaultRootProvider: @Sendable () throws -> URL
     private var repositorySnapshot: RepositorySnapshot?
@@ -207,6 +317,15 @@ final class AppModel: ObservableObject {
     private var activeRepositoryJobID: UUID?
     private var repositorySemanticTask: Task<Void, Never>?
     private var activeRepositorySemanticRunID: UUID?
+    private var researchPreparationTask: Task<Void, Never>?
+    private var researchAcquisitionTask: Task<Void, Never>?
+    private var researchAcquisitionCancellationTask: Task<Void, Never>?
+    private var researchRetentionTask: Task<Void, Never>?
+    private var researchStateReloadTask: Task<Void, Never>?
+    private var activeResearchPreparationID: UUID?
+    private var activeResearchAcquisitionID: UUID?
+    private var activeResearchCancellationID: UUID?
+    private var activeResearchRetentionID: UUID?
 
     init(
         health: AppHealth = .evaluate(
@@ -220,6 +339,8 @@ final class AppModel: ObservableObject {
         initializeFullWorkspace: Bool = true,
         repositorySemanticOperations:
             RepositorySemanticOperations = .live,
+        researchAcquisitionOperations:
+            ResearchAcquisitionOperations = .live,
         vaultRecoveryOperations: VaultRecoveryOperations = .live,
         vaultRootProvider: @escaping @Sendable () throws -> URL = {
             try LocalVaultPaths.rootURL()
@@ -230,6 +351,8 @@ final class AppModel: ObservableObject {
         self.repositorySourceService = repositorySourceService
         self.repositoryJobStore = repositoryJobStore
         self.repositorySemanticOperations = repositorySemanticOperations
+        self.researchAcquisitionOperations =
+            researchAcquisitionOperations
         self.vaultRecoveryOperations = vaultRecoveryOperations
         self.vaultRootProvider = vaultRootProvider
         guard initializeFullWorkspace else {
@@ -247,6 +370,7 @@ final class AppModel: ObservableObject {
         reloadRepositorySources()
         reloadRepositoryJobs(recoverInterrupted: true)
         reloadRetainedResearchPlans()
+        reloadResearchAcquisitionState(recoverInterrupted: true)
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
     }
@@ -418,6 +542,483 @@ final class AppModel: ObservableObject {
         } catch {
             retainedResearchPlans = []
             researchError = "Kept local research plans could not be read."
+        }
+    }
+
+    var researchAcquisitionPacket: ResearchPacket? {
+        researchAcquisitionResult?.packet
+    }
+
+    func prepareResearchAcquisition() {
+        let query = researchQuery.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !query.isEmpty else {
+            researchAcquisitionError =
+                "Enter one public research question."
+            return
+        }
+        let targetText = researchSourceURL.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard let target = URL(string: targetText) else {
+            researchAcquisitionError =
+                "Enter a public HTTPS document URL. "
+                + "Local, private-network, credentialed, and non-HTTPS "
+                + "targets are refused."
+            return
+        }
+        let root: URL
+        do {
+            root = try vaultRootProvider()
+        } catch {
+            researchAcquisitionError =
+                "The local vault could not be opened for research."
+            return
+        }
+        let run: ResearchRun
+        do {
+            run = try ResearchCoordinator().begin(
+                id: UUID().uuidString,
+                queries: [query],
+                stateVersion: 0
+            )
+        } catch {
+            researchAcquisitionError =
+                "Enter one public research question."
+            return
+        }
+        currentResearchRun = run
+        researchPresentation = ResearchPresentation(run: run)
+        researchPreparationTask?.cancel()
+        let preparationID = UUID()
+        activeResearchPreparationID = preparationID
+        isPreparingResearchAcquisition = true
+        researchAcquisitionError = nil
+        researchAcquisitionStatus =
+            "Checking the exact target and privacy boundary locally."
+        researchAcquisitionProposal = nil
+        pendingActionCard = nil
+        let prepare = researchAcquisitionOperations.prepare
+        researchPreparationTask = Task { [weak self] in
+            do {
+                let proposal = try await Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try prepare(root, run.id, query, target)
+                }.value
+                guard self?.activeResearchPreparationID
+                        == preparationID else {
+                    return
+                }
+                self?.researchAcquisitionProposal = proposal
+                self?.pendingActionCard = proposal.actionCard
+                self?.researchAcquisitionStatus =
+                    "Exact public-document proposal ready. "
+                    + "Review the target and limits before approval."
+                self?.researchAcquisitionError = nil
+            } catch is CancellationError {
+                guard self?.activeResearchPreparationID
+                        == preparationID else {
+                    return
+                }
+                self?.researchAcquisitionStatus =
+                    "Research proposal preparation was cancelled."
+                self?.researchAcquisitionError = nil
+            } catch {
+                guard self?.activeResearchPreparationID
+                        == preparationID else {
+                    return
+                }
+                self?.researchAcquisitionProposal = nil
+                self?.pendingActionCard = nil
+                self?.researchAcquisitionStatus = nil
+                self?.researchAcquisitionError =
+                    Self.researchAcquisitionMessage(
+                        for: error,
+                        phase: .proposal
+                    )
+            }
+            guard self?.activeResearchPreparationID
+                    == preparationID else {
+                return
+            }
+            self?.isPreparingResearchAcquisition = false
+            self?.activeResearchPreparationID = nil
+        }
+    }
+
+    func approveAndAcquireResearchSource() {
+        guard let proposal = researchAcquisitionProposal,
+              !isResearchAcquiring else {
+            return
+        }
+        let root: URL
+        do {
+            root = try vaultRootProvider()
+        } catch {
+            researchAcquisitionError =
+                "The local vault could not be opened for research."
+            return
+        }
+        researchAcquisitionTask?.cancel()
+        researchAcquisitionCancellationTask?.cancel()
+        activeResearchAcquisitionID = proposal.id
+        activeResearchCancellationID = nil
+        isResearchAcquiring = true
+        researchAcquisitionError = nil
+        researchAcquisitionStatus =
+            "Acquiring the exact approved public document."
+        let execute = researchAcquisitionOperations.execute
+        researchAcquisitionTask = Task { [weak self] in
+            do {
+                let worker = Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try await execute(root, proposal)
+                }
+                let result = try await withTaskCancellationHandler {
+                    try await worker.value
+                } onCancel: {
+                    worker.cancel()
+                }
+                guard self?.activeResearchAcquisitionID == proposal.id,
+                      self?.activeResearchCancellationID != proposal.id else {
+                    return
+                }
+                self?.researchAcquisitionResult = result
+                self?.researchAcquisitionProposal = nil
+                self?.pendingActionCard = nil
+                self?.upsertResearchJob(result.job)
+                self?.researchAcquisitionStatus =
+                    "Ephemeral public-document packet ready for review. "
+                    + "Nothing was retained automatically."
+                self?.researchAcquisitionError = nil
+            } catch is CancellationError {
+                guard self?.activeResearchAcquisitionID
+                        == proposal.id else {
+                    return
+                }
+                self?.researchAcquisitionResult = nil
+                self?.researchAcquisitionProposal = nil
+                self?.pendingActionCard = nil
+                self?.researchAcquisitionStatus =
+                    "Public document acquisition was cancelled. "
+                    + "No packet was retained; safe resume requires "
+                    + "a new exact approval."
+                self?.researchAcquisitionError = nil
+            } catch {
+                guard self?.activeResearchAcquisitionID
+                        == proposal.id else {
+                    return
+                }
+                self?.researchAcquisitionResult = nil
+                self?.researchAcquisitionProposal = nil
+                self?.pendingActionCard = nil
+                self?.researchAcquisitionStatus = nil
+                self?.researchAcquisitionError =
+                    Self.researchAcquisitionMessage(
+                        for: error,
+                        phase: .execution
+                    )
+                self?.reloadResearchAcquisitionState(
+                    recoverInterrupted: false
+                )
+            }
+            guard self?.activeResearchAcquisitionID
+                    == proposal.id,
+                  self?.activeResearchCancellationID
+                    != proposal.id else {
+                return
+            }
+            self?.isResearchAcquiring = false
+            self?.activeResearchAcquisitionID = nil
+            self?.researchAcquisitionTask = nil
+        }
+    }
+
+    func cancelResearchAcquisition() {
+        guard let jobID = activeResearchAcquisitionID else { return }
+        let acquisitionTask = researchAcquisitionTask
+        activeResearchCancellationID = jobID
+        acquisitionTask?.cancel()
+        researchAcquisitionResult = nil
+        researchAcquisitionProposal = nil
+        pendingActionCard = nil
+        researchAcquisitionStatus =
+            "Public document acquisition was cancelled. "
+            + "No packet was retained; safe resume requires "
+            + "a new exact approval."
+        researchAcquisitionError = nil
+        let cancel = researchAcquisitionOperations.cancel
+        let root: URL
+        do {
+            root = try vaultRootProvider()
+        } catch {
+            isResearchAcquiring = false
+            activeResearchAcquisitionID = nil
+            activeResearchCancellationID = nil
+            researchAcquisitionError =
+                "The local vault could not record the research cancellation."
+            return
+        }
+        researchAcquisitionCancellationTask?.cancel()
+        researchAcquisitionCancellationTask = Task { [weak self] in
+            do {
+                try await Task.detached(priority: .userInitiated) {
+                    try await cancel(root, jobID)
+                }.value
+            } catch {
+                guard self?.activeResearchCancellationID == jobID else {
+                    return
+                }
+                self?.researchAcquisitionError =
+                    "The acquisition stopped, but its durable cancellation "
+                    + "record could not be refreshed."
+            }
+            await acquisitionTask?.value
+            guard self?.activeResearchCancellationID == jobID else {
+                return
+            }
+            self?.isResearchAcquiring = false
+            self?.activeResearchAcquisitionID = nil
+            self?.activeResearchCancellationID = nil
+            self?.researchAcquisitionTask = nil
+            self?.researchAcquisitionCancellationTask = nil
+            self?.reloadResearchAcquisitionState(recoverInterrupted: false)
+        }
+    }
+
+    func prepareResearchAcquisitionResume(_ jobID: UUID) {
+        guard !isPreparingResearchAcquisition,
+              !isResearchAcquiring else {
+            return
+        }
+        let root: URL
+        do {
+            root = try vaultRootProvider()
+        } catch {
+            researchAcquisitionError =
+                "The local vault could not be opened for research."
+            return
+        }
+        let preparationID = UUID()
+        activeResearchPreparationID = preparationID
+        isPreparingResearchAcquisition = true
+        researchAcquisitionError = nil
+        researchAcquisitionStatus =
+            "Preparing a new exact approval for safe resume."
+        let resume = researchAcquisitionOperations.resume
+        researchPreparationTask = Task { [weak self] in
+            do {
+                let proposal = try await Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try resume(root, jobID)
+                }.value
+                guard self?.activeResearchPreparationID
+                        == preparationID else {
+                    return
+                }
+                self?.researchAcquisitionProposal = proposal
+                self?.pendingActionCard = proposal.actionCard
+                self?.researchAcquisitionStatus =
+                    "Resume proposal ready. Review and approve "
+                    + "the new exact action card."
+                self?.researchAcquisitionError = nil
+            } catch {
+                guard self?.activeResearchPreparationID
+                        == preparationID else {
+                    return
+                }
+                self?.researchAcquisitionProposal = nil
+                self?.pendingActionCard = nil
+                self?.researchAcquisitionStatus = nil
+                self?.researchAcquisitionError =
+                    "This acquisition cannot be resumed. "
+                    + "Its attempt limit may be exhausted."
+            }
+            guard self?.activeResearchPreparationID
+                    == preparationID else {
+                return
+            }
+            self?.isPreparingResearchAcquisition = false
+            self?.activeResearchPreparationID = nil
+        }
+    }
+
+    func keepResearchAcquisitionPacket() {
+        guard let packet = researchAcquisitionPacket,
+              !isResearchPacketRetentionRunning else {
+            return
+        }
+        let root: URL
+        do {
+            root = try vaultRootProvider()
+        } catch {
+            researchAcquisitionError =
+                "The local vault could not be opened for research."
+            return
+        }
+        let retentionID = UUID()
+        activeResearchRetentionID = retentionID
+        isResearchPacketRetentionRunning = true
+        researchAcquisitionError = nil
+        let keep = researchAcquisitionOperations.keep
+        researchRetentionTask = Task { [weak self] in
+            do {
+                let packets = try await Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try await keep(root, packet)
+                }.value
+                guard self?.activeResearchRetentionID
+                        == retentionID else {
+                    return
+                }
+                self?.retainedResearchPackets = packets
+                self?.researchAcquisitionStatus =
+                    "Research packet kept locally. The displayed source "
+                    + "receipt and typed results will reopen after restart."
+                self?.researchAcquisitionError = nil
+            } catch {
+                guard self?.activeResearchRetentionID
+                        == retentionID else {
+                    return
+                }
+                self?.researchAcquisitionError =
+                    "The reviewed research packet could not be kept."
+            }
+            guard self?.activeResearchRetentionID
+                    == retentionID else {
+                return
+            }
+            self?.isResearchPacketRetentionRunning = false
+            self?.activeResearchRetentionID = nil
+        }
+    }
+
+    func discardResearchAcquisitionPacket() {
+        guard researchAcquisitionPacket != nil else { return }
+        researchAcquisitionResult = nil
+        researchAcquisitionStatus =
+            "Ephemeral research packet discarded. "
+            + "Kept packets and vault source bytes were not changed."
+        researchAcquisitionError = nil
+    }
+
+    func reviewCompletedResearchAcquisition(_ jobID: UUID) {
+        guard let job = researchAcquisitionJobs.first(
+            where: { $0.id == jobID }
+        ) else {
+            researchAcquisitionError =
+                "The completed research receipt is no longer available."
+            return
+        }
+        do {
+            researchAcquisitionResult =
+                try ResearchAcquisitionResult.recover(completedJob: job)
+            researchAcquisitionStatus =
+                "Completed receipt reopened as an ephemeral packet for "
+                + "review. Nothing was retained automatically."
+            researchAcquisitionError = nil
+        } catch {
+            researchAcquisitionResult = nil
+            researchAcquisitionError =
+                "The completed research receipt could not be reopened."
+        }
+    }
+
+    func reloadResearchAcquisitionState(
+        recoverInterrupted: Bool = false
+    ) {
+        guard !isResearchStateReloading else { return }
+        let root: URL
+        do {
+            root = try vaultRootProvider()
+        } catch {
+            researchAcquisitionError =
+                "The local vault could not be opened for research."
+            return
+        }
+        isResearchStateReloading = true
+        let loadJobs = recoverInterrupted
+            ? researchAcquisitionOperations.recoverAndLoadJobs
+            : researchAcquisitionOperations.loadJobs
+        let loadPackets = researchAcquisitionOperations.loadPackets
+        researchStateReloadTask = Task { [weak self] in
+            do {
+                let state = try await Task.detached(
+                    priority: .utility
+                ) {
+                    (
+                        try loadJobs(root),
+                        try loadPackets(root)
+                    )
+                }.value
+                self?.researchAcquisitionJobs = state.0
+                self?.retainedResearchPackets = state.1
+            } catch {
+                self?.researchAcquisitionError =
+                    "Research acquisition history could not be read."
+            }
+            self?.isResearchStateReloading = false
+        }
+    }
+
+    private func upsertResearchJob(
+        _ job: ResearchAcquisitionJobRecord
+    ) {
+        researchAcquisitionJobs.removeAll { $0.id == job.id }
+        researchAcquisitionJobs.append(job)
+        researchAcquisitionJobs.sort {
+            $0.createdAt == $1.createdAt
+                ? $0.id.uuidString < $1.id.uuidString
+                : $0.createdAt < $1.createdAt
+        }
+    }
+
+    private enum ResearchAcquisitionMessagePhase {
+        case proposal
+        case execution
+    }
+
+    private nonisolated static func researchAcquisitionMessage(
+        for error: Error,
+        phase: ResearchAcquisitionMessagePhase
+    ) -> String {
+        if let error = error as? ResearchAcquisitionError {
+            switch error {
+            case .policyBlocked:
+                return "The research question or target contains "
+                    + "protected data. No network request or approval "
+                    + "was created."
+            case .invalidTarget:
+                return "Enter a public HTTPS document URL. "
+                    + "Local, private-network, credentialed, and "
+                    + "non-HTTPS targets are refused."
+            case .invalidResponse:
+                return "The public source was refused because its status, "
+                    + "origin, content type, or byte size did not match "
+                    + "the exact approved boundary."
+            case .transportFailed:
+                return "The exact public document could not be acquired. "
+                    + "No provider fallback, browser, cloud model, or "
+                    + "automatic retention was used."
+            case .ingestionFailed:
+                return "The acquired bytes could not be validated by the "
+                    + "local vault. No research packet was created."
+            default:
+                break
+            }
+        }
+        switch phase {
+        case .proposal:
+            return "The exact public-document proposal could not be "
+                + "created. No network request or approval occurred."
+        case .execution:
+            return "The exact public document could not be acquired. "
+                + "No packet was retained and no fallback was used."
         }
     }
 
