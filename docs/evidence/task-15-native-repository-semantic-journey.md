@@ -48,6 +48,7 @@ an explicit separate user control.
 | `/bin/zsh scripts/verify.sh app` | 16 AppModel/accessibility tests pass, including accepted, abstained, stale, unavailable, insufficient, cancelled, proposal creation, model/runtime identity, both evidence roles, and explicit retention controls |
 | `/bin/zsh scripts/verify.sh models` | Profile, loopback endpoint, health, identity, redirect-refusal, and local-model failure boundaries pass |
 | `/bin/zsh scripts/verify.sh privacy` | Restricted-fixture zero-egress and status-only audit boundaries pass |
+| `/bin/zsh scripts/verify.sh fresh-clone` | Exact clean implementation checkpoint `4193820165d12d057f512bce17350bf02f4b6dd6` passes all 260 tests, release builds, reproducible packaging, `dirty=false` identity, 53-file zero-finding scan, and offline smoke from a temporary non-local clone |
 
 All repository tests use disposable temporary Git repositories and compare
 exact working-tree status and committed file bytes before and after analysis.

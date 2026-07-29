@@ -1787,8 +1787,12 @@ workflows remain disabled until their individual proof gates are met.
 - Green aggregate proof: repository portability and the honest 48-gate map,
   all `260` Swift tests, release app/CLI builds, two-build package
   reproducibility, package identity, a `53`-file zero-finding
-  credential-signature scan, and offline smoke pass with recursive fresh-clone
-  verification intentionally deferred until the checkpoint is committed.
+  credential-signature scan, and offline smoke pass.
+- Green portable proof: `/bin/zsh scripts/verify.sh fresh-clone` passed from a
+  clean temporary non-local clone of implementation checkpoint
+  `4193820165d12d057f512bce17350bf02f4b6dd6`: all `260` tests, release
+  app/CLI, reproducible package, exact package identity with `dirty=false`,
+  the `53`-file zero-finding scan, and offline smoke pass.
 - The adversarial review found and fixed large-repository rejection,
   cancellation granularity, inaccurate insufficient-evidence attribution, and
   misleading retention wording. Saved review: `REVIEW.md`.
