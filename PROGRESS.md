@@ -1859,6 +1859,44 @@ workflows remain disabled until their individual proof gates are met.
   (`29f454a176ab2fdd38d1e02bdb6e70ccee73fea47d109fce55c9eba11c1cbc9f`),
   exact package identity with `dirty=false`, the `54`-file zero-finding scan,
   and offline smoke pass.
+
+### Durable historical CAM runtime state — 2026-07-29
+
+- Added a schema-versioned atomic `cam-runtime-history.json` store for the
+  latest derived schema-v2 runtime pin and its latest bound terminal
+  `cam.stats.snapshot.v1` receipt.
+- Decode revalidates the pin's complete identity material and refuses corrupt
+  state, unsupported schema, receipt-to-pin drift, invalid digests, and a
+  malformed terminal shape. A replacement pin atomically clears the prior
+  receipt.
+- The native CAM view restores saved paths, identity, and a verified receipt
+  as visibly historical evidence. Another probe remains disabled until a fresh
+  current-session re-pin succeeds; persistence failure cannot be displayed as
+  durable verified success.
+- The machine-specific file contains no configuration bytes, secret value,
+  approval, tool authority, mining plan, or corpus content. It intentionally
+  remains outside the portable full-vault manifest and is re-derived after
+  restore or machine/runtime drift.
+- Expected red/green proof: the missing store first failed compilation; the
+  native source contract then failed until historical restoration and the
+  current-session gate were implemented; a forged verified receipt with
+  failure state and no statistics was observed failing before validation was
+  hardened.
+- Focused green proof: `30` CAM tests (`25` runtime/probe plus `5` restart
+  state), all `24` app tests, and all `18` backup tests pass.
+- Exact final-worktree aggregate green: portability and the honest 48-gate
+  validator pass; all `312` Swift tests pass; native app and CLI release builds
+  pass; deterministic package manifest is
+  `9ae5537913528eae2e4e9a3f9bc1744ad6344f0ad32a3db18710bc1e2d8d1542`;
+  the `56`-file credential-signature scan has zero findings; and the current
+  debug binary reports offline capture/search available with automatic cloud
+  routing disabled.
+- Saved evidence:
+  `docs/evidence/task-16-cam-runtime-restart-state.md`.
+- Boundary: no packaged GUI restart journey, live CAM process, capability
+  discovery, mining, exact approval, retry executor, or live-run recovery is
+  claimed. CAM-016 remains in progress and the 48-gate map remains honestly
+  incomplete.
 - Saved evidence: `docs/evidence/task-14-research-acquisition.md`.
 - Boundary: V1 does not provide provider search, arbitrary HTML/browser
   acquisition, model-generated findings, paid APIs, cloud models, link

@@ -25,6 +25,7 @@ case "$suite" in
     ;;
   cam)
     swift test --disable-sandbox --scratch-path .swift-build --filter CAMAdapterTests
+    swift test --disable-sandbox --scratch-path .swift-build --filter CAMRuntimeRestartState
     ;;
   research)
     swift test --disable-sandbox --scratch-path .swift-build --filter ResearchTests

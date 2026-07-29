@@ -142,6 +142,10 @@ func fullVaultPackageCapturesRecognizedState() throws {
         to: vaultRoot.appending(path: "models.json"),
         options: .atomic
     )
+    try Data(#"{"schemaVersion":1,"machineSpecific":true}"#.utf8).write(
+        to: vaultRoot.appending(path: "cam-runtime-history.json"),
+        options: .atomic
+    )
     let retrievalRoot = vaultRoot.appending(path: "retrieval-index")
     try FileManager.default.createDirectory(
         at: retrievalRoot,
@@ -185,6 +189,10 @@ func fullVaultPackageCapturesRecognizedState() throws {
         "models.json",
         "vault.sqlite",
     ])
+    #expect(
+        !manifest.entries.map(\.relativePath)
+            .contains("cam-runtime-history.json")
+    )
     #expect(
         try Data(
             contentsOf: packageURL

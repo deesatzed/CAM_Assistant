@@ -307,9 +307,10 @@
       "evidence": [
         "docs/evidence/task-16-live-cam-codex-gap-audit.md",
         "docs/evidence/task-16-live-cam-runtime-preflight.md",
-        "docs/evidence/task-16-native-cam-runtime-snapshot.md"
+        "docs/evidence/task-16-native-cam-runtime-snapshot.md",
+        "docs/evidence/task-16-cam-runtime-restart-state.md"
       ],
-      "limitation": "Native and CLI controls now derive and drift-check the launcher, interpreter, package/source commit, install metadata, sqlite dependency, secret-free config, and WAL-family corpus and return real disposable statistics without launching CAM; capability discovery and durable restart-safe pin/run state remain."
+      "limitation": "Native and CLI controls derive and drift-check the installed runtime and WAL-family corpus, return real disposable statistics without launching CAM, and atomically restore a revalidated pin/receipt as historical evidence that requires current-session re-pin. Packaged restart proof, capability discovery, and durable live-run state remain."
     },
     {
       "id": "cam.bounded-loop",

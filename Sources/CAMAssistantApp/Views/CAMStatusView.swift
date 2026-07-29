@@ -9,8 +9,10 @@ struct CAMStatusView: View {
     @State private var configurationURL: URL?
     @State private var databaseURL: URL?
     @State private var runtimePin: CAMVerifiedRuntimePin?
+    @State private var runtimePinIsCurrentSession = false
     @State private var receipt: CAMRuntimeProbeReceipt?
     @State private var message: String?
+    @State private var didLoadRestartState = false
     @State private var selectsExecutable = false
     @State private var selectsConfiguration = false
     @State private var selectsDatabase = false
@@ -61,7 +63,11 @@ struct CAMStatusView: View {
             }
 
             if let runtimePin {
-                Section("Pinned identity") {
+                Section(
+                    runtimePinIsCurrentSession
+                        ? "Pinned identity"
+                        : "Historical pinned identity"
+                ) {
                     LabeledContent(
                         "Identity SHA-256",
                         value: runtimePin.identitySHA256
@@ -81,7 +87,17 @@ struct CAMStatusView: View {
                     Button("Run Disposable Statistics Probe") {
                         runDisposableProbe(runtimePin)
                     }
-                    .disabled(isPinning || isProbing)
+                    .disabled(
+                        isPinning || isProbing
+                            || !runtimePinIsCurrentSession
+                    )
+                    if !runtimePinIsCurrentSession {
+                        Text(
+                            "Re-pin this runtime before running another probe."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                     Text(
                         "The donor database is never passed to CAM. The selected "
                             + "config and database bytes are copied into the "
@@ -95,33 +111,14 @@ struct CAMStatusView: View {
 
             if let receipt, receipt.status == .verified,
                let statistics = receipt.statistics {
-                Section("Verified disposable receipt") {
-                    LabeledContent(
-                        "Methodologies",
-                        value: "\(statistics.methodologyCount)"
-                    )
-                    LabeledContent(
-                        "Source repositories",
-                        value: "\(statistics.sourceRepositoryCount)"
-                    )
-                    LabeledContent(
-                        "Federation configured",
-                        value: statistics.federationEnabled ? "Yes" : "No"
-                    )
-                    LabeledContent(
-                        "Tool",
-                        value: receipt.toolID
-                    )
-                    LabeledContent(
-                        "Output SHA-256",
-                        value: receipt.outputSHA256 ?? "Unavailable"
-                    )
-                    Text(
-                        "Native statistics are validated and digested. The "
-                            + "copied config and corpus are automatically removed."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if runtimePinIsCurrentSession {
+                    Section("Verified disposable receipt") {
+                        receiptDetails(receipt, statistics: statistics)
+                    }
+                } else {
+                    Section("Historical receipt") {
+                        receiptDetails(receipt, statistics: statistics)
+                    }
                 }
             }
 
@@ -146,7 +143,9 @@ struct CAMStatusView: View {
                 } else if let message {
                     Text(message)
                         .foregroundStyle(
-                            receipt == nil ? Color.secondary : Color.green
+                            receipt?.status == .verified
+                                ? Color.green
+                                : Color.secondary
                         )
                 }
             }
@@ -187,6 +186,9 @@ struct CAMStatusView: View {
             "CAM. Local runtime pinning and disposable read-only inspection. "
                 + "Mining and personal corpus mutation are disabled."
         )
+        .task {
+            restoreHistoricalRuntimeState()
+        }
         .onDisappear {
             pinOperation.invalidate()
             probeOperation.invalidate()
@@ -213,6 +215,36 @@ struct CAMStatusView: View {
                 Button(buttonTitle, action: action)
             }
         }
+    }
+
+    @ViewBuilder
+    private func receiptDetails(
+        _ receipt: CAMRuntimeProbeReceipt,
+        statistics: CAMStatisticsSnapshot
+    ) -> some View {
+        LabeledContent(
+            "Methodologies",
+            value: "\(statistics.methodologyCount)"
+        )
+        LabeledContent(
+            "Source repositories",
+            value: "\(statistics.sourceRepositoryCount)"
+        )
+        LabeledContent(
+            "Federation configured",
+            value: statistics.federationEnabled ? "Yes" : "No"
+        )
+        LabeledContent("Tool", value: receipt.toolID)
+        LabeledContent(
+            "Output SHA-256",
+            value: receipt.outputSHA256 ?? "Unavailable"
+        )
+        Text(
+            "Native statistics are validated and digested. The "
+                + "copied config and corpus are automatically removed."
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     private var canPin: Bool {
@@ -247,6 +279,7 @@ struct CAMStatusView: View {
         pinTask = nil
         probeTask = nil
         runtimePin = nil
+        runtimePinIsCurrentSession = false
         receipt = nil
         message = nil
     }
@@ -286,16 +319,31 @@ struct CAMStatusView: View {
             }
             switch outcome {
             case let .success(pin):
-                runtimePin = pin
-                message = "Runtime bytes pinned. No CAM process was started."
+                do {
+                    let store = try runtimeRestartStateStore()
+                    try store.save(pin: pin)
+                    runtimePin = pin
+                    runtimePinIsCurrentSession = true
+                    message =
+                        "Runtime bytes pinned. No CAM process was started."
+                } catch {
+                    runtimePin = nil
+                    runtimePinIsCurrentSession = false
+                    message =
+                        "Runtime pinning finished, but its local restart "
+                        + "state could not be saved."
+                }
             case .failure(.cancelled):
                 runtimePin = nil
+                runtimePinIsCurrentSession = false
                 message = "Runtime pinning cancelled."
             case .failure(.timedOut):
                 runtimePin = nil
+                runtimePinIsCurrentSession = false
                 message = "Runtime pinning timed out."
             case let .failure(.other(description)):
                 runtimePin = nil
+                runtimePinIsCurrentSession = false
                 message = "Runtime pinning failed: \(description)"
             }
             pinOperation.finish(generation)
@@ -337,12 +385,22 @@ struct CAMStatusView: View {
             }
             switch outcome {
             case let .success(result):
-                receipt = result
-                if result.status == .verified {
-                    message = "Copied-state statistics verified."
-                } else {
-                    message = "Disposable CAM probe \(result.status.rawValue): "
-                        + (result.failureCode ?? "unknown failure")
+                do {
+                    let store = try runtimeRestartStateStore()
+                    try store.save(receipt: result, for: pin)
+                    receipt = result
+                    if result.status == .verified {
+                        message = "Copied-state statistics verified."
+                    } else {
+                        message =
+                            "Disposable CAM probe \(result.status.rawValue): "
+                            + (result.failureCode ?? "unknown failure")
+                    }
+                } catch {
+                    receipt = nil
+                    message =
+                        "The disposable probe finished, but its local "
+                        + "receipt could not be saved."
                 }
             case let .failure(.other(description)):
                 receipt = nil
@@ -358,6 +416,7 @@ struct CAMStatusView: View {
         pinTask?.cancel()
         pinTask = nil
         runtimePin = nil
+        runtimePinIsCurrentSession = false
         message = "Runtime pinning cancelled."
     }
 
@@ -367,6 +426,40 @@ struct CAMStatusView: View {
         probeTask = nil
         receipt = nil
         message = "Disposable CAM probe cancelled."
+    }
+
+    private func restoreHistoricalRuntimeState() {
+        guard !didLoadRestartState else { return }
+        didLoadRestartState = true
+        do {
+            guard let state = try runtimeRestartStateStore().load() else {
+                return
+            }
+            executableURL = state.pin.executableURL
+            configurationURL = state.pin.configurationURL
+            databaseURL = state.pin.databaseURL
+            runtimePin = state.pin
+            runtimePinIsCurrentSession = false
+            receipt = state.latestReceipt
+            message =
+                "Historical runtime evidence restored. Re-pin before "
+                + "running another probe."
+        } catch {
+            runtimePin = nil
+            runtimePinIsCurrentSession = false
+            receipt = nil
+            message =
+                "Saved runtime evidence is invalid or unavailable and "
+                + "was ignored."
+        }
+    }
+
+    private func runtimeRestartStateStore() throws
+        -> CAMRuntimeRestartStateStore {
+        CAMRuntimeRestartStateStore(
+            url: try LocalVaultPaths.rootURL()
+                .appending(path: CAMRuntimeRestartStateStore.fileName)
+        )
     }
 }
 
