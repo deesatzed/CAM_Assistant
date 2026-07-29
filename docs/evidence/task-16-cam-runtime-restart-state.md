@@ -108,6 +108,21 @@ changed the heading to current `Pinned identity` and re-enabled the probe.
 This is an actual packaged lifecycle proof. It is not source inspection,
 fixture-only persistence, or a claim that CAM executed.
 
+After the implementation was committed and pushed, the same bounded journey
+was repeated with the package built from exact implementation commit
+`3ed8704e67a24e08aab5300d5cd1eedf1b68436d`, bundle build `75`, and embedded
+`dirty=false`. Re-pin and disposable probe again returned `2,516`
+methodologies, `197` repositories, and output hash
+`11d5213255813eca1ec0b2c601b0ca64c57bdbcaef4ac5709da91e3677824fdf`.
+Quit/relaunch again restored `Historical pinned identity` and `Historical
+receipt`, disabled the probe, and required re-pin.
+
+A clean temporary non-local clone of that implementation commit then passed
+all `313` tests, release builds, package identity, the `56`-file zero-finding
+credential-signature scan, and offline smoke. Its deterministic package
+manifest is
+`8287301b9725b3b136953827e51fab3285cba4240ace5ab9e97bf089fe34eaa9`.
+
 ## Non-claims
 
 No CAM process, capability discovery, mining executor, provider, MCP server,

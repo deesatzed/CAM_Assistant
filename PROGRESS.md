@@ -1931,6 +1931,17 @@ workflows remain disabled until their individual proof gates are met.
   deterministic package manifest is
   `628822441262b3bfc75d03629464e3049d534c002aa6d154474b06eadf6b69a0`;
   and the `56`-file credential-signature scan has zero findings.
+- Clean exact-commit package proof: implementation commit
+  `3ed8704e67a24e08aab5300d5cd1eedf1b68436d`, bundle build `75`, and embedded
+  `dirty=false` repeated the native re-pin/probe/quit/relaunch journey. The
+  restarted app restored the exact historical `2,516`/`197` receipt and kept
+  the probe disabled until re-pin.
+- Green exact-commit proof: `/bin/zsh scripts/verify.sh fresh-clone` passed from
+  a clean temporary non-local clone of `3ed8704e67a24e08aab5300d5cd1eedf1b68436d`
+  with all `313` tests, release builds, reproducible package
+  `8287301b9725b3b136953827e51fab3285cba4240ace5ab9e97bf089fe34eaa9`,
+  exact package identity with `dirty=false`, the `56`-file zero-finding scan,
+  and offline smoke.
 - Saved evidence:
   `docs/evidence/task-16-cam-runtime-restart-state.md`.
 - Boundary: no live CAM process, capability discovery, mining, exact approval,
