@@ -1520,6 +1520,22 @@ disabled until their individual proof gates are met.
   reproducible package, package identity, 42-file zero-finding privacy scan,
   offline smoke, and the honest 48-gate map.
 
+### Goal-map reality correction — 2026-07-28
+
+- Read-only reality audit found that `modules.no-grant-on-enable` still
+  described the pre-`86d08c8` registry even though current
+  `ModuleRegistry.capabilities()` requires every manifest-declared permission.
+- Reproduced: `./scripts/verify.sh modules` passed all seven tests covering
+  zero/partial/full grants, enable, disable, revoke, restart, reload, isolated
+  health failure, duplicate IDs, and invalid manifests.
+- Corrected only that gate from `partial` to `passed`. The adjacent
+  permission/health gate remains `partial` because receipts, expected-state
+  revisions, real health execution, and native review are absent.
+- Current map totals: `12 passed`, `26 partial`, `10 missing`, overall
+  `incomplete`.
+- Saved evidence:
+  `docs/evidence/task-17-module-permission-enforcement.md`.
+
 ## Blockers
 
 None.

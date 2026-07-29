@@ -4,6 +4,13 @@
 **Status:** Read-only implementation inventory. The packaged home-grown module
 lifecycle required by `GOAL_FINISH_WIKI.md` is not implemented or proven.
 
+> **Subsequent correction:** Commit `86d08c89e6acb2e86b2bcf2996a7365528554c85`
+> added complete declared-permission enforcement to
+> `ModuleRegistry.capabilities()`. Current seven-test evidence is recorded in
+> `docs/evidence/task-17-module-permission-enforcement.md`. The packaged
+> lifecycle, trust, receipts, real health execution, dispatcher, and uninstall
+> gaps below remain.
+
 ## Scope
 
 This audit compares the current manifest and registry implementation with the

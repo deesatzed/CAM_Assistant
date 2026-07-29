@@ -5,8 +5,8 @@
   "overallStatus": "incomplete",
   "summary": {
     "total": 48,
-    "passed": 11,
-    "partial": 27,
+    "passed": 12,
+    "partial": 26,
     "missing": 10,
     "deferred": 0
   },
@@ -413,12 +413,12 @@
       "id": "modules.no-grant-on-enable",
       "sourceLine": 218,
       "title": "Discovery and enablement grant no permission",
-      "status": "partial",
+      "status": "passed",
       "evidence": [
         "docs/evidence/task-04-module-registry.md",
-        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
-      ],
-      "limitation": "Permission storage is separate, but the current capabilities surface does not enforce grants before advertising enabled healthy capabilities."
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md",
+        "docs/evidence/task-17-module-permission-enforcement.md"
+      ]
     },
     {
       "id": "modules.permissions-and-health",
@@ -429,7 +429,7 @@
         "docs/evidence/task-04-module-registry.md",
         "docs/evidence/task-17-module-lifecycle-gap-audit.md"
       ],
-      "limitation": "Health isolation is tested; permission-change receipts and dispatcher-side grant enforcement are incomplete."
+      "limitation": "Health isolation and registry-side grant enforcement are tested; permission-change receipts, expected-state revisions, real manifest health execution, and native review remain incomplete."
     },
     {
       "id": "modules.homegrown-lifecycle",
