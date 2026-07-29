@@ -75,8 +75,54 @@ curl --max-time 3 http://127.0.0.1:1234/v1/models
 curl --max-time 3 http://127.0.0.1:11434/v1/models
 ```
 
-Both previously evidenced local endpoints refused the connection. No live
-model report was fabricated or relabelled as passing.
+Both previously evidenced local endpoints refused the connection during the
+2026-07-28 checkpoint. No live model report was fabricated or relabelled as
+passing.
+
+## Named local-model runs — 2026-07-29
+
+LM Studio was started on loopback only at
+`http://127.0.0.1:1234/v1`. No authorization header, cloud route, web route,
+CAM route, personal data, donor source, or network bind was used.
+
+The frozen v2 manifest remained byte-identical at SHA-256
+`5fe3b45ab5bbfdabd08eadf0871348a5830a5d4cd6c2213350be493293f64b25`.
+The existing release CLI ran it without code or label changes against:
+
+| Model | Result | Metrics | Receipt SHA-256 |
+|---|---|---|---|
+| `vibethinker-3b-optiq-5bpw-mlx` | Fail, exit `2` | observation `0`; precision `0`; counterevidence `0`; abstention `0` | `a54184cfdd947c81dfb95bb687449c21bf5536d555aace6bad239bf448bf20c2` |
+| `gemma-4-12b-it-optiq` | Fail, exit `2` | observation `0`; precision `0`; counterevidence `0`; abstention `0` | `de721c4c7456cb5a21137b0d6d5714261e5b2566e979491b29aef50878b5216e` |
+
+Saved receipts:
+
+- `task-15-repository-semantic-vibethinker-failed.json`;
+- `task-15-repository-semantic-gemma-failed.json`.
+
+The first Vibethinker attempt used a host-only endpoint and failed health
+decoding because the CLI correctly treats its argument as the OpenAI-compatible
+base URL and therefore requires `/v1`. A loopback diagnostic proxy reproduced
+`GET /models`; rerunning with `/v1` completed the evaluator. That invalid
+invocation was not saved as a model-quality receipt.
+
+The completed receipts exposed two evaluator/model-contract limitations:
+
+1. For an abstention case with no allowed support or counterevidence IDs, the
+   generated JSON Schema contains `enum: []`. LM Studio rejects that schema
+   before inference, so both models record `generator_error` rather than a
+   valid abstention.
+2. Gemma returned the exact required evidence IDs and a semantically correct
+   actor/cache limitation, but the frozen deterministic concept matcher
+   rejected “Cache actor ensures thread-safe…” because it did not contain the
+   literal accepted phrase `actor-isolated` or `actor isolated`.
+
+These observations do not authorize changing v2 after seeing outputs. V2
+remains frozen and both reports remain failures. A future separately
+pre-registered version may repair empty-ID structured output and measure
+semantic claim support without tuning labels to these responses.
+
+After the runs, both models were unloaded and the LM Studio API server was
+stopped. No model remained resident.
 
 ## Authority and privacy boundary
 
@@ -92,8 +138,9 @@ This does not prove arbitrary semantic correctness, personal-vault quality,
 SOTA repository reasoning, license compatibility, or useful results from a
 real selected model. The repository semantic gate remains partial until:
 
-1. a named selected loopback model produces a saved frozen report;
-2. that report passes the frozen evidence/counterevidence/abstention gates;
+1. a named selected loopback model produces a saved frozen report that passes
+   a valid pre-registered evidence/counterevidence/abstention contract;
+2. the structured-output contract supports valid citation-free abstention;
 3. a native clean-repository journey builds bounded exact evidence, presents
    accepted/abstained/failed candidates, and requires explicit Keep or
    promotion;

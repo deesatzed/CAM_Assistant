@@ -1,0 +1,83 @@
+{
+  "abstentionAccuracy" : 0,
+  "abstentionCaseCount" : 2,
+  "caseCount" : 4,
+  "caseResults" : [
+    {
+      "abstained" : false,
+      "caseID" : "actor-cache-boundary",
+      "counterevidenceIDs" : [
+
+      ],
+      "errorCode" : "missing_required_concept",
+      "expectedOutcome" : "observation",
+      "passed" : false,
+      "supportIDs" : [
+
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "encryption-abstention",
+      "counterevidenceIDs" : [
+
+      ],
+      "errorCode" : "generator_error",
+      "expectedOutcome" : "abstain",
+      "passed" : false,
+      "supportIDs" : [
+
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "idempotent-request-boundary",
+      "counterevidenceIDs" : [
+
+      ],
+      "errorCode" : "missing_required_concept",
+      "expectedOutcome" : "observation",
+      "passed" : false,
+      "supportIDs" : [
+
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "performance-abstention",
+      "counterevidenceIDs" : [
+
+      ],
+      "errorCode" : "generator_error",
+      "expectedOutcome" : "abstain",
+      "passed" : false,
+      "supportIDs" : [
+
+      ]
+    }
+  ],
+  "counterevidenceRecall" : 0,
+  "evaluatorVersion" : "repository-semantic-evaluator-v2",
+  "evidencePrecision" : 0,
+  "failedCaseIDs" : [
+    "actor-cache-boundary",
+    "encryption-abstention",
+    "idempotent-request-boundary",
+    "performance-abstention"
+  ],
+  "manifestHash" : "5fe3b45ab5bbfdabd08eadf0871348a5830a5d4cd6c2213350be493293f64b25",
+  "meetsFrozenThresholds" : false,
+  "modelID" : "gemma-4-12b-it-optiq",
+  "observationCaseCount" : 2,
+  "observationRecall" : 0,
+  "runtimeIdentity" : "loopback:http:\/\/127.0.0.1:1234\/v1",
+  "thresholds" : {
+    "abstentionAccuracy" : 1,
+    "counterevidenceRecall" : 1,
+    "evidencePrecision" : 1,
+    "observationRecall" : 1
+  },
+  "unansweredCaseIDs" : [
+
+  ]
+}

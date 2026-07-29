@@ -202,9 +202,11 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/task-15-repository-job-lifecycle.md",
-        "docs/evidence/task-15-repository-semantic-evaluation.md"
+        "docs/evidence/task-15-repository-semantic-evaluation.md",
+        "docs/evidence/task-15-repository-semantic-vibethinker-failed.json",
+        "docs/evidence/task-15-repository-semantic-gemma-failed.json"
       ],
-      "limitation": "A frozen v2 distractor/evidence/counterevidence/abstention evaluator, strict loopback generator, fail-closed CLI, and evidence-complete card conversion pass synthetic contract tests; no named real-model report or native live-repository semantic journey exists."
+      "limitation": "Two named loopback models produced preserved failing v2 reports. Empty-ID abstention schemas are rejected before inference and deterministic concept matching rejects some semantically correct wording; no model passes a valid pre-registered live contract and no native live-repository semantic journey exists."
     },
     {
       "id": "repositories.idea-quality",

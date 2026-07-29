@@ -110,6 +110,33 @@ disabled until their individual proof gates are met.
   source, config, corpus, and capability identities, then probe only an
   integrity-checked disposable copy before any separately approved executor.
 
+### Named repository-semantic local-model runs — 2026-07-29
+
+- LM Studio was started on loopback only and the unchanged frozen semantic-v2
+  manifest was run through the existing release CLI against
+  `vibethinker-3b-optiq-5bpw-mlx` and `gemma-4-12b-it-optiq`.
+- Both runs completed with exit `2` and zero on all four frozen metrics. The
+  reports remain separate failures and do not satisfy CAM-015.
+- Vibethinker recorded one duplicate-evidence failure plus three generator
+  failures. Gemma recorded two missing-required-concept failures plus two
+  generator failures.
+- Direct synthetic-case diagnosis proved the abstention generator failures
+  occur because an empty allowed-ID set becomes an invalid `enum: []` JSON
+  Schema rejected by LM Studio before inference.
+- Gemma returned the required evidence and counterevidence IDs with a
+  semantically correct cache/actor limitation, but the frozen lexical matcher
+  rejected its wording because it omitted the literal accepted
+  `actor-isolated` phrase.
+- V2 labels and thresholds remain unchanged after observation. A later
+  separately pre-registered contract must repair empty-ID abstention and
+  evaluate semantic support without tuning to these outputs.
+- Both models were unloaded and the LM Studio server was stopped after the
+  bounded runs. No cloud, web, CAM, credential, donor, or personal-data route
+  was used.
+- Saved receipts:
+  `docs/evidence/task-15-repository-semantic-vibethinker-failed.json` and
+  `docs/evidence/task-15-repository-semantic-gemma-failed.json`.
+
 ## Verification Receipts
 
 ### Task 1 — 2026-07-24
