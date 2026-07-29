@@ -39,6 +39,38 @@ enum AssistantSection: String, CaseIterable, Identifiable {
     }
 }
 
+struct VaultRecoveryOperations: Sendable {
+    let create: @Sendable (
+        _ sourceRoot: URL,
+        _ packageURL: URL
+    ) throws -> FullVaultBackupReceipt
+    let validate: @Sendable (
+        _ packageURL: URL
+    ) throws -> FullVaultValidationReceipt
+    let restore: @Sendable (
+        _ packageURL: URL,
+        _ destinationRoot: URL
+    ) throws -> FullVaultRestoreReceipt
+
+    static let live = VaultRecoveryOperations(
+        create: { sourceRoot, packageURL in
+            try FullVaultBackupService().createPackage(
+                from: sourceRoot,
+                to: packageURL
+            )
+        },
+        validate: { packageURL in
+            try FullVaultBackupService().validatePackage(at: packageURL)
+        },
+        restore: { packageURL, destinationRoot in
+            try FullVaultBackupService().restorePackage(
+                at: packageURL,
+                to: destinationRoot
+            )
+        }
+    )
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selection: AssistantSection = .assistant
@@ -111,6 +143,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var watchedSourcePresentation: [WatchedSourcePresentation] = []
     @Published private(set) var watchedSourceError: String?
     @Published private(set) var isUpdatingWatchedSources = false
+    @Published private(set) var vaultRecoveryStatus: String?
+    @Published private(set) var vaultRecoveryError: String?
+    @Published private(set) var isVaultRecoveryRunning = false
     private let hotkeyManager = HotkeyManager()
     private let foregroundActivation: AssistantForegroundActivation
     private lazy var watchedSourceCaptureRefresh = WatchedSourceCaptureRefresh(
@@ -130,6 +165,8 @@ final class AppModel: ObservableObject {
         }
     private let repositorySourceService: RepositorySourceService?
     private let repositoryJobStore: RepositoryJobStore?
+    private let vaultRecoveryOperations: VaultRecoveryOperations
+    private let vaultRootProvider: @Sendable () throws -> URL
     private var repositorySnapshot: RepositorySnapshot?
     private var repositoryObservationEvidence: [RepositoryObservation] = []
     private var repositoryIdeaCard: RepositoryIdeaCard?
@@ -145,12 +182,18 @@ final class AppModel: ObservableObject {
         foregroundActivation: AssistantForegroundActivation = .live,
         repositorySourceService: RepositorySourceService? = AppModel.makeRepositorySourceService(),
         repositoryJobStore: RepositoryJobStore? = AppModel.makeRepositoryJobStore(),
-        initializeFullWorkspace: Bool = true
+        initializeFullWorkspace: Bool = true,
+        vaultRecoveryOperations: VaultRecoveryOperations = .live,
+        vaultRootProvider: @escaping @Sendable () throws -> URL = {
+            try LocalVaultPaths.rootURL()
+        }
     ) {
         self.health = health
         self.foregroundActivation = foregroundActivation
         self.repositorySourceService = repositorySourceService
         self.repositoryJobStore = repositoryJobStore
+        self.vaultRecoveryOperations = vaultRecoveryOperations
+        self.vaultRootProvider = vaultRootProvider
         guard initializeFullWorkspace else {
             reloadRepositorySources()
             reloadRepositoryJobs(recoverInterrupted: true)
@@ -168,6 +211,119 @@ final class AppModel: ObservableObject {
         reloadRetainedResearchPlans()
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
+    }
+
+    func createVaultBackup(to packageURL: URL) {
+        guard beginVaultRecovery() else { return }
+        let sourceRoot: URL
+        do {
+            sourceRoot = try vaultRootProvider()
+        } catch {
+            failVaultRecovery(
+                "The local vault location could not be resolved."
+            )
+            return
+        }
+        let create = vaultRecoveryOperations.create
+        Task { [weak self] in
+            do {
+                let receipt = try await Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try create(sourceRoot, packageURL)
+                }.value
+                self?.vaultRecoveryStatus =
+                    "Backup created: \(receipt.entryCount) entries, "
+                    + "\(receipt.totalByteCount) bytes. Manifest "
+                    + "\(receipt.manifestSHA256.prefix(12)). Package "
+                    + "\(receipt.packageURL.path)."
+                self?.vaultRecoveryError = nil
+            } catch {
+                self?.vaultRecoveryStatus = nil
+                self?.vaultRecoveryError =
+                    "The local backup could not be created. "
+                    + "No existing vault was changed."
+            }
+            self?.isVaultRecoveryRunning = false
+        }
+    }
+
+    func validateVaultBackup(at packageURL: URL) {
+        guard beginVaultRecovery() else { return }
+        let validate = vaultRecoveryOperations.validate
+        Task { [weak self] in
+            do {
+                let receipt = try await Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try validate(packageURL)
+                }.value
+                self?.vaultRecoveryStatus =
+                    "Backup validated: \(receipt.entryCount) entries, "
+                    + "\(receipt.totalByteCount) bytes, schema "
+                    + "\(receipt.sourceSchemaVersion). Manifest "
+                    + "\(receipt.manifestSHA256.prefix(12))."
+                self?.vaultRecoveryError = nil
+            } catch {
+                self?.vaultRecoveryStatus = nil
+                self?.vaultRecoveryError =
+                    "The selected backup did not pass local validation. "
+                    + "No vault was changed."
+            }
+            self?.isVaultRecoveryRunning = false
+        }
+    }
+
+    func restoreVaultBackup(
+        at packageURL: URL,
+        to destinationRoot: URL
+    ) {
+        guard beginVaultRecovery() else { return }
+        let restore = vaultRecoveryOperations.restore
+        Task { [weak self] in
+            do {
+                let receipt = try await Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try restore(packageURL, destinationRoot)
+                }.value
+                let authorityLabel =
+                    receipt.authorityRecordsQuarantined == 1
+                    ? "authority record quarantined"
+                    : "authority records quarantined"
+                self?.vaultRecoveryStatus =
+                    "New vault restored: \(receipt.entryCount) entries, "
+                    + "\(receipt.watchedSourcesPaused) watched sources paused, "
+                    + "\(receipt.authorityRecordsQuarantined) "
+                    + "\(authorityLabel). Destination "
+                    + "\(receipt.destinationURL.path)."
+                self?.vaultRecoveryError = nil
+            } catch {
+                self?.vaultRecoveryStatus = nil
+                self?.vaultRecoveryError =
+                    "The backup could not be restored to that new location. "
+                    + "No existing vault was changed."
+            }
+            self?.isVaultRecoveryRunning = false
+        }
+    }
+
+    private func beginVaultRecovery() -> Bool {
+        guard !isVaultRecoveryRunning else {
+            vaultRecoveryError =
+                "Another local backup or restore operation is still running."
+            return false
+        }
+        isVaultRecoveryRunning = true
+        vaultRecoveryStatus = nil
+        vaultRecoveryError = nil
+        return true
+    }
+
+    private func failVaultRecovery(_ message: String) {
+        isVaultRecoveryRunning = false
+        vaultRecoveryStatus = nil
+        vaultRecoveryError = message
     }
 
     func updateHealth(

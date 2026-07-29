@@ -5,6 +5,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case models
     case hotkeys
     case captureSources
+    case backupRecovery
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .models: "Models"
         case .hotkeys: "Hotkeys"
         case .captureSources: "Capture Sources"
+        case .backupRecovery: "Backup & Recovery"
         }
     }
 }
@@ -84,6 +86,8 @@ private struct SettingsWorkspace: View {
                 HotkeySettingsView(model: model)
             case .captureSources:
                 CaptureSourcesView(model: model)
+            case .backupRecovery:
+                BackupRecoveryView(model: model)
             }
         }
         .accessibilityLabel("Assistant settings")

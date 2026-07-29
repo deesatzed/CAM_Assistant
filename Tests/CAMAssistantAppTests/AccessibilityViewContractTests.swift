@@ -92,6 +92,34 @@ func repositoryViewExposesDurableJobLifecycle() throws {
     )
 }
 
+@Test("backup recovery view exposes bounded actions and no overwrite authority")
+func backupRecoveryViewExposesBoundedNonDestructiveActions() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(
+                path: "Sources/CAMAssistantApp/Views/BackupRecoveryView.swift"
+            ),
+        encoding: .utf8
+    )
+
+    let requiredContracts = [
+        "Button(\"Create Backup…\"",
+        "Button(\"Validate Backup…\"",
+        "\"Restore to New Vault…\"",
+        "never overwrites or merges",
+        "Restored watched folders remain paused",
+        ".accessibilityElement(children: .contain)",
+        "\"Backup and Recovery. Local integrity-checked packages",
+    ]
+    let forbiddenContracts = [
+        "Overwrite Current Vault",
+        "Merge Vault",
+    ]
+
+    #expect(requiredContracts.allSatisfy(source.contains))
+    #expect(forbiddenContracts.allSatisfy { !source.contains($0) })
+}
+
 private struct AccessibilitySourceContract {
     let fileName: String
     let rootLabelPrefix: String
