@@ -11,6 +11,135 @@ public struct Migration: Sendable {
 public enum Migrations {
     public static let currentVersion = 8
 
+    /// The minimum structural contract required to safely open a database at
+    /// each migration version. Backup validation uses this read-only map so a
+    /// file cannot claim a current migration number while omitting tables or
+    /// columns that the app will immediately depend on after recovery.
+    public static func requiredTableColumns(
+        for schemaVersion: Int
+    ) -> [String: Set<String>] {
+        guard schemaVersion > 0 else { return [:] }
+        var result: [String: Set<String>] = [
+            "schema_migrations": ["version", "applied_at"],
+            "content_objects": ["content_id", "byte_count", "created_at"],
+            "audit_events": [
+                "event_id",
+                "timestamp",
+                "operation",
+                "status",
+                "resource_id",
+                "route",
+            ],
+        ]
+        if schemaVersion >= 2 {
+            result["sources"] = [
+                "source_id",
+                "byte_count",
+                "created_at",
+                "source_name",
+                "content_type",
+            ]
+            result["capture_events"] = [
+                "capture_id",
+                "source_id",
+                "captured_at",
+                "origin_kind",
+                "origin_detail",
+                "source_name",
+                "content_type",
+            ]
+            result["ingest_jobs"] = [
+                "source_id",
+                "status",
+                "attempts",
+                "max_attempts",
+                "created_at",
+                "updated_at",
+            ]
+            result["derived_documents"] = [
+                "source_id",
+                "text",
+                "modality",
+                "extractor_id",
+                "created_at",
+            ]
+            result["ingest_warnings"] = [
+                "warning_id",
+                "source_id",
+                "attempt",
+                "code",
+                "message",
+                "created_at",
+            ]
+        }
+        if schemaVersion >= 3 {
+            result["audit_events"]?.formUnion([
+                "privacy_risk",
+                "privacy_decision",
+                "payload_sha256",
+                "outbound_byte_count",
+            ])
+        }
+        if schemaVersion >= 4 {
+            result["task_records"] = [
+                "task_id",
+                "title",
+                "criteria_json",
+                "authority",
+                "citations_json",
+                "status",
+                "created_at",
+            ]
+        }
+        if schemaVersion >= 5 {
+            result["repository_snapshots"] = [
+                "canonical_path",
+                "commit_sha",
+                "snapshot_json",
+                "recorded_at",
+            ]
+        }
+        if schemaVersion >= 6 {
+            result["repository_idea_cards"] = [
+                "idea_id",
+                "canonical_path",
+                "commit_sha",
+                "card_json",
+                "disposition",
+                "recorded_at",
+            ]
+        }
+        if schemaVersion >= 7 {
+            result["source_lifecycle"] = [
+                "source_id",
+                "status",
+                "updated_at",
+            ]
+        }
+        if schemaVersion >= 8 {
+            result["repository_jobs"] = [
+                "job_id",
+                "source_id",
+                "canonical_path",
+                "status",
+                "attempts",
+                "max_attempts",
+                "snapshot_commit",
+                "captured_source_count",
+                "error_code",
+                "created_at",
+                "updated_at",
+            ]
+            result["repository_source_lifecycle"] = [
+                "source_id",
+                "canonical_path",
+                "status",
+                "updated_at",
+            ]
+        }
+        return result
+    }
+
     public static let all: [Migration] = [
         Migration(
             version: 1,

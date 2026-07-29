@@ -493,6 +493,10 @@ public final class FullVaultBackupService {
                     data: data
                 )
             }
+            try validateRecognizedState(
+                at: url,
+                entry: entry
+            )
         }
         for url in try regularFilesRecursively(
             in: payloadRoot,
@@ -574,13 +578,13 @@ public final class FullVaultBackupService {
                 )
             }
         case .coordination:
-            guard entry.relativePath.hasPrefix("coordination/"),
-                  !entry.relativePath.hasSuffix(".lock"),
-                  !entry.relativePath.hasSuffix(".tmp") else {
-                throw FullVaultBackupError.unsafeRelativePath(
-                    entry.relativePath
-                )
-            }
+            // Reserved for a future canonical typed coordination layout.
+            // The current app-owned inventory emits no coordination entry, so
+            // accepting one would allow untyped state the runtime cannot
+            // validate or safely resume.
+            throw FullVaultBackupError.unsafeRelativePath(
+                entry.relativePath
+            )
         default:
             guard let state = LocalVaultStateFile(
                 rawValue: entry.relativePath
@@ -761,6 +765,71 @@ public final class FullVaultBackupService {
         }
     }
 
+    private func validateRecognizedState(
+        at url: URL,
+        entry: FullVaultManifestEntry
+    ) throws {
+        do {
+            switch entry.role {
+            case .database, .contentObject:
+                return
+            case .modelProfiles:
+                guard try JSONDecoder().decode(
+                    BackupVersionedState.self,
+                    from: Data(contentsOf: url)
+                ).schemaVersion == 1 else {
+                    throw FullVaultBackupError.restoredStateInvalid(
+                        entry.relativePath
+                    )
+                }
+                _ = try ModelRegistry(stateURL: url).profiles()
+            case .hotkeys:
+                guard try HotkeyConfigurationStore(url: url).load() != nil else {
+                    throw FullVaultBackupError.restoredStateInvalid(
+                        entry.relativePath
+                    )
+                }
+            case .watchedSources:
+                _ = try WatchedSourceConfigurationStore(url: url).load()
+            case .repositorySources:
+                _ = try RepositorySourceConfigurationStore(url: url).load()
+            case .researchPlans:
+                _ = try ResearchPlanStore(url: url).load()
+            case .researchPackets:
+                _ = try ResearchPacketStore(url: url).load()
+            case .knowledgeClaims:
+                _ = try KnowledgeStore(url: url).load()
+            case .contradictions:
+                _ = try ContradictionStore(url: url).load()
+            case .approvals:
+                guard try JSONDecoder().decode(
+                    BackupVersionedState.self,
+                    from: Data(contentsOf: url)
+                ).schemaVersion == 1 else {
+                    throw FullVaultBackupError.restoredStateInvalid(
+                        entry.relativePath
+                    )
+                }
+                _ = try ApprovalStore(stateURL: url).approvals()
+            case .moduleState:
+                _ = try JSONDecoder().decode(
+                    BackupModuleState.self,
+                    from: Data(contentsOf: url)
+                )
+            case .coordination:
+                throw FullVaultBackupError.unsafeRelativePath(
+                    entry.relativePath
+                )
+            }
+        } catch let error as FullVaultBackupError {
+            throw error
+        } catch {
+            throw FullVaultBackupError.restoredStateInvalid(
+                entry.relativePath
+            )
+        }
+    }
+
     private func readOnlyDatabaseSchemaVersion(at url: URL) throws -> Int {
         var database: OpaquePointer?
         guard sqlite3_open_v2(
@@ -807,7 +876,122 @@ public final class FullVaultBackupService {
         guard sqlite3_step(schemaStatement) == SQLITE_ROW else {
             throw FullVaultBackupError.databaseIntegrityFailed
         }
-        return Int(sqlite3_column_int64(schemaStatement, 0))
+        let schemaVersion = Int(sqlite3_column_int64(schemaStatement, 0))
+        try validateMigrationHistory(
+            database: database,
+            schemaVersion: schemaVersion
+        )
+        try validateRequiredDatabaseStructure(
+            database: database,
+            schemaVersion: schemaVersion
+        )
+        try validateForeignKeys(database: database)
+        return schemaVersion
+    }
+
+    private func validateMigrationHistory(
+        database: OpaquePointer,
+        schemaVersion: Int
+    ) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT version FROM schema_migrations ORDER BY version",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw FullVaultBackupError.databaseIntegrityFailed
+        }
+        defer { sqlite3_finalize(statement) }
+        var versions: [Int] = []
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_ROW:
+                versions.append(Int(sqlite3_column_int64(statement, 0)))
+            case SQLITE_DONE:
+                let expected = schemaVersion > 0
+                    ? Array(1...schemaVersion)
+                    : []
+                guard versions == expected else {
+                    throw FullVaultBackupError.databaseIntegrityFailed
+                }
+                return
+            default:
+                throw FullVaultBackupError.databaseIntegrityFailed
+            }
+        }
+    }
+
+    private func validateRequiredDatabaseStructure(
+        database: OpaquePointer,
+        schemaVersion: Int
+    ) throws {
+        let required = Migrations.requiredTableColumns(
+            for: schemaVersion
+        )
+        guard !required.isEmpty else {
+            throw FullVaultBackupError.databaseIntegrityFailed
+        }
+        for table in required.keys.sorted() {
+            let actualColumns = try databaseColumns(
+                database: database,
+                table: table
+            )
+            guard let requiredColumns = required[table],
+                  requiredColumns.isSubset(of: actualColumns) else {
+                throw FullVaultBackupError.databaseIntegrityFailed
+            }
+        }
+    }
+
+    private func databaseColumns(
+        database: OpaquePointer,
+        table: String
+    ) throws -> Set<String> {
+        var statement: OpaquePointer?
+        let query = "PRAGMA table_info(\"\(table)\")"
+        guard sqlite3_prepare_v2(
+            database,
+            query,
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw FullVaultBackupError.databaseIntegrityFailed
+        }
+        defer { sqlite3_finalize(statement) }
+        var columns = Set<String>()
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_ROW:
+                guard let text = sqlite3_column_text(statement, 1) else {
+                    throw FullVaultBackupError.databaseIntegrityFailed
+                }
+                columns.insert(String(cString: text))
+            case SQLITE_DONE:
+                return columns
+            default:
+                throw FullVaultBackupError.databaseIntegrityFailed
+            }
+        }
+    }
+
+    private func validateForeignKeys(database: OpaquePointer) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "PRAGMA foreign_key_check",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw FullVaultBackupError.databaseIntegrityFailed
+        }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw FullVaultBackupError.databaseIntegrityFailed
+        }
     }
 
     private func relativePath(for url: URL, under root: URL) throws -> String {
@@ -829,4 +1013,13 @@ public final class FullVaultBackupService {
             .map { String(format: "%02x", $0) }
             .joined()
     }
+}
+
+private struct BackupModuleState: Decodable {
+    let enabledModuleIDs: Set<String>
+    let permissionGrants: [String: Set<Permission>]
+}
+
+private struct BackupVersionedState: Decodable {
+    let schemaVersion: Int
 }

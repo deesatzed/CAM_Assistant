@@ -8,17 +8,19 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 
 | Command | Result |
 |---|---|
-| `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` | Repository portability gate plus 222 tests pass; native app and CLI release build pass |
-| `./scripts/verify.sh repository-semantic` | All 50 repository-focused tests pass, including durable jobs plus frozen v2 distractor selection, evidence/counterevidence validation, abstention, cancellation, evaluator failure/exit reporting, strict loopback transport/response decoding, legacy migration, and evidence-complete semantic card conversion |
-| `swift test --filter CAMAssistantAppTests` | All 10 app tests pass, including injected AppModel live-lease recovery and cancellation reload |
+| `CAM_ASSISTANT_SKIP_FRESH_CLONE=1 /bin/zsh scripts/verify.sh all` | Repository portability and 48-gate-map checks plus all 244 tests pass; native app and CLI release build, two-build package reproducibility, package identity, 50-file zero-finding credential-signature scan, and offline smoke pass |
+| `./scripts/verify.sh repository-semantic` | All 51 repository-focused tests pass, including physical citation lines, durable jobs, frozen v2 distractor selection, evidence/counterevidence validation, abstention, cancellation, evaluator failure/exit reporting, strict loopback transport/response decoding, legacy migration, and evidence-complete semantic card conversion |
+| `/bin/zsh scripts/verify.sh repositories` | All 51 repository-focused tests pass, including physical-line receipt/citation consistency across internal blank lines |
+| `/bin/zsh scripts/verify.sh backup` | All 18 full-vault package, manifest, validation, CLI, state-schema, reserved-coordination refusal, representative-state, and authority-safe fresh-root recovery tests pass |
+| `/bin/zsh scripts/verify.sh app` | All 13 app tests pass, including injected AppModel live-lease recovery, cancellation reload, and non-blocking bounded backup/recovery controls |
 | `/bin/zsh scripts/verify.sh generated` | Frozen generated-answer evaluator, structured local-model inference, explicit abstention, and conversation-boundary tests pass |
 | `/bin/zsh scripts/verify.sh portability` | Required truth files are local; no external governing links or tracked generated artifacts; diff check passes |
 | `./scripts/verify.sh fresh-clone` | Temporary non-local clone of semantic feature checkpoint `e5770f04abf80781da7ce9527786b71b3d65e77a` passes portability, goal-map validation, 221 tests, app/CLI release builds, package reproducibility/identity, 42-file zero-finding privacy scan, and offline smoke from a clean source tree |
 | `/bin/zsh scripts/verify.sh smoke` | Offline native smoke reports capture/local search available and cloud auto-routing disabled |
 | `/bin/zsh scripts/verify.sh package` | Builds unsigned `artifacts/CAM Assistant.app`; `Info.plist` validates and embeds exact Git commit, deterministic commit-count build number, and source dirty state |
 | `/bin/zsh scripts/verify.sh package-reproducibility` | Two same-source release package builds have identical canonical entry-type, permission-mode, and content-hash manifests; identity is checked after each build |
-| `Tests/ReleaseProofTests/verify-release-privacy-suite-tests.sh` | Package identity, scanner clean/failure/redaction contracts pass; release package and saved evidence scan passes with 49 files and zero credential-signature findings; atomic JSON receipt saved |
-| `/bin/zsh scripts/verify.sh goal-map` | Pinned-goal validator covers all 48 Proof-of-Done bullets and reports the honest current verdict: 12 passed, 27 partial, 9 missing, overall incomplete |
+| `Tests/ReleaseProofTests/verify-release-privacy-suite-tests.sh` | Package identity, scanner clean/failure/redaction contracts pass; release package and saved evidence scan passes with 50 files and zero credential-signature findings; atomic JSON receipt saved |
+| `/bin/zsh scripts/verify.sh goal-map` | Pinned-goal validator covers all 48 Proof-of-Done bullets and reports the honest current verdict: 13 passed, 27 partial, 8 missing, overall incomplete |
 | CAM_Codx session preflight plus immutable SQLite and disposable-copy CAM health probes | Real runtime/config/corpus identities are pinned; selected corpus integrity passes; disposable `stats`, `status`, and expectation probes pass; live-source hashes remain unchanged |
 | Native accessibility inspection of `artifacts/CAM Assistant.app` | Real global open/capture hotkeys, watched-source lifecycle, persisted cancellation/restart/resume, independent Activity Cancel/Resume controls, exact selected-model health/generation identity, generated-citation Library navigation, initial/retained question focus, ordered keyboard sidebar navigation, primary-workspace labels/values, accessible empty/error/read-only states, and motion-free source scan pass against disposable roots; a later clean exact-commit package exposes all nine empty primary workspaces and all three Settings panes with named controls and honest authority states |
 | `git diff --check` | Passes after the latest documentation update |
@@ -27,13 +29,13 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 
 | GOAL_FINISH_WIKI proof area | Current evidence | Audit status |
 |---|---|---|
-| Native local foundation | Content-addressed storage, SQLite/audit, component backup tests, ingestion/restart tests, offline smoke; real packaged global open/capture hotkeys with collision handling; local Library detail/provenance/lifecycle/raw inspection; packaged watched-folder add/enable/pause/resume/remove with live Library refresh; and persisted native ingest Pending/Cancel/restart/Resume/Completed recovery with immutable-byte retention | Partial: full-vault backup/restore into a fresh application-support root, background ingestion policy, and secure deletion remain unproven |
+| Native local foundation | Content-addressed storage, SQLite/audit, ingestion/restart tests, offline smoke; real packaged global open/capture hotkeys with collision handling; local Library detail/provenance/lifecycle/raw inspection; packaged watched-folder add/enable/pause/resume/remove with live Library refresh; persisted native ingest Pending/Cancel/restart/Resume/Completed recovery; and integrity-checked full-vault package creation, validation, authority-safe fresh-root restore, and packaged relaunch with immutable bytes, tasks, research, knowledge, repository receipts, preferences, and audit covered across native and representative integration evidence | Partial only for adjacent foundation scope: background ingestion policy and secure deletion remain unproven |
 | Sourced retrieval and chat | Frozen synthetic mixed-modality retrieval v2 report, plus separately frozen project-contract retrieval and generated-answer corpora; database-backed packaged chat rebuilds/opens the persistent generation and ranks through `HybridRetriever`; the generated evaluator measures retrieval, selected loopback-model generation, deterministic claim coverage, exact context citations, explicit abstention, and warm latency; failed reports are preserved and exit nonzero; local chat shows bounded cited evidence, exact-match `Open in Library` navigation, one local-only low-confidence follow-up, explicit Keep/Discard, task promotion, and a native task workspace; an additional fixed Qwen 35B-A3B MLX run is preserved | Partial: Gemma passes every frozen retrieval/quality/abstention check but exceeds the latency gate; Qwen fails quality and is slower, and the installed 423M candidate cannot load; this is not broad personal-vault/repository quality or arbitrary semantic-entailment proof |
 | Privacy, routing, models | Marker/profile tests, deterministic privacy fixtures, zero-byte block and exact approval tests; typed selected-local-model health and generation against loopback-only OpenAI-compatible endpoints; no-auth requests, redirect refusal, exact response-model identity, JSON-Schema-constrained current-context passage IDs, explicit abstention, native health/route/model/endpoint display, ephemeral output, and visible no-fallback failure; live local receipts exist for Ollama `llama3.2:1b`, `ornith:9b`, LM Studio MLX `vibethinker-3b-optiq-5bpw-mlx`, and LM Studio `gemma-4-12b-it-optiq`; the isolated packaged Gemma journey passes | Partial: Gemma's `2,010.38 ms` p95 fails the frozen `<500 ms` gate, and live catalog, embedding promotion, native in-process MLX, and provider/web execution remain unproven |
 | Repository and idea intelligence | Persisted user-selected repository paths with authoritative SQLite lifecycle and JSON crash reconciliation; removal receipts that preserve all existing evidence; read-only temporary Git intake; restart-safe local snapshot receipts; durable bounded repository jobs; digest-aware committed-byte snapshots; local permitted-file indexing; native commit-cited deterministic observations; frozen semantic evidence/counterevidence/abstention validation; a health-gated strict loopback-model generator and CLI; evidence-complete semantic card conversion; and preserved named failed reports from local Vibethinker 3B and Gemma 12B | Partial: neither named model passes, empty-ID abstention schemas fail before inference, and the lexical matcher rejects some semantically correct wording; no valid passing pre-registered live contract or native live-repository semantic journey exists; jobs have no background scheduler; history, issue, submodule, and secret-rule intake remain incomplete; the Codex handoff does not invoke a live coordinator; no exact-approved CAM mining execution proof exists |
 | Research, Mac Care, modules | Citation-bound local facts/assumptions and unresolved contradiction candidates can be explicitly retained; native Library controls select two distinct claims, require a steelman, optionally retain a bridge, and keep both positions visible; research plans and citation-validated fact/inference packets have separate explicit local Keep stores and checkpoint resume; an explicit repository-idea promotion preserves source/commit/citation/confidence/counterevidence/validation provenance without repository bytes; user-triggered non-blocking read-only Mac assessment with free-space percentage plus bounded storage/startup/application inventory review findings; module tests | Partial: no web/document acquisition, outbound/cost receipts, native verified-packet authoring/review UI, app-usage/need assessment, or available Mac apply/undo executor |
 | CAM/Codex coordination | Fixture-pinned CAM contract/schema, unavailable/incompatible handling, proposal-only adapter; one bounded local loop with macOS OS-file-lock ownership, native child-process contention proof, content-addressed evidence, versioned reducer transitions, atomic v1-to-v2 event/snapshot migration, digest-bound snapshots, restart replay, stale-version/sequence refusal, integrity checks, and JSON/Markdown handoff packets; plus a real installed CAM executable/source/config/corpus identity and successful disposable-copy `stats`, `status`, and expectation proof | Partial: the app does not perform live discovery or probing, and current CAM health commands mutate startup state; no closed tool/retry executor, exact-approved isolated execution, postcondition/recovery proof, or CLI/UI controls exist |
-| Usability, evidence, release | Native chat/capture surface, local task promotion, empty/offline/accessibility labels, real packaged hotkey, capture-source, ingest recovery, selected-model, and citation-navigation journeys, independent accessible ingest Cancel/Resume controls, initial/retained question focus, ordered keyboard sidebar navigation, primary-workspace labels/values, repaired empty/read-only child semantics, no app-authored motion APIs, package/smoke scripts, exact-commit temporary fresh-clone proof with repository-local truth, deterministic embedded package commit/build/dirty identity, two-build canonical bundle-content reproducibility, aggregate package/evidence credential-signature scan with redacted atomic receipt, and a source-digest-pinned 48-bullet machine-readable gate map | Partial: the gate map honestly records 12 passed, 27 partial, and 9 missing; no end-to-end VoiceOver spoken-audio/every-tab-stop/populated-large-data/contrast/dynamic-type matrix, full backup/recovery journey, signed/notarized distribution, or final release audit exists; the credential scan is bounded signature detection rather than a general sensitive-content classifier |
+| Usability, evidence, release | Native chat/capture surface, local task promotion, empty/offline/accessibility labels, real packaged hotkey, capture-source, ingest recovery, selected-model, citation-navigation, and full-vault fresh-root recovery journeys; independent accessible ingest Cancel/Resume controls; initial/retained question focus; ordered keyboard sidebar navigation; primary-workspace labels/values; repaired empty/read-only child semantics; no app-authored motion APIs; package/smoke scripts; exact-commit temporary fresh-clone proof with repository-local truth; deterministic embedded package commit/build/dirty identity; two-build canonical bundle-content reproducibility; aggregate package/evidence credential-signature scan with redacted atomic receipt; and a source-digest-pinned 48-bullet machine-readable gate map | Partial: the gate map honestly records 13 passed, 27 partial, and 8 missing; no end-to-end VoiceOver spoken-audio/every-tab-stop/populated-large-data/contrast/dynamic-type matrix, signed/notarized distribution, or final release audit exists; packaged journeys are evidence-backed but not yet one repeatable repository-owned GUI suite; the credential scan is bounded signature detection rather than a general sensitive-content classifier |
 
 ## Hard remaining gates
 
@@ -41,26 +43,23 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
    versioned local strategy for the remaining frozen latency gate. Gemma passes
    retrieval, claim support, abstention, exact-citation, and no-failure checks,
    but its `2,010.38 ms` p95 exceeds the `<500 ms` threshold.
-2. Implement and prove full-vault backup/restore into a fresh isolated
-   application-support root, including bytes, metadata, preferences, tasks,
-   retained research/knowledge, repository receipts, and audit state.
-3. Add explicit, policy-gated web/provider execution adapters with real selected
+2. Add explicit, policy-gated web/provider execution adapters with real selected
    model/catalog/embedding receipts; retain zero-egress guarantees for protected
    data.
-4. Run the frozen semantic corpus against a named selected local model, connect
+3. Run the frozen semantic corpus against a named selected local model, connect
    its validated candidate path to a native clean-repository journey, and add a
    typed live Codex coordinator adapter; bind the synthetic mining lifecycle
    to a separately approved live pinned config/database integration with
    idempotency, cancellation, receipt, and recovery proof.
-5. Add research source acquisition, retained-output policy, and outbound-cost
+4. Add research source acquisition, retained-output policy, and outbound-cost
    receipts. Kept plans currently retain questions/checkpoints only.
-6. Add exact-approved, verified, undo-capable Mac Care executors only for a
+5. Add exact-approved, verified, undo-capable Mac Care executors only for a
    closed safe action set.
-7. Extend the local CAM/Codex bounded-loop foundation with snapshots/migrations,
+6. Extend the local CAM/Codex bounded-loop foundation with snapshots/migrations,
    verifier postconditions, a closed safe tool/retry executor, and native
    controls before considering a graph or specialist agents. Remote or
    multi-machine coordination remains a separate future design.
-8. Extend the now-passing keyboard/focus/primary-workspace accessibility and
+7. Extend the now-passing keyboard/focus/primary-workspace accessibility and
    motion-free slice with end-to-end VoiceOver spoken-audio, every-tab-stop,
    populated-large-data, contrast, and dynamic-type verification, then complete
    final release evidence after all above gates pass.
@@ -68,8 +67,8 @@ GOAL_FINISH_WIKI outcome is not yet proven or complete.
 ## Non-claims
 
 This report does not claim that CAM mining, app-owned live CAM probing, web research, cloud providers, a
-fully passing generated-answer performance gate, full-vault recovery, real
-personal-data workflows, Mac maintenance execution, or a complete three-layer
+fully passing generated-answer performance gate, real personal-data workflows,
+Mac maintenance execution, or a complete three-layer
 assistant are implemented. A selected live CAM config/database was inspected
 read-only and copied into disposable state for health probing; the selected
 source hashes remained unchanged. No CAM mining, provider request, cloud

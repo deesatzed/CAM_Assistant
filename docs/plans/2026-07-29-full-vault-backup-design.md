@@ -37,12 +37,17 @@ CAM-Assistant-Backup.camvault/
     contradictions.json
     approvals.json
     module-state.json
-    coordination/...
 ```
 
 Only existing recognized files are included. `vault.sqlite` is required.
 Content objects and recognized JSON files are optional so a new or partially
 configured vault remains backupable.
+
+The manifest reserves a future coordination role, but V1 emits and accepts no
+coordination entry because the app does not yet own one canonical typed run
+layout. A package carrying that reserved role fails validation. Typed
+coordination recovery requires its own path, migration, replay, and
+authority-resumption contract.
 
 The versioned manifest records a relative payload path, typed role, byte count,
 SHA-256 digest, required status, source schema version where applicable,
@@ -127,4 +132,3 @@ Core tests use only disposable roots and prove:
 - CLI backup, validate, and fresh-root restore;
 - packaged native backup and restart/recovery journey against an isolated
   application-support root.
-

@@ -5,9 +5,9 @@
   "overallStatus": "incomplete",
   "summary": {
     "total": 48,
-    "passed": 12,
+    "passed": 13,
     "partial": 27,
-    "missing": 9,
+    "missing": 8,
     "deferred": 0
   },
   "gates": [
@@ -48,11 +48,11 @@
       "id": "wiki.full-vault-backup",
       "sourceLine": 103,
       "title": "Full-vault backup and restore",
-      "status": "missing",
+      "status": "passed",
       "evidence": [
-        "docs/evidence/task-18-full-vault-backup-gap-audit.md"
-      ],
-      "limitation": "Only component backups exist; no package restores the complete required state into a fresh application-support root."
+        "docs/evidence/task-18-full-vault-backup-restore.md",
+        "docs/plans/2026-07-29-full-vault-backup-design.md"
+      ]
     },
     {
       "id": "wiki.stable-source-generations",

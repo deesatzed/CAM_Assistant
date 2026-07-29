@@ -24,6 +24,48 @@ func selectedRepositoryIntakeIsReadOnlyAndCapturesGitEvidence() throws {
     #expect(try fixture.git("status", "--porcelain") == statusBefore)
 }
 
+@Test("repository receipts preserve physical blank lines used by citations")
+func repositoryReceiptsPreservePhysicalCitationLines() throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let readme = """
+    # Fixture
+
+    Supporting context.
+
+    TODO: verify the cited physical line.
+    """
+    try Data(readme.utf8).write(
+        to: fixture.root.appending(path: "README.md"),
+        options: .atomic
+    )
+    _ = try fixture.git("add", "README.md")
+    _ = try fixture.git("commit", "-m", "Add blank-line citation fixture")
+
+    let snapshot = try RepositoryModule().intake(root: fixture.root)
+    let readmeEvidence = try #require(
+        snapshot.files.first { $0.path == "README.md" }
+    )
+    let observation = try #require(
+        try RepositoryObservationExtractor()
+            .extract(root: fixture.root, snapshot: snapshot)
+            .first { $0.filePath == "README.md" && $0.symbol == "TODO" }
+    )
+    let card = try RepositoryIdeaCard(
+        id: "physical-lines",
+        title: "Verify physical line counting",
+        evidence: [observation],
+        counterevidence: ["The marker may be intentionally deferred."],
+        confidence: 0.5,
+        license: snapshot.license ?? "Unknown",
+        validationExperiment: "Inspect the cited line."
+    )
+
+    #expect(readmeEvidence.lineCount == 5)
+    #expect(observation.line == 5)
+    #expect(try card.promote(snapshot: snapshot).ideaID == card.id)
+}
+
 @Test("repository presentation describes a selected snapshot without implying mining")
 func repositoryPresentationDescribesSelectedSnapshotWithoutImplyingMining() {
     let snapshot = RepositorySnapshot(

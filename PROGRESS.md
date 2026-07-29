@@ -49,7 +49,7 @@ These states are evidence, not cleanup authorization.
 | 9. CAM adapter | Complete | Codex | Fixture conformance, non-executing proposals, unavailable-state UI, and release verification |
 | 10. Research and knowledge | Complete | Codex | Local checkpoint/resume, citation-bound facts, separate inferences, contradiction candidates, and native status |
 | 11. Mac Care and repositories | Complete | Codex | Read-only repository intake/idea proposals and digest-bound Mac assessment plans with unavailable executors |
-| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/cancel/restart/resume/selected-model journeys pass; backup/restore, full accessibility, and completion audit remain |
+| 12. UX, packaging, and aggregate proof | In progress | Codex | Isolated packaged clipboard/hotkey/watched-source/cancel/restart/resume/selected-model/full-vault-recovery journeys and aggregate proof pass; full accessibility, repeatable GUI automation, and completion audit remain |
 
 ## Decision Links
 
@@ -60,11 +60,12 @@ These states are evidence, not cleanup authorization.
 ## Current Milestone
 
 Complete the evaluated semantic repository-evidence portion of CAM-015 while
-preserving the verified durable repository-job lifecycle. CAM-013 remains in
-progress because the frozen generated-answer quality checks pass but its
-latency gate does not. Cloud-context loading, live catalog lookup, provider
-testing, web, embedding promotion, CAM mining, and mutating workflows remain
-disabled until their individual proof gates are met.
+preserving the verified durable repository-job lifecycle and the now-passing
+full-vault fresh-root recovery gate. CAM-013 remains in progress because the
+frozen generated-answer quality checks pass but its latency gate does not.
+Cloud-context loading, live catalog lookup, provider testing, web, embedding
+promotion, CAM mining, and mutating workflows remain disabled until their
+individual proof gates are met.
 
 ## Next Actions
 
@@ -72,10 +73,11 @@ disabled until their individual proof gates are met.
    experiment that separates a human-usable generation target from the fast
    deterministic retrieval gate, or tests a constrained evidence-composition
    strategy; do not tune v1 labels after the observed results.
-2. Implement the approved full-vault backup/restore design after the user
-   selects integrity-checked local packaging or password-encrypted portability.
-3. Extend the isolated packaged journey through full-vault backup/restore and
-   the remaining keyboard, VoiceOver, reduced-motion, and error states.
+2. Preserve the passing integrity-checked full-vault recovery contract while
+   completing aggregate and clean fresh-clone evidence for its published
+   checkpoint.
+3. Extend the isolated packaged journeys through the remaining keyboard,
+   VoiceOver speech, contrast/text-scale/large-data, and error states.
 
 ### Live CAM runtime identity and disposable preflight — 2026-07-29
 
@@ -1668,6 +1670,54 @@ disabled until their individual proof gates are met.
 - Saved evidence:
   `docs/evidence/goal-map-reality-audit-2026-07-28.md`.
 
+### Full-vault backup, validation, and fresh-root recovery — 2026-07-29
+
+- Approved and implemented the format-neutral local V1:
+  `docs/plans/2026-07-29-full-vault-backup-design.md` and
+  `docs/plans/2026-07-29-full-vault-backup.md`.
+- Expected red: malformed recognized JSON was published in an otherwise
+  integrity-valid package, and a schema-v8 SQLite database missing a required
+  table passed its schema-number check.
+- Green: `scripts/verify.sh backup` passes all `18` manifest, creation,
+  validation, CLI, representative-state, and authority-safe restore tests.
+  Validation now checks typed recognized stores, SQLite quick-check, contiguous
+  migration history, required tables and columns, foreign keys, content
+  identities, all manifest bytes, symlinks, safe paths, and unexpected
+  payloads before destination creation.
+- Green: `scripts/verify.sh app` passes all `13` app tests, including
+  off-main recovery work, safe status/errors, concurrent-operation refusal,
+  and controls with no overwrite or merge authority.
+- The packaged native app created and validated
+  `/private/tmp/cam-vault-recovery-proof.20260729/Representative-UI.camvault`:
+  `7` entries, `158151` bytes, schema `8`, manifest SHA-256
+  `ab7b533af8a41f3a7e0be8b156acb378e56e0beaac4d4f22573bdbdcaff75a08`.
+- Native restore created a new previously absent root. Packaged relaunch
+  showed `3` active Library sources, `1` cited local-read task, `1` kept
+  research plan, the saved repository path, its completed job, and its kept
+  commit-cited idea. One retained knowledge claim was present on disk.
+- Exact source/restored immutable-object identities matched for all three
+  objects. Retained research, knowledge, and repository-selection JSON was
+  byte-identical; retrieval generations and job leases were absent.
+- The packaged journey exposed a separate repository evidence defect:
+  snapshots counted only non-empty lines while observations cited physical
+  lines. A TODO at `README.md:5` therefore rejected itself against a receipt
+  claiming three lines. A red regression test reproduced the error; physical
+  line counting now preserves internal blank lines, and all `51` repository
+  tests pass.
+- Goal-map effect: `wiki.full-vault-backup` moves from `missing` to `passed`.
+  Current totals are `13 passed`, `27 partial`, and `8 missing`, overall
+  `incomplete`.
+- Green: the aggregate verifier passes portability, the 48-gate map, all
+  `244` Swift tests, release app/CLI builds, two-build package
+  reproducibility, package identity, a `50`-file zero-finding
+  credential-signature scan, and offline smoke with fresh-clone recursion
+  intentionally skipped until the checkpoint is committed.
+- Saved evidence:
+  `docs/evidence/task-18-full-vault-backup-restore.md`.
+- Boundary: the V1 does not overwrite, merge, upload, schedule, encrypt, or
+  silently switch the running vault. Password encryption remains an optional
+  future wrapper. No normal personal application-support vault was used.
+
 ## Blockers
 
 None.
@@ -1677,8 +1727,6 @@ None.
 1. Choose whether generated-answer v2 should retain full generation below
    `500 ms`, or split the gate into retrieval/context below `500 ms` and a
    separately measured human-usable generation target.
-2. Choose the first full-vault backup package: integrity-checked local package
-   or password-encrypted portable package.
 
-These decisions do not block independent local proof work. No overall project
+This decision does not block independent local proof work. No overall project
 blocker is asserted.

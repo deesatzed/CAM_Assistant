@@ -135,7 +135,13 @@ public struct RepositoryModule: Sendable {
         for relative in paths where !relative.hasPrefix(".git/") {
             let data = try gitData(["show", "\(commit):\(relative)"], root: root)
             let text = String(data: data, encoding: .utf8)
-            let lineCount = text.map { $0.isEmpty ? 0 : $0.split(separator: "\n").count } ?? 0
+            let lineCount = text.map {
+                guard !$0.isEmpty else { return 0 }
+                let newlineCount = $0.reduce(into: 0) { count, character in
+                    if character == "\n" { count += 1 }
+                }
+                return newlineCount + ($0.hasSuffix("\n") ? 0 : 1)
+            } ?? 0
             evidence.append(RepositoryFileEvidence(
                 path: relative,
                 lineCount: lineCount,

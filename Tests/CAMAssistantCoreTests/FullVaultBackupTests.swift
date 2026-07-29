@@ -440,7 +440,7 @@ func fullVaultRestoreValidatesBeforeDestinationCreation() throws {
     let database = try SQLiteStore(
         databaseURL: sourceRoot.appending(path: "vault.sqlite")
     )
-    try Data("{}".utf8).write(
+    try Data(#"{"schemaVersion":1}"#.utf8).write(
         to: sourceRoot.appending(path: "models.json")
     )
     _ = try FullVaultBackupService().createPackage(
@@ -539,6 +539,445 @@ func fullVaultValidationRejectsUnsupportedSchemaAndExtraFiles() throws {
     ) {
         try FullVaultBackupService().validatePackage(at: packageURL)
     }
+}
+
+@Test("full-vault validation rejects reserved untyped coordination payload")
+func fullVaultValidationRejectsUntypedCoordinationPayload() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Coordination.camvault")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL
+    )
+    try database.close()
+
+    let relativePath = "coordination/events.json"
+    let payload = Data(#"{"schemaVersion":2,"events":[]}"#.utf8)
+    let payloadURL = packageURL
+        .appending(path: "payload")
+        .appending(path: relativePath)
+    try FileManager.default.createDirectory(
+        at: payloadURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try payload.write(to: payloadURL, options: .atomic)
+    let manifestURL = packageURL.appending(path: "manifest.json")
+    let manifest = try JSONDecoder().decode(
+        FullVaultManifest.self,
+        from: Data(contentsOf: manifestURL)
+    )
+    let rewritten = try FullVaultManifest(
+        createdAt: manifest.createdAt,
+        sourceSchemaVersion: manifest.sourceSchemaVersion,
+        entries: manifest.entries + [
+            FullVaultManifestEntry(
+                relativePath: relativePath,
+                role: .coordination,
+                byteCount: payload.count,
+                sha256: SHA256.hash(data: payload)
+                    .map { String(format: "%02x", $0) }
+                    .joined(),
+                isRequired: false
+            ),
+        ]
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    try encoder.encode(rewritten).write(
+        to: manifestURL,
+        options: .atomic
+    )
+
+    #expect(
+        throws: FullVaultBackupError.unsafeRelativePath(relativePath)
+    ) {
+        try FullVaultBackupService().validatePackage(at: packageURL)
+    }
+}
+
+@Test("full-vault package rejects malformed recognized state before publication")
+func fullVaultPackageRejectsMalformedRecognizedState() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Malformed.camvault")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    try database.close()
+    try Data(
+        #"{"schemaVersion":"not-an-integer"}"#.utf8
+    ).write(
+        to: sourceRoot.appending(path: "models.json"),
+        options: .atomic
+    )
+
+    #expect(
+        throws: FullVaultBackupError.restoredStateInvalid("models.json")
+    ) {
+        try FullVaultBackupService().createPackage(
+            from: sourceRoot,
+            to: packageURL
+        )
+    }
+    #expect(!FileManager.default.fileExists(atPath: packageURL.path))
+}
+
+@Test("full-vault package rejects unsupported recognized state schemas")
+func fullVaultPackageRejectsUnsupportedRecognizedStateSchemas() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    try database.close()
+
+    try Data(#"{"schemaVersion":2}"#.utf8).write(
+        to: sourceRoot.appending(path: "models.json"),
+        options: .atomic
+    )
+    let modelPackage = workspace.appending(path: "ModelSchema.camvault")
+    #expect(
+        throws: FullVaultBackupError.restoredStateInvalid("models.json")
+    ) {
+        try FullVaultBackupService().createPackage(
+            from: sourceRoot,
+            to: modelPackage
+        )
+    }
+    #expect(!FileManager.default.fileExists(atPath: modelPackage.path))
+
+    try FileManager.default.removeItem(
+        at: sourceRoot.appending(path: "models.json")
+    )
+    try Data(#"{"schemaVersion":2,"approvals":[]}"#.utf8).write(
+        to: sourceRoot.appending(path: "approvals.json"),
+        options: .atomic
+    )
+    let approvalPackage = workspace.appending(
+        path: "ApprovalSchema.camvault"
+    )
+    #expect(
+        throws: FullVaultBackupError.restoredStateInvalid("approvals.json")
+    ) {
+        try FullVaultBackupService().createPackage(
+            from: sourceRoot,
+            to: approvalPackage
+        )
+    }
+    #expect(!FileManager.default.fileExists(atPath: approvalPackage.path))
+}
+
+@Test("full-vault validation rejects a database missing required schema objects")
+func fullVaultValidationRejectsMissingRequiredDatabaseTable() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "MissingTable.camvault")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    try database.execute("DROP TABLE repository_jobs")
+    try database.close()
+
+    #expect(throws: FullVaultBackupError.databaseIntegrityFailed) {
+        try FullVaultBackupService().createPackage(
+            from: sourceRoot,
+            to: packageURL
+        )
+    }
+    #expect(!FileManager.default.fileExists(atPath: packageURL.path))
+}
+
+@Test("full-vault restore preserves representative non-empty product state")
+func fullVaultRestorePreservesRepresentativeProductState() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Representative.camvault")
+    let destinationRoot = workspace.appending(path: "Restored")
+    let databaseURL = sourceRoot.appending(path: "vault.sqlite")
+    let database = try SQLiteStore(databaseURL: databaseURL)
+    let contentStore = try ContentStore(
+        rootDirectory: sourceRoot.appending(path: "content")
+    )
+    let sourceBytes = Data("representative immutable source".utf8)
+    let storedObject = try contentStore.put(sourceBytes)
+    let citation = Citation(
+        sourceID: storedObject.id.rawValue,
+        passageID: "representative:1",
+        quote: "representative immutable source"
+    )
+
+    let task = TaskProposal(
+        id: "recovery-task",
+        title: "Verify recovered state",
+        acceptanceCriteria: ["All retained state remains readable."],
+        authority: .proposal,
+        citations: [citation]
+    )
+    let criteriaJSON = String(
+        decoding: try JSONEncoder().encode(task.acceptanceCriteria),
+        as: UTF8.self
+    )
+    let citationsJSON = String(
+        decoding: try JSONEncoder().encode(task.citations),
+        as: UTF8.self
+    )
+    try database.execute(
+        """
+        INSERT INTO task_records(
+            task_id, title, criteria_json, authority, citations_json,
+            status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        bindings: [
+            task.id,
+            task.title,
+            criteriaJSON,
+            task.authority.rawValue,
+            citationsJSON,
+            TaskStatus.open.rawValue,
+            "100",
+        ]
+    )
+    try database.execute(
+        """
+        INSERT INTO audit_events(
+            event_id, timestamp, operation, status, resource_id, route,
+            privacy_risk, privacy_decision, payload_sha256,
+            outbound_byte_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        bindings: [
+            "00000000-0000-0000-0000-000000000201",
+            "101",
+            AuditOperation.capture.rawValue,
+            AuditStatus.succeeded.rawValue,
+            storedObject.id.rawValue,
+            "local",
+            nil,
+            AuditPrivacyDecision.localOnly.rawValue,
+            storedObject.id.rawValue,
+            "0",
+        ]
+    )
+    try database.execute(
+        """
+        INSERT INTO repository_snapshots(
+            canonical_path, commit_sha, snapshot_json, recorded_at
+        ) VALUES (?, ?, ?, ?)
+        """,
+        bindings: [
+            "/tmp/recovery-repository",
+            String(repeating: "a", count: 40),
+            #"{"canonicalPath":"/tmp/recovery-repository","branch":"main","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","isDirty":false,"files":[]}"#,
+            "102",
+        ]
+    )
+    try database.execute(
+        """
+        INSERT INTO repository_jobs(
+            job_id, source_id, canonical_path, status, attempts,
+            max_attempts, snapshot_commit, captured_source_count,
+            error_code, created_at, updated_at
+        ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        """,
+        bindings: [
+            "00000000-0000-0000-0000-000000000202",
+            "/tmp/recovery-repository",
+            RepositoryJobStatus.completed.rawValue,
+            "1",
+            "3",
+            String(repeating: "a", count: 40),
+            "1",
+            "102",
+            "103",
+        ]
+    )
+
+    let run = try ResearchCoordinator().begin(
+        id: "recovery-research",
+        queries: ["How is recovery verified?"],
+        stateVersion: 2
+    )
+    let packet = ResearchPacket(
+        runID: run.id,
+        verifiedFacts: [
+            .fact(
+                id: "recovery-fact",
+                statement: "The source is retained.",
+                citations: [citation]
+            ),
+        ],
+        inferences: [
+            .inference(
+                id: "recovery-inference",
+                statement: "The restored vault can be inspected.",
+                basedOnFindingIDs: ["recovery-fact"]
+            ),
+        ],
+        retention: .explicitlyKept
+    )
+    try ResearchPlanStore(
+        url: sourceRoot.appending(path: "research-plans.json")
+    ).keep(run, retainedAt: Date(timeIntervalSince1970: 104))
+    try ResearchPacketStore(
+        url: sourceRoot.appending(path: "research-packets.json")
+    ).keep(packet)
+
+    let fact = try KnowledgeClaim(
+        id: "recovery-claim",
+        statement: "The representative source is retained.",
+        kind: .fact,
+        citations: [citation]
+    )
+    let assumption = try KnowledgeClaim(
+        id: "recovery-assumption",
+        statement: "A fresh destination remains available.",
+        kind: .assumption,
+        citations: [citation]
+    )
+    try KnowledgeStore(
+        url: sourceRoot.appending(path: "knowledge-claims.json")
+    ).keep(fact)
+    let contradiction = try ContradictionCandidate(
+        id: "recovery-contradiction",
+        left: fact,
+        right: assumption,
+        steelman: "Both statements preserve a distinct recovery condition.",
+        bridgeSuggestion: "Validate before promotion."
+    )
+    try ContradictionStore(
+        url: sourceRoot.appending(path: "contradictions.json")
+    ).keep(contradiction)
+
+    let watched = try WatchedSource(
+        id: UUID(uuidString: "00000000-0000-0000-0000-000000000203")!,
+        path: "/tmp/recovery-watch",
+        isEnabled: true
+    )
+    try WatchedSourceConfigurationStore(
+        url: sourceRoot.appending(path: "watched-sources.json")
+    ).save([watched])
+    let repository = try RepositorySource(
+        id: UUID(uuidString: "00000000-0000-0000-0000-000000000204")!,
+        path: "/tmp/recovery-repository"
+    )
+    try RepositorySourceConfigurationStore(
+        url: sourceRoot.appending(path: "repository-sources.json")
+    ).save([repository])
+    let hotkeys = try HotkeyConfiguration(
+        openAssistant: HotkeyShortcut(
+            key: "space",
+            modifiers: [.command, .control]
+        ),
+        captureClipboard: HotkeyShortcut(
+            key: "c",
+            modifiers: [.command, .control]
+        )
+    )
+    try HotkeyConfigurationStore(
+        url: sourceRoot.appending(path: "hotkeys.json")
+    ).save(hotkeys)
+    try Data(#"{"schemaVersion":1,"profiles":[]}"#.utf8).write(
+        to: sourceRoot.appending(path: "models.json"),
+        options: .atomic
+    )
+
+    _ = try FullVaultBackupService().createPackage(
+        from: sourceRoot,
+        to: packageURL,
+        createdAt: Date(timeIntervalSince1970: 105)
+    )
+    try database.close()
+    let receipt = try FullVaultBackupService().restorePackage(
+        at: packageURL,
+        to: destinationRoot,
+        restoredAt: Date(timeIntervalSince1970: 106)
+    )
+
+    let restoredDatabase = try SQLiteStore(
+        databaseURL: destinationRoot.appending(path: "vault.sqlite")
+    )
+    #expect(
+        try restoredDatabase.query(
+            "SELECT COUNT(*) FROM task_records"
+        ).first?.first == "1"
+    )
+    #expect(
+        try restoredDatabase.query(
+            "SELECT COUNT(*) FROM audit_events"
+        ).first?.first == "1"
+    )
+    #expect(
+        try restoredDatabase.query(
+            "SELECT COUNT(*) FROM repository_snapshots"
+        ).first?.first == "1"
+    )
+    #expect(
+        try restoredDatabase.query(
+            "SELECT COUNT(*) FROM repository_jobs"
+        ).first?.first == "1"
+    )
+    try restoredDatabase.close()
+    #expect(
+        try ContentStore(
+            rootDirectory: destinationRoot.appending(path: "content")
+        ).data(for: storedObject.id) == sourceBytes
+    )
+    #expect(
+        try TaskStore(
+            databaseURL: destinationRoot.appending(path: "vault.sqlite")
+        ).all().map(\.proposal) == [task]
+    )
+    #expect(
+        try ResearchPlanStore(
+            url: destinationRoot.appending(path: "research-plans.json")
+        ).load().map(\.run) == [run]
+    )
+    #expect(
+        try ResearchPacketStore(
+            url: destinationRoot.appending(path: "research-packets.json")
+        ).load() == [packet]
+    )
+    #expect(
+        try KnowledgeStore(
+            url: destinationRoot.appending(path: "knowledge-claims.json")
+        ).load() == [fact]
+    )
+    #expect(
+        try ContradictionStore(
+            url: destinationRoot.appending(path: "contradictions.json")
+        ).load() == [contradiction]
+    )
+    #expect(
+        try RepositorySourceConfigurationStore(
+            url: destinationRoot.appending(path: "repository-sources.json")
+        ).load() == [repository]
+    )
+    #expect(
+        try WatchedSourceConfigurationStore(
+            url: destinationRoot.appending(path: "watched-sources.json")
+        ).load().allSatisfy { !$0.isEnabled }
+    )
+    #expect(
+        try HotkeyConfigurationStore(
+            url: destinationRoot.appending(path: "hotkeys.json")
+        ).load() == hotkeys
+    )
+    #expect(
+        try ModelRegistry(
+            stateURL: destinationRoot.appending(path: "models.json")
+        ).profiles().isEmpty
+    )
+    #expect(receipt.watchedSourcesPaused == 1)
 }
 
 @Test("full-vault restore refuses any existing destination")
