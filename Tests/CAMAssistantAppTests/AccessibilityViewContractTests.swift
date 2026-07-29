@@ -92,6 +92,36 @@ func repositoryViewExposesDurableJobLifecycle() throws {
     )
 }
 
+@Test("repository view exposes bounded ephemeral local model analysis and explicit retention")
+func repositoryViewExposesBoundedSemanticAnalysis() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(
+                path: "Sources/CAMAssistantApp/Views/RepositoryView.swift"
+            ),
+        encoding: .utf8
+    )
+
+    let requiredContracts = [
+        "Button(\"Analyze Repository Evidence Locally\"",
+        "Button(\"Cancel Local Analysis\"",
+        "Section(\"Ephemeral local-model candidate\")",
+        "Section(\"Support evidence\")",
+        "Section(\"Counterevidence\")",
+        "LabeledContent(\"Model\"",
+        "LabeledContent(\"Runtime\"",
+        "TextField(\"Rejected alternative\"",
+        "Button(\"Create Evidence-Complete Idea\"",
+        "Nothing is retained until you explicitly Keep or choose a promotion action.",
+        "No fallback, CAM call, repository write, or automatic retention",
+    ]
+
+    #expect(
+        requiredContracts.allSatisfy(source.contains),
+        "RepositoryView must expose model identity, both evidence roles, cancellation, and explicit retention without hidden authority"
+    )
+}
+
 @Test("backup recovery view exposes bounded actions and no overwrite authority")
 func backupRecoveryViewExposesBoundedNonDestructiveActions() throws {
     let source = try String(

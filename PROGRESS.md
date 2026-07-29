@@ -59,22 +59,22 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Complete the evaluated semantic repository-evidence portion of CAM-015 while
-preserving the verified durable repository-job lifecycle and the now-passing
-full-vault fresh-root recovery gate. CAM-013 remains in progress because the
-frozen generated-answer quality checks pass but its latency gate does not.
-Cloud-context loading, live catalog lookup, provider testing, web, embedding
-promotion, CAM mining, and mutating workflows remain disabled until their
-individual proof gates are met.
+Find a named local model that passes the now-frozen V3 repository contract and
+complete its packaged native clean-repository journey, while preserving the
+verified durable repository-job lifecycle and full-vault fresh-root recovery
+gate. CAM-013 remains in progress because the frozen generated-answer quality
+checks pass but its latency gate does not. Cloud-context loading, live catalog
+lookup, provider testing, web, embedding promotion, CAM mining, and mutating
+workflows remain disabled until their individual proof gates are met.
 
 ## Next Actions
 
-1. Pre-register a new semantic-support contract before another repository
-   model-quality run; preserve immutable v2 and do not add phrases based on its
-   observed outputs.
-2. Connect the approved evidence-first repository flow to a native
-   clean-snapshot journey that presents accepted, abstained, and failed
-   ephemeral candidates before explicit Keep or promotion.
+1. Run the unchanged V3 contract against a different named loopback model;
+   preserve every failure and do not change its claim catalog, roles,
+   distractors, labels, or thresholds.
+2. If a named model passes, complete the packaged native journey with a
+   disposable clean repository, saved pre/post byte and Git-status proof, and
+   one explicit disposition or promotion.
 3. Preserve generated-answer v1 as the fixed baseline while separately
    designing its versioned latency contract, then extend packaged accessibility
    proof through VoiceOver speech, contrast, text scale, and large-data states.
@@ -1751,6 +1751,53 @@ individual proof gates are met.
 - CAM-015 remains in progress. A separately pre-registered semantic-support
   contract and native clean-repository journey remain required; immutable v2
   is not tuned after model observation.
+
+### Repository semantic V3 and native clean-commit path — 2026-07-29
+
+- V1 and V2 remain unchanged. The separately designed and frozen V3 manifest
+  uses closed claim IDs, same-topic distractors, exact evidence roles, and
+  hidden required labels instead of lexical phrase matching. Frozen SHA-256:
+  `222b3c705f4fd32a68039a6bad45c49663fae10d228446b4b9090a3323a0debe`.
+- Expected REDs were observed for the absent V3 manifest/validator/evaluator,
+  strict loopback generator/CLI, runtime bundle builder, health-checked runtime
+  analyzer, evidence-complete V3 card conversion, AppModel state machine, and
+  native accessibility controls.
+- A named unchanged Gemma 12B V3 run exited `2` and remains failed: claim
+  recall `0.5`, claim precision `1.0`, support precision `1.0`,
+  counterevidence recall `0.5`, and abstention accuracy `1.0`. The immutable
+  report SHA-256 is
+  `dc1407b6fe58dedaeccbc67961bf82072f3ac7bf087ea1c42b376693691b5340`.
+  No V3 label, role, distractor, claim, or threshold changed after observation.
+- The runtime path now revalidates canonical path, clean state, and current
+  commit; reads exact physical-line excerpts only from commit-addressed Git
+  bytes; and deterministically selects at most eight representative items with
+  support and counterevidence. Dirty state, drift, insufficient evidence,
+  excerpt bounds, and cancellation fail before model generation.
+- The analyzer health-checks the exact selected loopback model, requires
+  generator/candidate identity agreement, and deterministically accepts or
+  abstains. It has no provider, web, CAM, repository mutation, code-copy, or
+  fallback route.
+- Native Repositories controls expose progress/cancellation, exact
+  model/runtime/commit identity, claims, confidence, support,
+  counterevidence, and an evidence-complete proposal form. Accepted output is
+  memory-only until a separate explicit Keep, Reject, task, research, or
+  Codex-plan action.
+- Green focused proof: `64` repository tests, `16` AppModel/accessibility
+  tests, all model suites, and all privacy suites pass.
+- Green aggregate proof: repository portability and the honest 48-gate map,
+  all `260` Swift tests, release app/CLI builds, two-build package
+  reproducibility, package identity, a `53`-file zero-finding
+  credential-signature scan, and offline smoke pass with recursive fresh-clone
+  verification intentionally deferred until the checkpoint is committed.
+- The adversarial review found and fixed large-repository rejection,
+  cancellation granularity, inaccurate insufficient-evidence attribution, and
+  misleading retention wording. Saved review: `REVIEW.md`.
+- Saved evidence:
+  `docs/evidence/task-15-repository-semantic-evaluation.md`,
+  `docs/evidence/task-15-native-repository-semantic-journey.md`, and
+  `docs/evidence/task-15-repository-semantic-v3-gemma-failed-report.json`.
+- CAM-015 remains in progress. No named model passes V3, and no packaged
+  live-model clean-repository journey has been claimed.
 
 ## Blockers
 

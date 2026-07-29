@@ -252,6 +252,278 @@ public enum RepositorySemanticV3ManifestError:
     case invalidEvidence(String)
 }
 
+public enum RepositorySemanticV3RuntimeBundleError:
+    Error, Equatable {
+    case dirtySnapshotNotEligible
+    case snapshotDrift
+    case insufficientEvidence
+    case evidenceBoundsExceeded
+}
+
+/// Converts literal observations from one clean Git commit into the neutral,
+/// closed-catalog bundle consumed by the V3 local-model boundary. All excerpts
+/// come from `git show` at the recorded commit; this builder never reads a
+/// working-tree file for evidence and never writes to the selected repository.
+public struct RepositorySemanticV3RuntimeBundleBuilder: Sendable {
+    private static let maximumEvidenceCount = 8
+    private static let maximumExcerptCharacters = 2_000
+    private let cancellationCheck: @Sendable () throws -> Void
+
+    public init() {
+        cancellationCheck = {
+            try Task.checkCancellation()
+        }
+    }
+
+    init(
+        cancellationCheck:
+            @escaping @Sendable () throws -> Void
+    ) {
+        self.cancellationCheck = cancellationCheck
+    }
+
+    public func build(
+        root: URL,
+        snapshot: RepositorySnapshot
+    ) throws -> RepositorySemanticV3Case {
+        try cancellationCheck()
+        guard !snapshot.isDirty else {
+            throw RepositorySemanticV3RuntimeBundleError
+                .dirtySnapshotNotEligible
+        }
+
+        let canonicalRoot = root.standardizedFileURL
+            .resolvingSymlinksInPath()
+        guard canonicalRoot.path == snapshot.canonicalPath else {
+            throw RepositorySemanticV3RuntimeBundleError.snapshotDrift
+        }
+
+        let current = try RepositoryModule().intake(root: canonicalRoot)
+        try cancellationCheck()
+        guard !current.isDirty,
+              current.canonicalPath == snapshot.canonicalPath,
+              current.commit == snapshot.commit else {
+            throw RepositorySemanticV3RuntimeBundleError.snapshotDrift
+        }
+
+        let observations = try RepositoryObservationExtractor()
+            .extract(root: canonicalRoot, snapshot: snapshot)
+            .sorted {
+                ($0.filePath, $0.line, $0.symbol, $0.statement)
+                    < ($1.filePath, $1.line, $1.symbol, $1.statement)
+            }
+        try cancellationCheck()
+        let classifiedObservations = observations.compactMap {
+            observation
+                -> (
+                    observation: RepositoryObservation,
+                    claimID: String,
+                    role: RepositorySemanticEvidenceRole
+                )? in
+            guard let classified = Self.classify(observation) else {
+                return nil
+            }
+            return (
+                observation,
+                classified.claimID,
+                classified.role
+            )
+        }
+        var selectedIndices: [Int] = []
+        var selectedIndexSet: Set<Int> = []
+        for claim in Self.claimCatalog {
+            try cancellationCheck()
+            guard let index = classifiedObservations.firstIndex(
+                where: { $0.claimID == claim.id }
+            ) else {
+                continue
+            }
+            selectedIndices.append(index)
+            selectedIndexSet.insert(index)
+        }
+        for index in classifiedObservations.indices
+            where selectedIndices.count < Self.maximumEvidenceCount {
+            try cancellationCheck()
+            guard selectedIndexSet.insert(index).inserted else {
+                continue
+            }
+            selectedIndices.append(index)
+        }
+        let selectedObservations = selectedIndices.map {
+            classifiedObservations[$0]
+        }
+        var committedLinesByPath: [String: [Substring]] = [:]
+        var evidence: [RepositorySemanticEvidence] = []
+        var requiredClaimIDs: Set<String> = []
+
+        for selected in selectedObservations {
+            try cancellationCheck()
+            let observation = selected.observation
+            let lines: [Substring]
+            if let cached = committedLinesByPath[observation.filePath] {
+                lines = cached
+            } else {
+                let data = try RepositoryModule().committedData(
+                    root: canonicalRoot,
+                    snapshot: snapshot,
+                    relativePath: observation.filePath
+                )
+                guard let text = String(data: data, encoding: .utf8) else {
+                    continue
+                }
+                lines = text.split(
+                    separator: "\n",
+                    omittingEmptySubsequences: false
+                )
+                committedLinesByPath[observation.filePath] = lines
+            }
+            guard observation.line > 0,
+                  observation.line <= lines.count else {
+                throw RepositorySemanticV3RuntimeBundleError.snapshotDrift
+            }
+            let excerpt = String(lines[observation.line - 1])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !excerpt.isEmpty else {
+                throw RepositorySemanticV3RuntimeBundleError.snapshotDrift
+            }
+            guard excerpt.count <= Self.maximumExcerptCharacters else {
+                throw RepositorySemanticV3RuntimeBundleError
+                    .evidenceBoundsExceeded
+            }
+
+            let identity = [
+                snapshot.commit,
+                observation.filePath,
+                String(observation.line),
+                observation.symbol,
+                selected.role.rawValue,
+            ].joined(separator: "\u{0}")
+            let digest = RepositorySemanticV3Manifest.sha256(
+                of: Data(identity.utf8)
+            )
+            evidence.append(
+                RepositorySemanticEvidence(
+                    id: "runtime-\(digest)",
+                    snapshotCommit: snapshot.commit,
+                    filePath: observation.filePath,
+                    line: observation.line,
+                    symbol: observation.symbol,
+                    role: selected.role,
+                    excerpt: excerpt
+                )
+            )
+            requiredClaimIDs.insert(selected.claimID)
+        }
+
+        evidence.sort {
+            ($0.filePath, $0.line, $0.symbol, $0.id)
+                < ($1.filePath, $1.line, $1.symbol, $1.id)
+        }
+        guard evidence.count <= Self.maximumEvidenceCount else {
+            throw RepositorySemanticV3RuntimeBundleError
+                .evidenceBoundsExceeded
+        }
+        let supportIDs = evidence
+            .filter { $0.role == .support }
+            .map(\.id)
+        let counterevidenceIDs = evidence
+            .filter { $0.role == .counterevidence }
+            .map(\.id)
+        guard !supportIDs.isEmpty,
+              !counterevidenceIDs.isEmpty,
+              !requiredClaimIDs.isEmpty else {
+            throw RepositorySemanticV3RuntimeBundleError
+                .insufficientEvidence
+        }
+
+        let caseIdentity = [
+            snapshot.commit,
+            evidence.map(\.id).joined(separator: ","),
+        ].joined(separator: "\u{0}")
+        let caseDigest = RepositorySemanticV3Manifest.sha256(
+            of: Data(caseIdentity.utf8)
+        )
+        return RepositorySemanticV3Case(
+            id: "runtime-\(caseDigest)",
+            snapshotCommit: snapshot.commit,
+            license: snapshot.license ?? "Unknown",
+            prompt: """
+            Which cataloged reusable repository claims are supported, and which important limitation is evidenced?
+            """,
+            expectedOutcome: .observation,
+            claimCatalog: Self.claimCatalog,
+            requiredClaimIDs: requiredClaimIDs.sorted(),
+            requiredSupportIDs: supportIDs,
+            requiredCounterevidenceIDs: counterevidenceIDs,
+            evidence: evidence
+        )
+    }
+
+    private static let claimCatalog = [
+        RepositorySemanticClaim(
+            id: "declared-architecture-boundary",
+            description: """
+            Committed declarations expose a structural boundary worth reviewing.
+            """
+        ),
+        RepositorySemanticClaim(
+            id: "declared-dependency",
+            description: """
+            Committed import statements declare a module dependency.
+            """
+        ),
+        RepositorySemanticClaim(
+            id: "explicit-implementation-gap",
+            description: """
+            A committed TODO or FIXME records an explicit implementation gap.
+            """
+        ),
+        RepositorySemanticClaim(
+            id: "operational-limitation",
+            description: """
+            Evidence explicitly documents an operational limitation.
+            """
+        ),
+        RepositorySemanticClaim(
+            id: "reusable-design-candidate",
+            description: """
+            Evidence supports a bounded reusable design candidate.
+            """
+        ),
+        RepositorySemanticClaim(
+            id: "test-backed-behavior",
+            description: """
+            Committed test evidence directly exercises a behavior.
+            """
+        ),
+    ]
+
+    private static func classify(
+        _ observation: RepositoryObservation
+    ) -> (claimID: String, role: RepositorySemanticEvidenceRole)? {
+        if observation.symbol == "TODO"
+            || observation.symbol == "FIXME" {
+            return (
+                "explicit-implementation-gap",
+                .counterevidence
+            )
+        }
+        if observation.statement.contains(
+            "declared module dependency"
+        ) {
+            return ("declared-dependency", .support)
+        }
+        if observation.statement.contains(
+            "Committed Swift"
+        ) && observation.statement.contains(
+            "declaration requires review"
+        ) {
+            return ("declared-architecture-boundary", .support)
+        }
+        return nil
+    }
+}
+
 public struct RepositorySemanticV3Candidate:
     Equatable, Sendable {
     public let snapshotCommit: String
@@ -318,6 +590,57 @@ public struct RepositorySemanticV3ValidatedCandidate:
     public let runtimeIdentity: String
     public let modelID: String
     public let retention: ResearchRetention
+
+    public func ideaCard(
+        id: String,
+        title: String,
+        rejectedAlternatives: [String],
+        validationExperiment: String
+    ) throws -> RepositoryIdeaCard {
+        let alternatives = rejectedAlternatives.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard !alternatives.isEmpty,
+              alternatives.allSatisfy({ !$0.isEmpty }) else {
+            throw RepositoryIdeaError.missingRejectedAlternatives
+        }
+        let experiment = validationExperiment.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !experiment.isEmpty else {
+            throw RepositoryIdeaError.invalidCard
+        }
+        let supportObservations = support.map {
+            RepositoryObservation(
+                snapshotCommit: $0.snapshotCommit,
+                filePath: $0.filePath,
+                line: $0.line,
+                symbol: $0.symbol,
+                statement: $0.excerpt
+            )
+        }
+        let counterevidenceObservations = counterevidence.map {
+            RepositoryObservation(
+                snapshotCommit: $0.snapshotCommit,
+                filePath: $0.filePath,
+                line: $0.line,
+                symbol: $0.symbol,
+                statement: $0.excerpt
+            )
+        }
+        return try RepositoryIdeaCard(
+            id: id,
+            title: title,
+            rationale: statement,
+            evidence: supportObservations,
+            counterevidence: counterevidence.map(\.excerpt),
+            counterevidenceCitations: counterevidenceObservations,
+            rejectedAlternatives: alternatives,
+            confidence: confidence,
+            license: license,
+            validationExperiment: experiment
+        )
+    }
 }
 
 public struct RepositorySemanticV3CandidateValidator:
@@ -491,10 +814,85 @@ public protocol RepositorySemanticV3CandidateGenerator:
     ) async throws -> RepositorySemanticV3Candidate
 }
 
+public protocol RepositorySemanticV3RuntimeCandidateGenerator:
+    RepositorySemanticV3CandidateGenerator {
+    func health() async throws -> LocalModelHealth
+}
+
 public enum RepositorySemanticV3GeneratorError:
     Error, Equatable {
     case missingCandidate(String)
     case identityMismatch
+}
+
+public struct RepositorySemanticV3RuntimeAnalysis:
+    Equatable, Sendable {
+    public let snapshotCommit: String
+    public let runtimeIdentity: String
+    public let modelID: String
+    public let retention: ResearchRetention
+    public let validatedCandidate:
+        RepositorySemanticV3ValidatedCandidate?
+
+    public var didAbstain: Bool {
+        validatedCandidate == nil
+    }
+}
+
+public enum RepositorySemanticV3RuntimeAnalysisError:
+    Error, Equatable {
+    case healthIdentityMismatch
+}
+
+public struct RepositorySemanticV3RuntimeAnalyzer: Sendable {
+    private let bundleBuilder: RepositorySemanticV3RuntimeBundleBuilder
+    private let validator: RepositorySemanticV3CandidateValidator
+
+    public init(
+        bundleBuilder: RepositorySemanticV3RuntimeBundleBuilder = .init(),
+        validator: RepositorySemanticV3CandidateValidator = .init()
+    ) {
+        self.bundleBuilder = bundleBuilder
+        self.validator = validator
+    }
+
+    public func analyze(
+        root: URL,
+        snapshot: RepositorySnapshot,
+        generator: any RepositorySemanticV3RuntimeCandidateGenerator
+    ) async throws -> RepositorySemanticV3RuntimeAnalysis {
+        try Task.checkCancellation()
+        let evaluationCase = try bundleBuilder.build(
+            root: root,
+            snapshot: snapshot
+        )
+        try Task.checkCancellation()
+        let health = try await generator.health()
+        guard health.isAvailable,
+              health.modelID == generator.modelID else {
+            throw RepositorySemanticV3RuntimeAnalysisError
+                .healthIdentityMismatch
+        }
+        try Task.checkCancellation()
+        let candidate = try await generator.generate(
+            for: evaluationCase
+        )
+        guard candidate.runtimeIdentity == generator.runtimeIdentity,
+              candidate.modelID == generator.modelID else {
+            throw RepositorySemanticV3GeneratorError.identityMismatch
+        }
+        let validated = try validator.validate(
+            candidate,
+            for: evaluationCase
+        )
+        return RepositorySemanticV3RuntimeAnalysis(
+            snapshotCommit: evaluationCase.snapshotCommit,
+            runtimeIdentity: generator.runtimeIdentity,
+            modelID: generator.modelID,
+            retention: .ephemeral,
+            validatedCandidate: validated
+        )
+    }
 }
 
 public struct RepositorySemanticV3CaseResult:
@@ -805,7 +1203,7 @@ public enum RepositorySemanticV3LocalGeneratorError:
 }
 
 public actor RepositorySemanticV3LocalGenerator:
-    RepositorySemanticV3CandidateGenerator {
+    RepositorySemanticV3RuntimeCandidateGenerator {
     public nonisolated let runtimeIdentity: String
     public nonisolated let modelID: String
 

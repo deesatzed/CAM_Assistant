@@ -1,10 +1,12 @@
 # Task 15 Repository Semantic Evaluation Evidence
 
-**Date:** 2026-07-28
-**Scope:** Frozen evidence/counterevidence/abstention evaluation and explicit
-loopback local-model candidate generation
-**Status:** Passing bounded contract; live-model and native-repository journey
-remain
+**Date:** 2026-07-29
+**Scope:** Frozen V1/V2/V3 evidence, closed-claim, counterevidence, and
+abstention evaluation; explicit loopback generation; and the native
+clean-repository review path
+**Status:** Passing deterministic and native component contracts. Named-model
+V3 remains failed, so CAM-015 and its packaged live-model journey remain
+partial.
 
 ## Proven behavior
 
@@ -65,7 +67,7 @@ Final focused command:
 Result:
 
 ```text
-50 repository tests passed
+64 repository tests passed
 ```
 
 Read-only endpoint checks:
@@ -153,6 +155,63 @@ model output. The new immutable failed receipt is
 `cb4d0cb5350b9ec6bec9bc6bad794265af2e79c564e8370ba8e6a7b410781095`.
 The model was unloaded and the loopback server stopped after the run.
 
+## Pre-registered V3 and named-model result — 2026-07-29
+
+V1 and V2 remain byte-identical. V3 was frozen separately before model use at
+SHA-256
+`222b3c705f4fd32a68039a6bad45c49663fae10d228446b4b9090a3323a0debe`.
+It replaces lexical phrase matching with closed claim IDs, same-topic
+distractors, exact support/counterevidence IDs, and explicit abstention. Hidden
+required labels and evidence roles are never included in the generator
+request.
+
+The unchanged V3 corpus ran against `gemma-4-12b-it-optiq` through LM Studio
+bound to `127.0.0.1`. The CLI correctly exited `2` and preserved a failed
+report:
+
+| Metric | Result |
+|---|---:|
+| Claim recall | `0.5` |
+| Claim precision | `1.0` |
+| Support evidence precision | `1.0` |
+| Counterevidence recall | `0.5` |
+| Abstention accuracy | `1.0` |
+
+The idempotent-request observation and both abstentions passed. The actor-cache
+case failed deterministic evidence-role validation. The failed report remains
+unchanged at
+`task-15-repository-semantic-v3-gemma-failed-report.json`, SHA-256
+`dc1407b6fe58dedaeccbc67961bf82072f3ac7bf087ea1c42b376693691b5340`.
+No threshold, label, claim, evidence role, or distractor was changed after the
+run. The model was unloaded and LM Studio was stopped.
+
+## Native clean-repository component path — 2026-07-29
+
+- A runtime builder re-intakes the selected repository, requires the same clean
+  canonical path and commit, and obtains excerpts only from commit-addressed
+  Git bytes.
+- It deterministically selects at most eight representative observations while
+  preserving every observed closed claim category, exact physical line,
+  trimmed exact excerpt, support/counterevidence role, license, and stable
+  identity. Dirty state, commit drift, oversized excerpts, insufficient
+  support/counterevidence, and cancellation fail before a model request.
+- The runtime analyzer health-checks the exact selected loopback model, then
+  generates and deterministically validates one ephemeral candidate or
+  abstention. There is no provider, web, CAM, repository-write, or fallback
+  route.
+- Native AppModel tests cover accepted, abstained, unavailable-model,
+  insufficient-evidence, stale-snapshot, and cancelled outcomes. Status errors
+  do not expose model/error payload content.
+- The Repositories workspace now exposes analysis and cancellation, exact
+  model/runtime/commit identity, claims, support, counterevidence, confidence,
+  and an evidence-complete proposal form. Retention occurs only through a
+  separate explicit Keep/Reject or task/research/Codex promotion action.
+- `scripts/verify.sh app` passes 16 app/accessibility tests, and
+  `scripts/verify.sh repository-semantic` passes 64 repository tests.
+
+This is current component and native-control proof. It is not yet a packaged
+GUI journey with a named passing model.
+
 ## Authority and privacy boundary
 
 Deterministic clean-commit evidence remains authoritative. Model output is an
@@ -168,10 +227,11 @@ SOTA repository reasoning, license compatibility, or useful results from a
 real selected model. The repository semantic gate remains partial until:
 
 1. a named selected loopback model produces a saved frozen report that passes
-   a valid pre-registered evidence/counterevidence/abstention contract;
-2. a separately pre-registered contract measures semantic claim support
-   without tuning the immutable v2 lexical labels;
-3. a native clean-repository journey builds bounded exact evidence, presents
-   accepted/abstained/failed candidates, and requires explicit Keep or
+   the pre-registered V3 evidence/counterevidence/abstention contract;
+2. a packaged native journey uses that passing model, presents the validated
+   candidate or abstention, and exercises one explicit disposition or
    promotion;
-4. donor bytes and Git status are saved unchanged across that journey.
+3. selected-repository bytes and Git status are saved unchanged across the
+   packaged journey;
+4. broader repository coverage includes bounded history, approved issue
+   metadata, submodule, license-compatibility, and secret-rule evidence.

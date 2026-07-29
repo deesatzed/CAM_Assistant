@@ -1574,6 +1574,272 @@ func repositorySemanticV3LoopbackGeneratorHidesEvaluationAnswers()
     }
 }
 
+@Test("repository semantic v3 runtime bundle is exact stable and read only")
+func repositorySemanticV3RuntimeBundleIsExactStableAndReadOnly() throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let sourceURL = fixture.root.appending(
+        path: "Sources/RuntimeFeature.swift"
+    )
+    let source = """
+    import Foundation
+
+    struct RuntimeFeature {
+        // TODO: add restart recovery coverage.
+    }
+    """
+    try Data(source.utf8).write(to: sourceURL)
+    _ = try fixture.git("add", ".")
+    _ = try fixture.git("commit", "-m", "add runtime evidence")
+    let beforeStatus = try fixture.git("status", "--porcelain")
+    let beforeBytes = try Data(contentsOf: sourceURL)
+    let snapshot = try RepositoryModule().intake(root: fixture.root)
+    let builder = RepositorySemanticV3RuntimeBundleBuilder()
+
+    let first = try builder.build(
+        root: fixture.root,
+        snapshot: snapshot
+    )
+    let second = try builder.build(
+        root: fixture.root,
+        snapshot: snapshot
+    )
+
+    #expect(first == second)
+    #expect(first.snapshotCommit == snapshot.commit)
+    #expect(first.expectedOutcome == .observation)
+    #expect(
+        first.requiredClaimIDs == [
+            "declared-architecture-boundary",
+            "declared-dependency",
+            "explicit-implementation-gap",
+        ]
+    )
+    #expect(!first.requiredSupportIDs.isEmpty)
+    #expect(!first.requiredCounterevidenceIDs.isEmpty)
+    #expect(
+        first.evidence.contains {
+            $0.filePath == "Sources/RuntimeFeature.swift"
+                && $0.line == 1
+                && $0.excerpt == "import Foundation"
+                && $0.role == .support
+        }
+    )
+    #expect(
+        first.evidence.contains {
+            $0.filePath == "Sources/RuntimeFeature.swift"
+                && $0.line == 4
+                && $0.excerpt
+                    == "// TODO: add restart recovery coverage."
+                && $0.role == .counterevidence
+        }
+    )
+    #expect(try fixture.git("status", "--porcelain") == beforeStatus)
+    #expect(try Data(contentsOf: sourceURL) == beforeBytes)
+
+    var dirtyBytes = beforeBytes
+    dirtyBytes.append(Data("\n// dirty\n".utf8))
+    try dirtyBytes.write(to: sourceURL)
+    let dirty = try RepositoryModule().intake(root: fixture.root)
+    #expect(
+        throws: RepositorySemanticV3RuntimeBundleError
+            .dirtySnapshotNotEligible
+    ) {
+        _ = try builder.build(root: fixture.root, snapshot: dirty)
+    }
+}
+
+@Test("repository semantic v3 runtime bundle is bounded and cancellation aware")
+func repositorySemanticV3RuntimeBundleIsBoundedAndCancellationAware()
+    throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let sourceURL = fixture.root.appending(
+        path: "Sources/LargeFeature.swift"
+    )
+    let declarations = (0..<70).map {
+        "struct RuntimeFeature\($0) {}"
+    }.joined(separator: "\n")
+    let source = """
+    import Foundation
+    \(declarations)
+    // TODO: add restart recovery coverage.
+    """
+    try Data(source.utf8).write(to: sourceURL)
+    _ = try fixture.git("add", ".")
+    _ = try fixture.git("commit", "-m", "add bounded evidence")
+    let snapshot = try RepositoryModule().intake(root: fixture.root)
+
+    let first = try RepositorySemanticV3RuntimeBundleBuilder().build(
+        root: fixture.root,
+        snapshot: snapshot
+    )
+    let second = try RepositorySemanticV3RuntimeBundleBuilder().build(
+        root: fixture.root,
+        snapshot: snapshot
+    )
+
+    #expect(first == second)
+    #expect(first.evidence.count == 8)
+    #expect(
+        first.evidence.contains {
+            $0.symbol == "Foundation" && $0.role == .support
+        }
+    )
+    #expect(
+        first.evidence.contains {
+            $0.symbol == "TODO" && $0.role == .counterevidence
+        }
+    )
+
+    let cancelling = RepositorySemanticV3RuntimeBundleBuilder(
+        cancellationCheck: {
+            throw CancellationError()
+        }
+    )
+    #expect(throws: CancellationError.self) {
+        _ = try cancelling.build(
+            root: fixture.root,
+            snapshot: snapshot
+        )
+    }
+}
+
+@Test("repository semantic v3 runtime bundle rejects commit drift")
+func repositorySemanticV3RuntimeBundleRejectsCommitDrift() throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let sourceURL = fixture.root.appending(
+        path: "Sources/RuntimeFeature.swift"
+    )
+    try Data(
+        """
+        struct RuntimeFeature {
+            // TODO: add restart recovery coverage.
+        }
+        """.utf8
+    ).write(to: sourceURL)
+    _ = try fixture.git("add", ".")
+    _ = try fixture.git("commit", "-m", "first evidence")
+    let snapshot = try RepositoryModule().intake(root: fixture.root)
+    try Data(
+        """
+        struct RuntimeFeature {
+            // TODO: add restart recovery and migration coverage.
+        }
+        """.utf8
+    ).write(to: sourceURL)
+    _ = try fixture.git("add", ".")
+    _ = try fixture.git("commit", "-m", "advance evidence")
+
+    #expect(
+        throws: RepositorySemanticV3RuntimeBundleError.snapshotDrift
+    ) {
+        _ = try RepositorySemanticV3RuntimeBundleBuilder().build(
+            root: fixture.root,
+            snapshot: snapshot
+        )
+    }
+}
+
+@Test("repository semantic v3 runtime analyzer health checks and validates ephemeral output")
+func repositorySemanticV3RuntimeAnalyzerHealthChecksAndValidates()
+    async throws {
+    let fixture = try TemporaryRepository.make()
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let sourceURL = fixture.root.appending(
+        path: "Sources/RuntimeFeature.swift"
+    )
+    let source = """
+    import Foundation
+
+    struct RuntimeFeature {
+        // TODO: add restart recovery coverage.
+    }
+    """
+    try Data(source.utf8).write(to: sourceURL)
+    _ = try fixture.git("add", ".")
+    _ = try fixture.git("commit", "-m", "add runtime evidence")
+    let snapshot = try RepositoryModule().intake(root: fixture.root)
+    let generator = ScriptedRepositorySemanticV3RuntimeGenerator()
+
+    let result = try await RepositorySemanticV3RuntimeAnalyzer().analyze(
+        root: fixture.root,
+        snapshot: snapshot,
+        generator: generator
+    )
+
+    #expect(result.snapshotCommit == snapshot.commit)
+    #expect(result.runtimeIdentity == "scripted/runtime-v3")
+    #expect(result.modelID == "scripted-runtime-v3")
+    #expect(result.retention == .ephemeral)
+    let accepted = try #require(result.validatedCandidate)
+    #expect(
+        accepted.claims.map(\.id) == [
+            "declared-architecture-boundary",
+            "declared-dependency",
+            "explicit-implementation-gap",
+        ]
+    )
+    #expect(accepted.support.count == 2)
+    #expect(accepted.counterevidence.count == 1)
+    #expect(await generator.healthRequestCount() == 1)
+    #expect(await generator.generationRequestCount() == 1)
+}
+
+@Test("repository semantic v3 validated output creates only evidence complete ideas")
+func repositorySemanticV3ValidatedOutputCreatesEvidenceCompleteIdeas()
+    throws {
+    let evaluationCase = try #require(
+        try repositorySemanticV3Manifest().cases.first {
+            $0.id == "actor-cache-claims"
+        }
+    )
+    let candidate = try #require(
+        try validRepositorySemanticV3Candidates(
+            manifest: repositorySemanticV3Manifest()
+        )[evaluationCase.id]
+    )
+    let validated = try #require(
+        try RepositorySemanticV3CandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+
+    let card = try validated.ideaCard(
+        id: "semantic-v3-cache",
+        title: "Evaluate actor-owned cache",
+        rejectedAlternatives: [
+            "Keep the existing unsynchronized implementation.",
+        ],
+        validationExperiment:
+            "Run concurrency and restart recovery tests."
+    )
+
+    #expect(card.rationale == candidate.statement)
+    #expect(
+        card.evidence.map(\.filePath) == [
+            "Sources/Cache.swift",
+            "Tests/CacheTests.swift",
+        ]
+    )
+    #expect(card.counterevidenceCitations.map(\.filePath) == [
+        "README.md",
+    ])
+    #expect(card.rejectedAlternatives.count == 1)
+    #expect(
+        throws: RepositoryIdeaError.missingRejectedAlternatives
+    ) {
+        _ = try validated.ideaCard(
+            id: "semantic-v3-incomplete",
+            title: "Incomplete",
+            rejectedAlternatives: [],
+            validationExperiment: "Run one focused test."
+        )
+    }
+}
+
 @Test("repository semantic candidate requires exact support counterevidence and concepts")
 func repositorySemanticCandidateRequiresExactEvidenceAndConcepts() throws {
     let manifest = try repositorySemanticManifest()
@@ -2476,6 +2742,51 @@ private struct ScriptedRepositorySemanticV3Generator:
             )
         }
         return candidate
+    }
+}
+
+private actor ScriptedRepositorySemanticV3RuntimeGenerator:
+    RepositorySemanticV3RuntimeCandidateGenerator {
+    nonisolated let runtimeIdentity = "scripted/runtime-v3"
+    nonisolated let modelID = "scripted-runtime-v3"
+    private var healthRequests = 0
+    private var generationRequests = 0
+
+    func health() async throws -> LocalModelHealth {
+        healthRequests += 1
+        return LocalModelHealth(
+            modelID: modelID,
+            endpointIdentity: "scripted-loopback",
+            isAvailable: true
+        )
+    }
+
+    func generate(
+        for evaluationCase: RepositorySemanticV3Case
+    ) async throws -> RepositorySemanticV3Candidate {
+        generationRequests += 1
+        return RepositorySemanticV3Candidate(
+            snapshotCommit: evaluationCase.snapshotCommit,
+            statement: """
+            The committed Swift source declares a type and dependency, while an explicit restart-recovery TODO remains.
+            """,
+            claimIDs: evaluationCase.requiredClaimIDs,
+            supportIDs: evaluationCase.requiredSupportIDs,
+            counterevidenceIDs:
+                evaluationCase.requiredCounterevidenceIDs,
+            confidence: 0.82,
+            runtimeIdentity: runtimeIdentity,
+            modelID: modelID,
+            retention: .ephemeral
+        )
+    }
+
+    func healthRequestCount() -> Int {
+        healthRequests
+    }
+
+    func generationRequestCount() -> Int {
+        generationRequests
     }
 }
 

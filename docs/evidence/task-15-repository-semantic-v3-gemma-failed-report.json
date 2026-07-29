@@ -1,0 +1,95 @@
+{
+  "abstentionAccuracy" : 1,
+  "abstentionCaseCount" : 2,
+  "caseCount" : 4,
+  "caseResults" : [
+    {
+      "abstained" : false,
+      "caseID" : "actor-cache-claims",
+      "claimIDs" : [
+
+      ],
+      "counterevidenceIDs" : [
+
+      ],
+      "errorCode" : "evidence_role_mismatch",
+      "expectedOutcome" : "observation",
+      "passed" : false,
+      "supportIDs" : [
+
+      ]
+    },
+    {
+      "abstained" : true,
+      "caseID" : "encryption-claim-abstention",
+      "claimIDs" : [
+
+      ],
+      "counterevidenceIDs" : [
+
+      ],
+      "expectedOutcome" : "abstain",
+      "passed" : true,
+      "supportIDs" : [
+
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "idempotent-request-claims",
+      "claimIDs" : [
+        "request-keyed-idempotency",
+        "request-duplicate-reuses-receipt",
+        "request-no-crash-recovery"
+      ],
+      "confidence" : 0.95,
+      "counterevidenceIDs" : [
+        "request-recovery-todo"
+      ],
+      "expectedOutcome" : "observation",
+      "passed" : true,
+      "supportIDs" : [
+        "request-idempotency-key",
+        "request-duplicate-test"
+      ]
+    },
+    {
+      "abstained" : true,
+      "caseID" : "throughput-claim-abstention",
+      "claimIDs" : [
+
+      ],
+      "counterevidenceIDs" : [
+
+      ],
+      "expectedOutcome" : "abstain",
+      "passed" : true,
+      "supportIDs" : [
+
+      ]
+    }
+  ],
+  "claimPrecision" : 1,
+  "claimRecall" : 0.5,
+  "counterevidenceRecall" : 0.5,
+  "evaluatorVersion" : "repository-semantic-evaluator-v3",
+  "evidencePrecision" : 1,
+  "failedCaseIDs" : [
+    "actor-cache-claims"
+  ],
+  "manifestHash" : "222b3c705f4fd32a68039a6bad45c49663fae10d228446b4b9090a3323a0debe",
+  "meetsFrozenThresholds" : false,
+  "modelID" : "gemma-4-12b-it-optiq",
+  "observationCaseCount" : 2,
+  "runtimeIdentity" : "loopback:http:\/\/127.0.0.1:1234\/v1",
+  "thresholds" : {
+    "abstentionAccuracy" : 1,
+    "claimPrecision" : 1,
+    "claimRecall" : 1,
+    "counterevidenceRecall" : 1,
+    "evidencePrecision" : 1
+  },
+  "unansweredCaseIDs" : [
+
+  ]
+}

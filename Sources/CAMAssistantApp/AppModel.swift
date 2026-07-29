@@ -71,6 +71,33 @@ struct VaultRecoveryOperations: Sendable {
     )
 }
 
+struct RepositorySemanticOperations: Sendable {
+    let analyze: @Sendable (
+        _ root: URL,
+        _ snapshot: RepositorySnapshot
+    ) async throws -> RepositorySemanticV3RuntimeAnalysis
+
+    static let live = RepositorySemanticOperations {
+        root,
+        snapshot in
+        let registry = try ModelRegistry(
+            stateURL: ModelProfileStorage.defaultStateURL()
+        )
+        guard let assignment = try registry.activeProfile()?
+            .assignment(for: .local) else {
+            throw LocalModelInferenceError.invalidAssignment
+        }
+        let generator = try RepositorySemanticV3LocalGenerator(
+            assignment: assignment
+        )
+        return try await RepositorySemanticV3RuntimeAnalyzer().analyze(
+            root: root,
+            snapshot: snapshot,
+            generator: generator
+        )
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selection: AssistantSection = .assistant
@@ -126,8 +153,13 @@ final class AppModel: ObservableObject {
     @Published private(set) var repositoryObservations: [RepositoryObservationPresentation] = []
     @Published var selectedRepositoryObservationID: String?
     @Published private(set) var isScanningRepositoryObservations = false
+    @Published private(set) var repositorySemanticAnalysis:
+        RepositorySemanticV3RuntimeAnalysis?
+    @Published private(set) var repositorySemanticStatus: String?
+    @Published private(set) var isRepositorySemanticAnalyzing = false
     @Published var repositoryIdeaTitle = ""
     @Published var repositoryIdeaCounterevidence = ""
+    @Published var repositorySemanticRejectedAlternative = ""
     @Published var repositoryIdeaValidationExperiment = ""
     @Published private(set) var repositoryIdeaProposal: RepositoryIdeaProposal?
     @Published private(set) var repositoryIdeaTask: TaskProposal?
@@ -165,6 +197,7 @@ final class AppModel: ObservableObject {
         }
     private let repositorySourceService: RepositorySourceService?
     private let repositoryJobStore: RepositoryJobStore?
+    private let repositorySemanticOperations: RepositorySemanticOperations
     private let vaultRecoveryOperations: VaultRecoveryOperations
     private let vaultRootProvider: @Sendable () throws -> URL
     private var repositorySnapshot: RepositorySnapshot?
@@ -172,6 +205,8 @@ final class AppModel: ObservableObject {
     private var repositoryIdeaCard: RepositoryIdeaCard?
     private var repositoryIndexCancellation: RepositoryIndexCancellation?
     private var activeRepositoryJobID: UUID?
+    private var repositorySemanticTask: Task<Void, Never>?
+    private var activeRepositorySemanticRunID: UUID?
 
     init(
         health: AppHealth = .evaluate(
@@ -183,6 +218,8 @@ final class AppModel: ObservableObject {
         repositorySourceService: RepositorySourceService? = AppModel.makeRepositorySourceService(),
         repositoryJobStore: RepositoryJobStore? = AppModel.makeRepositoryJobStore(),
         initializeFullWorkspace: Bool = true,
+        repositorySemanticOperations:
+            RepositorySemanticOperations = .live,
         vaultRecoveryOperations: VaultRecoveryOperations = .live,
         vaultRootProvider: @escaping @Sendable () throws -> URL = {
             try LocalVaultPaths.rootURL()
@@ -192,6 +229,7 @@ final class AppModel: ObservableObject {
         self.foregroundActivation = foregroundActivation
         self.repositorySourceService = repositorySourceService
         self.repositoryJobStore = repositoryJobStore
+        self.repositorySemanticOperations = repositorySemanticOperations
         self.vaultRecoveryOperations = vaultRecoveryOperations
         self.vaultRootProvider = vaultRootProvider
         guard initializeFullWorkspace else {
@@ -1302,6 +1340,160 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func analyzeSelectedRepositorySemantics() {
+        guard !isRepositorySemanticAnalyzing else { return }
+        guard let snapshot = repositorySnapshot else {
+            repositoryError =
+                "Inspect a clean local repository before analyzing bounded evidence."
+            return
+        }
+        guard !snapshot.isDirty else {
+            repositoryError =
+                "Repository evidence analysis requires a clean committed snapshot."
+            return
+        }
+
+        let root = URL(filePath: snapshot.canonicalPath)
+        let analyze = repositorySemanticOperations.analyze
+        let runID = UUID()
+        activeRepositorySemanticRunID = runID
+        repositorySemanticAnalysis = nil
+        repositorySemanticStatus = nil
+        repositoryIdeaProposal = nil
+        repositoryIdeaCard = nil
+        repositoryIdeaTask = nil
+        repositoryIdeaResearchPlan = nil
+        repositoryIdeaCodexPlan = nil
+        repositoryIdeaDisposition = nil
+        repositoryError = nil
+        isRepositorySemanticAnalyzing = true
+        repositorySemanticTask = Task { [weak self] in
+            do {
+                let worker = Task.detached(
+                    priority: .userInitiated
+                ) {
+                    try await analyze(root, snapshot)
+                }
+                let result = try await withTaskCancellationHandler {
+                    try await worker.value
+                } onCancel: {
+                    worker.cancel()
+                }
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = result
+                self?.repositorySemanticStatus = result.didAbstain
+                    ? "The selected local model abstained. No repository idea was created or retained."
+                    : "Ephemeral local-model candidate ready for review. Nothing was retained or promoted."
+                self?.repositoryError = nil
+            } catch is CancellationError {
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = nil
+                self?.repositorySemanticStatus =
+                    "Local repository evidence analysis was cancelled. No result was retained."
+                self?.repositoryError = nil
+            } catch RepositorySemanticV3RuntimeBundleError.snapshotDrift {
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = nil
+                self?.repositorySemanticStatus = nil
+                self?.repositoryError =
+                    "The repository changed after inspection. Reinspect a clean commit before analyzing it."
+            } catch RepositorySemanticV3RuntimeBundleError
+                .dirtySnapshotNotEligible {
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = nil
+                self?.repositorySemanticStatus = nil
+                self?.repositoryError =
+                    "Repository evidence analysis requires a clean committed snapshot."
+            } catch RepositorySemanticV3RuntimeBundleError
+                .insufficientEvidence {
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = nil
+                self?.repositorySemanticStatus = nil
+                self?.repositoryError =
+                    "This commit does not contain both bounded support and counterevidence for local-model analysis. No model request occurred."
+            } catch RepositorySemanticV3RuntimeBundleError
+                .evidenceBoundsExceeded {
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = nil
+                self?.repositorySemanticStatus = nil
+                self?.repositoryError =
+                    "A selected repository evidence excerpt exceeded the local analysis bound. No model request occurred."
+            } catch {
+                guard self?.activeRepositorySemanticRunID == runID else {
+                    return
+                }
+                self?.repositorySemanticAnalysis = nil
+                self?.repositorySemanticStatus = nil
+                self?.repositoryError =
+                    "The selected local model could not analyze this bounded evidence. No fallback, CAM call, or retention occurred."
+            }
+            guard self?.activeRepositorySemanticRunID == runID else {
+                return
+            }
+            self?.isRepositorySemanticAnalyzing = false
+            self?.repositorySemanticTask = nil
+            self?.activeRepositorySemanticRunID = nil
+        }
+    }
+
+    func cancelRepositorySemanticAnalysis() {
+        repositorySemanticTask?.cancel()
+    }
+
+    func createRepositorySemanticIdeaProposal() {
+        guard let snapshot = repositorySnapshot,
+              let validated = repositorySemanticAnalysis?
+                .validatedCandidate,
+              validated.snapshotCommit == snapshot.commit else {
+            repositoryError =
+                "Analyze a clean commit and review an accepted ephemeral candidate before creating an idea."
+            return
+        }
+        do {
+            let card = try validated.ideaCard(
+                id: UUID().uuidString,
+                title: repositoryIdeaTitle.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+                rejectedAlternatives: [
+                    repositorySemanticRejectedAlternative,
+                ],
+                validationExperiment:
+                    repositoryIdeaValidationExperiment
+            )
+            repositoryIdeaProposal = try card.promote(
+                snapshot: snapshot
+            )
+            repositoryIdeaCard = card
+            repositoryIdeaTask = nil
+            repositoryIdeaResearchPlan = nil
+            repositoryIdeaCodexPlan = nil
+            repositoryIdeaDisposition = nil
+            repositoryError = nil
+        } catch {
+            repositoryIdeaProposal = nil
+            repositoryIdeaCard = nil
+            repositoryIdeaTask = nil
+            repositoryIdeaResearchPlan = nil
+            repositoryIdeaCodexPlan = nil
+            repositoryIdeaDisposition = nil
+            repositoryError =
+                "Enter an idea title, one rejected alternative, and the smallest validation experiment."
+        }
+    }
+
     func createRepositoryIdeaProposal() {
         guard let snapshot = repositorySnapshot,
               let selectedID = selectedRepositoryObservationID,
@@ -1431,11 +1623,18 @@ final class AppModel: ObservableObject {
     }
 
     private func clearRepositoryReview() {
+        repositorySemanticTask?.cancel()
+        repositorySemanticTask = nil
+        activeRepositorySemanticRunID = nil
+        isRepositorySemanticAnalyzing = false
+        repositorySemanticAnalysis = nil
+        repositorySemanticStatus = nil
         repositoryObservationEvidence = []
         repositoryObservations = []
         selectedRepositoryObservationID = nil
         repositoryIdeaTitle = ""
         repositoryIdeaCounterevidence = ""
+        repositorySemanticRejectedAlternative = ""
         repositoryIdeaValidationExperiment = ""
         repositoryIdeaProposal = nil
         repositoryIdeaCard = nil

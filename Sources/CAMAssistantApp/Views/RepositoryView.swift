@@ -27,6 +27,17 @@ struct RepositoryView: View {
                 }
                 .disabled(model.isRepositoryIndexing || model.isScanningRepositoryObservations)
                 .accessibilityHint("Reads only the inspected clean commit for TODO, FIXME, and Swift declaration review evidence.")
+                Button("Analyze Repository Evidence Locally") {
+                    model.analyzeSelectedRepositorySemantics()
+                }
+                .disabled(
+                    model.isRepositoryIndexing
+                        || model.isScanningRepositoryObservations
+                        || model.isRepositorySemanticAnalyzing
+                )
+                .accessibilityHint(
+                    "Health-checks the selected loopback model and analyzes bounded evidence from the inspected clean commit. No fallback, CAM call, repository write, or automatic retention occurs."
+                )
                 if model.isRepositoryIndexing {
                     HStack {
                         ProgressView("Indexing committed sources locally")
@@ -37,6 +48,181 @@ struct RepositoryView: View {
                 if model.isScanningRepositoryObservations {
                     ProgressView("Scanning committed observations locally")
                         .accessibilityLabel("Repository observation scan in progress")
+                }
+                if model.isRepositorySemanticAnalyzing {
+                    HStack {
+                        ProgressView(
+                            "Analyzing bounded repository evidence locally"
+                        )
+                        .accessibilityLabel(
+                            "Local repository evidence analysis in progress"
+                        )
+                        Button("Cancel Local Analysis", action: model.cancelRepositorySemanticAnalysis)
+                    }
+                }
+            }
+
+            if let status = model.repositorySemanticStatus {
+                Section("Local analysis status") {
+                    Text(status)
+                        .accessibilityLabel(
+                            "Repository semantic analysis status. \(status)"
+                        )
+                }
+            }
+
+            if let analysis = model.repositorySemanticAnalysis,
+               let candidate = analysis.validatedCandidate {
+                Section("Ephemeral local-model candidate") {
+                    Text(candidate.statement)
+                        .textSelection(.enabled)
+                    LabeledContent("Model", value: analysis.modelID)
+                    LabeledContent("Runtime", value: analysis.runtimeIdentity)
+                    LabeledContent(
+                        "Commit",
+                        value: String(
+                            analysis.snapshotCommit.prefix(12)
+                        )
+                    )
+                    LabeledContent(
+                        "Confidence",
+                        value: String(
+                            format: "%.2f",
+                            candidate.confidence
+                        )
+                    )
+                    ForEach(candidate.claims, id: \.id) { claim in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(claim.id)
+                                .font(.subheadline)
+                            Text(claim.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            "Selected claim \(claim.id). \(claim.description)"
+                        )
+                    }
+                    Text(
+                        "Nothing is retained until you explicitly Keep or choose a promotion action."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                Section("Support evidence") {
+                    ForEach(candidate.support, id: \.id) { evidence in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(
+                                "\(evidence.filePath):\(evidence.line) · \(evidence.symbol)"
+                            )
+                            .font(.subheadline)
+                            Text(evidence.excerpt)
+                                .font(.caption)
+                                .textSelection(.enabled)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            "Support evidence \(evidence.filePath), line \(evidence.line), symbol \(evidence.symbol). \(evidence.excerpt)"
+                        )
+                    }
+                }
+
+                Section("Counterevidence") {
+                    ForEach(
+                        candidate.counterevidence,
+                        id: \.id
+                    ) { evidence in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(
+                                "\(evidence.filePath):\(evidence.line) · \(evidence.symbol)"
+                            )
+                            .font(.subheadline)
+                            Text(evidence.excerpt)
+                                .font(.caption)
+                                .textSelection(.enabled)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            "Counterevidence \(evidence.filePath), line \(evidence.line), symbol \(evidence.symbol). \(evidence.excerpt)"
+                        )
+                    }
+                }
+
+                Section("Explicit idea review") {
+                    TextField(
+                        "Idea title",
+                        text: $model.repositoryIdeaTitle
+                    )
+                    TextField("Rejected alternative", text: $model.repositorySemanticRejectedAlternative)
+                    TextField(
+                        "Smallest validation experiment",
+                        text:
+                            $model
+                                .repositoryIdeaValidationExperiment
+                    )
+                    Button("Create Evidence-Complete Idea", action: model.createRepositorySemanticIdeaProposal)
+                    Text(
+                        "Creating the card remains local and proposal-only. Keeping, rejecting, or promoting it is always a separate explicit action."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if let proposal = model.repositoryIdeaProposal {
+                        LabeledContent(
+                            "Proposal",
+                            value: proposal.kind.rawValue
+                        )
+                        LabeledContent(
+                            "Idea ID",
+                            value: proposal.ideaID
+                        )
+                        HStack {
+                            Button("Keep Idea") {
+                                model.retainRepositoryIdea(.kept)
+                            }
+                            Button("Reject Idea") {
+                                model.retainRepositoryIdea(.rejected)
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(
+                            "Semantic repository idea decision"
+                        )
+                        if let disposition =
+                            model.repositoryIdeaDisposition {
+                            LabeledContent(
+                                "Decision",
+                                value:
+                                    disposition.rawValue.capitalized
+                            )
+                        }
+                        Button(
+                            "Save as Local Task",
+                            action:
+                                model.saveRepositoryIdeaAsLocalTask
+                        )
+                        .disabled(
+                            model.repositoryIdeaDisposition == .rejected
+                        )
+                        Button(
+                            "Create & Keep Research Plan",
+                            action:
+                                model.createRepositoryIdeaResearchPlan
+                        )
+                        .disabled(
+                            model.repositoryIdeaDisposition == .rejected
+                        )
+                        Button(
+                            "Save Codex Plan Handoff",
+                            action:
+                                model.saveRepositoryIdeaAsCodexPlan
+                        )
+                        .disabled(
+                            model.repositoryIdeaDisposition == .rejected
+                        )
+                    }
                 }
             }
 
