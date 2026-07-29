@@ -95,7 +95,7 @@
         "docs/evidence/task-13-generated-answer-gemma-4-12b-optiq-report.json",
         "docs/evidence/task-13-generated-answer-qwen36-a3b-mtp-failed-report.json"
       ],
-      "limitation": "Quality and abstention gates pass for the selected Gemma run, but warm end-to-end p95 exceeds 500 ms. A newer Qwen MoE failed quality and latency, the installed 423M candidate could not load, and the live evaluator CLI currently exits zero for a failed report."
+      "limitation": "Quality and abstention gates pass for the selected Gemma run, but warm end-to-end p95 exceeds 500 ms. A newer Qwen MoE failed quality and latency, and the installed 423M candidate could not load. Failed live reports are preserved and now exit nonzero."
     },
     {
       "id": "chat.abstention",

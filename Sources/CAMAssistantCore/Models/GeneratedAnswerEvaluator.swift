@@ -340,6 +340,14 @@ public struct GeneratedAnswerEvaluationReport:
     public let meetsFrozenThresholds: Bool
 }
 
+public enum GeneratedAnswerEvaluationExitCode {
+    public static func forReport(
+        _ report: GeneratedAnswerEvaluationReport
+    ) -> Int32 {
+        report.meetsFrozenThresholds ? 0 : 2
+    }
+}
+
 public struct GeneratedAnswerEvaluator: Sendable {
     public init() {}
 

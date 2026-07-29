@@ -151,16 +151,21 @@ disabled until their individual proof gates are met.
   zero cited-claim support, zero abstention accuracy, seven failed cases, and
   `3,821.14 ms` p95. It is both lower quality and slower than the current
   Gemma 12B result.
-- The report serializes `meetsFrozenThresholds=false`, but the CLI returned
-  process status `0`. This is a separate automation defect; no result or
-  threshold was changed.
+- The report serializes `meetsFrozenThresholds=false`; the CLI originally
+  returned process status `0`. A focused red/green contract now maps a passing
+  report to `0` and a failed report to `2`, after the report is written.
+- A disposable loopback command proof returned invalid structured answers for
+  all seven unchanged cases. The CLI saved the failed JSON report, printed
+  `frozen gates: fail`, and terminated with process status `2`. No result,
+  threshold, live model, cloud route, or personal-vault state was used or
+  changed.
 - The Qwen report is saved at
   `docs/evidence/task-13-generated-answer-qwen36-a3b-mtp-failed-report.json`
   with SHA-256
   `191ca518a66fa90867319c64fa1fecb99d5039f8e21d148013b6ee5e84a19669`.
 - Fresh verification after archiving the report passes the 48-gate source
   coverage validator with the honest `12 passed / 27 partial / 9 missing`
-  verdict, all 221 Swift tests, deterministic two-build packaging, and the
+  verdict, all 222 Swift tests, deterministic two-build packaging, and the
   48-file release credential-signature scan with zero findings.
 - All models were unloaded and LM Studio was stopped. CAM-013 remains in
   progress and the generated-answer goal gate remains partial.

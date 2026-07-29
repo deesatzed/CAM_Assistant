@@ -150,6 +150,10 @@ if arguments.first == "models" || arguments.first == "embeddings" {
             report: \(request.outputURL.path)
             """
         )
+        let exitCode = GeneratedAnswerEvaluationExitCode.forReport(report)
+        if exitCode != 0 {
+            exit(exitCode)
+        }
     } catch GeneratedAnswerEvaluationRequestError.invalidArguments {
         FileHandle.standardError.write(
             Data(

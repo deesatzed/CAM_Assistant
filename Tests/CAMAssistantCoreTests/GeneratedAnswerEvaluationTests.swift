@@ -85,11 +85,63 @@ func generatedAnswerEvaluatorMeasuresEndToEndContract() async throws {
     #expect(report.failedCaseIDs.isEmpty)
     #expect(report.unansweredCaseIDs.isEmpty)
     #expect(report.meetsFrozenThresholds)
+    #expect(GeneratedAnswerEvaluationExitCode.forReport(report) == 0)
     let encoded = try JSONEncoder().encode(report)
     let encodedJSON = try #require(
         JSONSerialization.jsonObject(with: encoded) as? [String: Any]
     )
     #expect(encodedJSON["meetsFrozenThresholds"] as? Bool == true)
+}
+
+@Test("generated answer evaluator maps a failed frozen report to nonzero exit")
+func generatedAnswerEvaluatorMapsFailedReportToNonzeroExit() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "cam-generated-evaluation-exit-tests")
+        .appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(
+        at: root,
+        withIntermediateDirectories: true
+    )
+    let manifestURL = root.appending(path: "manifest.json")
+    try Data(minimalGeneratedManifest.utf8).write(
+        to: manifestURL,
+        options: .atomic
+    )
+    let transport = GeneratedEvaluationTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: Data(#"{"data":[{"id":"local/test"}]}"#.utf8)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: generatedEvaluationChat(#"{"invalid":true}"#)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: generatedEvaluationChat(#"{"invalid":true}"#)
+        ),
+    ])
+    let assignment = try ModelAssignment(
+        provider: .local,
+        modelID: "local/test",
+        localEndpoint: "http://127.0.0.1:8080/v1"
+    )
+
+    let report = try await GeneratedAnswerEvaluator().evaluate(
+        manifestURL: manifestURL,
+        indexURL: root.appending(path: "evaluation.sqlite"),
+        assignment: assignment,
+        transport: transport,
+        benchmark: GeneratedAnswerBenchmarkConfiguration(
+            warmupRunsPerCase: 0,
+            measuredRunsPerCase: 1
+        )
+    )
+
+    #expect(!report.meetsFrozenThresholds)
+    #expect(report.failedCaseIDs == ["abstain", "answer"])
+    #expect(GeneratedAnswerEvaluationExitCode.forReport(report) == 2)
 }
 
 @Test("generated answer command accepts only an explicit loopback model request")

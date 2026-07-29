@@ -90,11 +90,13 @@ MTP speculative decoding, a 4,096-token context, parallelism one, and
 response failed decoding, cited-claim support and abstention were both zero,
 and p95 was `3,821.14 ms`. Its report remains an explicit model failure.
 
-The generated-evaluation CLI returned process status `0` even though the saved
-report serialized `meetsFrozenThresholds=false` with seven failed cases. This
-is an automation defect: scripts must inspect the report today, and a future
-implementation must make failed frozen gates exit nonzero without changing the
-frozen evaluator or archived result.
+The generated-evaluation CLI originally returned process status `0` even
+though the saved report serialized `meetsFrozenThresholds=false` with seven
+failed cases. The command boundary now preserves the report and exits `2` for
+a failed frozen verdict. A disposable loopback integration proof returned an
+invalid answer for all seven unchanged cases, saved the failed report, printed
+`frozen gates: fail`, and terminated with status `2`. The frozen evaluator,
+thresholds, and archived live-model result were not changed.
 
 The Qwen model was unloaded and LM Studio was stopped after the run. No model
 remained resident and no cloud, web, CAM, credential, personal, or donor route
