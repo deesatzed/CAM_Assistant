@@ -32,6 +32,7 @@ state are excluded.
 | `/bin/zsh scripts/verify.sh backup` | 18 full-vault manifest, creation, validation, CLI, state-schema checks, reserved-coordination refusal, authority-safe restore, and representative-state tests pass |
 | `/bin/zsh scripts/verify.sh app` | 13 native app tests pass, including non-blocking recovery operations, bounded controls, safe errors, and concurrent-operation refusal |
 | `/bin/zsh scripts/verify.sh repositories` | 51 tests pass, including the physical-line citation regression discovered during the packaged journey |
+| `/bin/zsh scripts/verify.sh fresh-clone` | Exact checkpoint `988015954e42483f3f08c6796f08054fee746ebe` passes portability, the honest 48-gate map, all 244 tests, release builds, reproducible clean package identity, 50-file zero-finding credential scan, and offline smoke from a temporary non-local clone |
 
 The representative full-vault test restores non-empty immutable bytes,
 preferences, a cited task, an audit event, research plan, research packet,

@@ -1711,7 +1711,13 @@ individual proof gates are met.
   `244` Swift tests, release app/CLI builds, two-build package
   reproducibility, package identity, a `50`-file zero-finding
   credential-signature scan, and offline smoke with fresh-clone recursion
-  intentionally skipped until the checkpoint is committed.
+  intentionally skipped for the in-tree aggregate.
+- Green: `/bin/zsh scripts/verify.sh fresh-clone` passed from a clean temporary
+  non-local clone of exact feature checkpoint
+  `988015954e42483f3f08c6796f08054fee746ebe`: portability, the honest 48-gate
+  map, all `244` Swift tests, release app/CLI builds, two-build package
+  reproducibility, exact package identity with `dirty=false`, a `50`-file
+  zero-finding credential-signature scan, and offline smoke all pass.
 - Saved evidence:
   `docs/evidence/task-18-full-vault-backup-restore.md`.
 - Boundary: the V1 does not overwrite, merge, upload, schedule, encrypt, or
