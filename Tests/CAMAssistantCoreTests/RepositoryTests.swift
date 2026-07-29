@@ -1233,6 +1233,247 @@ func repositorySemanticEvaluationFixtureIsFrozenAndValid() throws {
     )
 }
 
+@Test("repository semantic v3 claim catalog is pre-registered and frozen")
+func repositorySemanticV3ClaimCatalogIsPreRegisteredAndFrozen() throws {
+    let fixtureURL = repositorySemanticV3FixtureURL()
+    let data = try Data(contentsOf: fixtureURL)
+    let manifest = try RepositorySemanticV3Manifest.decode(data)
+
+    try manifest.validate()
+
+    #expect(manifest.manifestVersion == 3)
+    #expect(manifest.cases.count == 4)
+    #expect(
+        manifest.cases.filter { $0.expectedOutcome == .observation }.count == 2
+    )
+    #expect(
+        manifest.cases.filter { $0.expectedOutcome == .abstain }.count == 2
+    )
+    #expect(manifest.cases.flatMap(\.claimCatalog).count == 14)
+    #expect(manifest.thresholds.claimRecall == 1)
+    #expect(manifest.thresholds.claimPrecision == 1)
+    #expect(manifest.thresholds.evidencePrecision == 1)
+    #expect(manifest.thresholds.counterevidenceRecall == 1)
+    #expect(manifest.thresholds.abstentionAccuracy == 1)
+    #expect(
+        RepositorySemanticV3Manifest.sha256(of: data)
+            == "222b3c705f4fd32a68039a6bad45c49663fae10d228446b4b9090a3323a0debe"
+    )
+}
+
+@Test("repository semantic v3 validates claim IDs instead of prose phrases")
+func repositorySemanticV3ValidatesClaimIDsInsteadOfProsePhrases() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticV3Manifest().cases.first {
+            $0.id == "actor-cache-claims"
+        }
+    )
+    let candidate = RepositorySemanticV3Candidate(
+        snapshotCommit: evaluationCase.snapshotCommit,
+        statement: "Mutations have serialized ownership and concurrency coverage, while the values disappear when the process returns.",
+        claimIDs: evaluationCase.requiredClaimIDs,
+        supportIDs: evaluationCase.requiredSupportIDs,
+        counterevidenceIDs: evaluationCase.requiredCounterevidenceIDs,
+        confidence: 0.84,
+        runtimeIdentity: "scripted/semantic-v3",
+        modelID: "scripted-v3",
+        retention: .ephemeral
+    )
+
+    let validated = try #require(
+        try RepositorySemanticV3CandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+
+    #expect(validated.claims.map(\.id) == evaluationCase.requiredClaimIDs)
+    #expect(validated.support.map(\.id) == evaluationCase.requiredSupportIDs)
+    #expect(
+        validated.counterevidence.map(\.id)
+            == evaluationCase.requiredCounterevidenceIDs
+    )
+    #expect(validated.statement == candidate.statement)
+}
+
+@Test("repository semantic v3 rejects unknown missing and role-swapped selections")
+func repositorySemanticV3RejectsInvalidSelections() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticV3Manifest().cases.first {
+            $0.id == "actor-cache-claims"
+        }
+    )
+    let validator = RepositorySemanticV3CandidateValidator()
+
+    #expect(
+        throws: RepositorySemanticV3ValidationError.unknownClaim(
+            "invented-claim"
+        )
+    ) {
+        _ = try validator.validate(
+            RepositorySemanticV3Candidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "Invented.",
+                claimIDs: ["invented-claim"],
+                supportIDs: evaluationCase.requiredSupportIDs,
+                counterevidenceIDs:
+                    evaluationCase.requiredCounterevidenceIDs,
+                confidence: 0.8,
+                runtimeIdentity: "scripted/semantic-v3",
+                modelID: "scripted-v3",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+
+    #expect(
+        throws: RepositorySemanticV3ValidationError.missingRequiredClaim
+    ) {
+        _ = try validator.validate(
+            RepositorySemanticV3Candidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "Incomplete.",
+                claimIDs: Array(
+                    evaluationCase.requiredClaimIDs.dropLast()
+                ),
+                supportIDs: evaluationCase.requiredSupportIDs,
+                counterevidenceIDs:
+                    evaluationCase.requiredCounterevidenceIDs,
+                confidence: 0.8,
+                runtimeIdentity: "scripted/semantic-v3",
+                modelID: "scripted-v3",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+
+    #expect(
+        throws: RepositorySemanticV3ValidationError
+            .evidenceRoleMismatch("cache-no-persistence")
+    ) {
+        _ = try validator.validate(
+            RepositorySemanticV3Candidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "Role swapped.",
+                claimIDs: evaluationCase.requiredClaimIDs,
+                supportIDs: ["cache-no-persistence"],
+                counterevidenceIDs: evaluationCase.requiredSupportIDs,
+                confidence: 0.8,
+                runtimeIdentity: "scripted/semantic-v3",
+                modelID: "scripted-v3",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+}
+
+@Test("repository semantic v3 abstention is empty ephemeral and exact")
+func repositorySemanticV3AbstentionIsExact() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticV3Manifest().cases.first {
+            $0.id == "encryption-claim-abstention"
+        }
+    )
+    let validator = RepositorySemanticV3CandidateValidator()
+    let abstention = RepositorySemanticV3Candidate.abstention(
+        snapshotCommit: evaluationCase.snapshotCommit,
+        runtimeIdentity: "scripted/semantic-v3",
+        modelID: "scripted-v3"
+    )
+
+    #expect(
+        try validator.validate(abstention, for: evaluationCase) == nil
+    )
+
+    #expect(
+        throws: RepositorySemanticV3ValidationError.malformedCandidate
+    ) {
+        _ = try validator.validate(
+            RepositorySemanticV3Candidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "",
+                claimIDs: [evaluationCase.claimCatalog[0].id],
+                supportIDs: [],
+                counterevidenceIDs: [],
+                confidence: 0,
+                runtimeIdentity: "scripted/semantic-v3",
+                modelID: "scripted-v3",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+}
+
+@Test("repository semantic v3 evaluator measures claims evidence and abstention")
+func repositorySemanticV3EvaluatorMeasuresClosedClaims() async throws {
+    let manifest = try repositorySemanticV3Manifest()
+    let report = try await RepositorySemanticV3Evaluator().evaluate(
+        manifestURL: repositorySemanticV3FixtureURL(),
+        generator: ScriptedRepositorySemanticV3Generator(
+            candidates: try validRepositorySemanticV3Candidates(
+                manifest: manifest
+            )
+        )
+    )
+
+    #expect(report.evaluatorVersion == "repository-semantic-evaluator-v3")
+    #expect(report.caseCount == 4)
+    #expect(report.observationCaseCount == 2)
+    #expect(report.abstentionCaseCount == 2)
+    #expect(report.claimRecall == 1)
+    #expect(report.claimPrecision == 1)
+    #expect(report.evidencePrecision == 1)
+    #expect(report.counterevidenceRecall == 1)
+    #expect(report.abstentionAccuracy == 1)
+    #expect(report.failedCaseIDs.isEmpty)
+    #expect(report.unansweredCaseIDs.isEmpty)
+    #expect(report.caseResults.allSatisfy { $0.passed })
+    #expect(report.meetsFrozenThresholds)
+    #expect(
+        report.manifestHash
+            == "222b3c705f4fd32a68039a6bad45c49663fae10d228446b4b9090a3323a0debe"
+    )
+}
+
+@Test("repository semantic v3 evaluator penalizes plausible claim distractors")
+func repositorySemanticV3EvaluatorPenalizesClaimDistractors() async throws {
+    let manifest = try repositorySemanticV3Manifest()
+    var candidates = try validRepositorySemanticV3Candidates(
+        manifest: manifest
+    )
+    let evaluationCase = try #require(
+        manifest.cases.first { $0.id == "actor-cache-claims" }
+    )
+    let base = try #require(candidates[evaluationCase.id])
+    candidates[evaluationCase.id] = RepositorySemanticV3Candidate(
+        snapshotCommit: base.snapshotCommit,
+        statement: base.statement,
+        claimIDs: base.claimIDs + ["cache-label-normalization"],
+        supportIDs: base.supportIDs,
+        counterevidenceIDs: base.counterevidenceIDs,
+        confidence: base.confidence,
+        runtimeIdentity: base.runtimeIdentity,
+        modelID: base.modelID,
+        retention: base.retention
+    )
+
+    let report = try await RepositorySemanticV3Evaluator().evaluate(
+        manifestURL: repositorySemanticV3FixtureURL(),
+        generator: ScriptedRepositorySemanticV3Generator(
+            candidates: candidates
+        )
+    )
+
+    #expect(report.claimRecall == 1)
+    #expect(report.claimPrecision < 1)
+    #expect(!report.meetsFrozenThresholds)
+    #expect(report.failedCaseIDs == ["actor-cache-claims"])
+}
+
 @Test("repository semantic candidate requires exact support counterevidence and concepts")
 func repositorySemanticCandidateRequiresExactEvidenceAndConcepts() throws {
     let manifest = try repositorySemanticManifest()
@@ -2083,6 +2324,24 @@ private struct ScriptedRepositorySemanticGenerator:
     }
 }
 
+private struct ScriptedRepositorySemanticV3Generator:
+    RepositorySemanticV3CandidateGenerator {
+    let runtimeIdentity = "scripted/semantic-v3"
+    let modelID = "scripted-v3"
+    let candidates: [String: RepositorySemanticV3Candidate]
+
+    func generate(
+        for evaluationCase: RepositorySemanticV3Case
+    ) async throws -> RepositorySemanticV3Candidate {
+        guard let candidate = candidates[evaluationCase.id] else {
+            throw RepositorySemanticV3GeneratorError.missingCandidate(
+                evaluationCase.id
+            )
+        }
+        return candidate
+    }
+}
+
 private actor CancellingRepositorySemanticGenerator:
     RepositorySemanticCandidateGenerator {
     nonisolated let runtimeIdentity = "scripted/cancelling"
@@ -2206,6 +2465,37 @@ private func validRepositorySemanticCandidates(
     ]
 }
 
+private func validRepositorySemanticV3Candidates(
+    manifest: RepositorySemanticV3Manifest
+) throws -> [String: RepositorySemanticV3Candidate] {
+    var candidates: [String: RepositorySemanticV3Candidate] = [:]
+    for evaluationCase in manifest.cases {
+        switch evaluationCase.expectedOutcome {
+        case .observation:
+            candidates[evaluationCase.id] = RepositorySemanticV3Candidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement:
+                    "The selected catalog claims are supported by the cited implementation and test evidence, with the cited limitation retained.",
+                claimIDs: evaluationCase.requiredClaimIDs,
+                supportIDs: evaluationCase.requiredSupportIDs,
+                counterevidenceIDs:
+                    evaluationCase.requiredCounterevidenceIDs,
+                confidence: 0.82,
+                runtimeIdentity: "scripted/semantic-v3",
+                modelID: "scripted-v3",
+                retention: .ephemeral
+            )
+        case .abstain:
+            candidates[evaluationCase.id] = .abstention(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                runtimeIdentity: "scripted/semantic-v3",
+                modelID: "scripted-v3"
+            )
+        }
+    }
+    return candidates
+}
+
 private func repositorySemanticManifest() throws
     -> RepositorySemanticEvaluationManifest {
     let data = try Data(contentsOf: repositorySemanticFixtureURL())
@@ -2221,6 +2511,23 @@ private func repositorySemanticFixtureURL() -> URL {
         .appending(
             path: "Fixtures/Repositories/semantic-v2/manifest.json"
         )
+}
+
+private func repositorySemanticV3FixtureURL() -> URL {
+    URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(
+            path: "Fixtures/Repositories/semantic-v3/manifest.json"
+        )
+}
+
+private func repositorySemanticV3Manifest() throws
+    -> RepositorySemanticV3Manifest {
+    let data = try Data(contentsOf: repositorySemanticV3FixtureURL())
+    let manifest = try RepositorySemanticV3Manifest.decode(data)
+    try manifest.validate()
+    return manifest
 }
 
 private struct TemporaryRepository {
