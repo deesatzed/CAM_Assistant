@@ -215,6 +215,8 @@ struct CAMStatusView: View {
                 Button(buttonTitle, action: action)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(title) runtime selection")
     }
 
     @ViewBuilder

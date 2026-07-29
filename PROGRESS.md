@@ -1898,12 +1898,44 @@ workflows remain disabled until their individual proof gates are met.
   (`e2707e1c1f948551004a8a949011dce89e12a629a04520b1e1568fd93f0c1830`),
   exact package identity with `dirty=false`, the `56`-file zero-finding scan,
   and offline smoke pass.
+
+### Packaged CAM restart and picker accessibility — 2026-07-29
+
+- The first packaged runtime attempt exposed a real accessibility red: the
+  visible `Select CAM Executable…` button was absent from the native
+  accessibility tree while Configuration and Database were present.
+- Root cause was SwiftUI collapsing the first action-bearing
+  `LabeledContent` into the following row because the reusable selection row
+  had no contained, named accessibility boundary.
+- Added an expected-failing source contract, then made every runtime selection
+  row a contained accessibility element labeled `<Surface> runtime selection`.
+  The rebuilt package exposes separate Executable, Configuration, and Database
+  containers and all three picker buttons.
+- Against isolated application-support root
+  `/private/tmp/cam-runtime-gui-proof.FQO9Vl`, the packaged app selected the
+  installed CAM launcher, config, and corpus, derived runtime identity
+  `557d14e9fd5b9e276a2b4d58920bd0a39e2efb220b71743f04bae19f6c2cb45a`,
+  and explicitly stated that no CAM process started.
+- The packaged disposable probe returned `2,516` methodologies, `197`
+  repositories, tool `cam.stats.snapshot.v1`, and `workspaceRetained=false`.
+  Its persisted receipt proves all seven donor surfaces unchanged.
+- After quit and relaunch against the same isolated root, the packaged native
+  tree showed `Historical pinned identity`, `Historical receipt`, the exact
+  prior statistics, and a disabled `Run Disposable Statistics Probe`. A fresh
+  `Pin Selected Runtime` changed the heading to current `Pinned identity` and
+  re-enabled the probe.
+- Focused green proof: all `25` app tests pass. No CAM subprocess, mining,
+  provider, MCP, or personal-corpus mutation was authorized.
+- Aggregate green proof: portability and the honest 48-gate validator pass;
+  all `313` Swift tests pass; native app and CLI release builds pass;
+  deterministic package manifest is
+  `628822441262b3bfc75d03629464e3049d534c002aa6d154474b06eadf6b69a0`;
+  and the `56`-file credential-signature scan has zero findings.
 - Saved evidence:
   `docs/evidence/task-16-cam-runtime-restart-state.md`.
-- Boundary: no packaged GUI restart journey, live CAM process, capability
-  discovery, mining, exact approval, retry executor, or live-run recovery is
-  claimed. CAM-016 remains in progress and the 48-gate map remains honestly
-  incomplete.
+- Boundary: no live CAM process, capability discovery, mining, exact approval,
+  retry executor, or live-run recovery is claimed. CAM-016 remains in progress
+  and the 48-gate map remains honestly incomplete.
 - Saved evidence: `docs/evidence/task-14-research-acquisition.md`.
 - Boundary: V1 does not provide provider search, arbitrary HTML/browser
   acquisition, model-generated findings, paid APIs, cloud models, link

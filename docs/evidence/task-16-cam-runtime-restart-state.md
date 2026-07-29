@@ -1,8 +1,8 @@
 # CAM Runtime Historical Restart State
 
 **Date:** 2026-07-29
-**Status:** Verified core/native implementation slice; packaged GUI restart
-journey remains open.
+**Status:** Verified core/native implementation plus packaged GUI restart
+journey.
 
 ## Implemented
 
@@ -49,13 +49,13 @@ missing native historical gate, and malformed verified-receipt acceptance.
 Focused verification passes:
 
 - `./scripts/verify.sh cam`: 25 runtime/probe tests plus 5 restart-state tests;
-- `./scripts/verify.sh app`: 24 app tests; and
+- `./scripts/verify.sh app`: 25 app tests; and
 - `./scripts/verify.sh backup`: 18 backup tests, including explicit runtime
   history exclusion.
 
-The exact final worktree aggregate passes all 312 Swift tests, native app and
+The exact final worktree aggregate passes all 313 Swift tests, native app and
 CLI release builds, deterministic two-build package manifest
-`9ae5537913528eae2e4e9a3f9bc1744ad6344f0ad32a3db18710bc1e2d8d1542`, a
+`628822441262b3bfc75d03629464e3049d534c002aa6d154474b06eadf6b69a0`, a
 56-file zero-finding credential-signature scan, and direct current debug-binary
 offline smoke. The validated 48-gate map remains honestly incomplete at
 16 passed, 27 partial, and 5 missing.
@@ -66,10 +66,52 @@ A clean temporary non-local clone of pushed checkpoint
 It reported `dirty=false` and clean-clone reproducibility manifest
 `e2707e1c1f948551004a8a949011dce89e12a629a04520b1e1568fd93f0c1830`.
 
+## Packaged native restart journey
+
+The package was launched only against disposable application-support root
+`/private/tmp/cam-runtime-gui-proof.FQO9Vl`.
+
+The initial accessibility tree revealed a genuine failure before the journey:
+the visible Executable picker was absent while the Configuration and Database
+pickers were exposed. After adding an explicit contained and named boundary to
+each reusable selection row, the rebuilt package exposed:
+
+- `Executable runtime selection` and `Select CAM Executable…`;
+- `Configuration runtime selection` and `Select Configuration…`; and
+- `Database runtime selection` and `Select Database…`.
+
+The packaged app then selected:
+
+- `/Users/o2satz/miniforge3/envs/py313/bin/cam`;
+- `/Volumes/WS4TB/repo622sn/CAM_CAM/claw.toml`; and
+- `/Volumes/WS4TB/repo622sn/CAM_CAM/claw.db`.
+
+Pinning displayed runtime identity
+`557d14e9fd5b9e276a2b4d58920bd0a39e2efb220b71743f04bae19f6c2cb45a`
+and the explicit message `No CAM process was started`. The native disposable
+probe displayed `2,516` methodologies, `197` repositories,
+`cam.stats.snapshot.v1`, and verified copied-state status.
+
+The atomic history receipt independently reported:
+
+- `workspaceRetained=false`;
+- all seven executable/interpreter/package/install-metadata/sqlite/config/
+  database donor surfaces unchanged; and
+- the expected stable launcher/config/main-database hashes.
+
+After quitting and relaunching the package against the same root, the
+accessibility tree exposed `Historical pinned identity`, `Historical receipt`,
+the prior statistics, and a disabled `Run Disposable Statistics Probe`.
+`Re-pin this runtime before running another probe` was visible. Re-pinning
+changed the heading to current `Pinned identity` and re-enabled the probe.
+
+This is an actual packaged lifecycle proof. It is not source inspection,
+fixture-only persistence, or a claim that CAM executed.
+
 ## Non-claims
 
 No CAM process, capability discovery, mining executor, provider, MCP server,
-network request, approval consumption, personal-corpus mutation, or packaged
-GUI restart journey is implemented or claimed by this slice. A future live
-executor still requires separately bounded exact approval, postconditions,
-idempotency, cancellation, retry, and recovery evidence.
+network request, approval consumption, or personal-corpus mutation is
+implemented or claimed by this slice. A future live executor still requires
+separately bounded exact approval, postconditions, idempotency, cancellation,
+retry, and recovery evidence.

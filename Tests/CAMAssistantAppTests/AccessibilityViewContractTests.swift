@@ -254,6 +254,33 @@ func camOperationLifecycleRejectsStaleCompletionAndResets() {
     #expect(!lifecycle.accepts(disappearingProbe))
 }
 
+@Test("CAM runtime selection rows preserve every file picker for accessibility")
+func camRuntimeSelectionRowsPreservePickerControls() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(
+                path: "Sources/CAMAssistantApp/Views/CAMStatusView.swift"
+            ),
+        encoding: .utf8
+    )
+    guard let rowStart = source.range(of: "private func selectionRow("),
+          let rowEnd = source.range(
+              of: "@ViewBuilder\n    private func receiptDetails",
+              range: rowStart.upperBound..<source.endIndex
+          ) else {
+        Issue.record("CAM selection-row implementation was not found")
+        return
+    }
+    let selectionRow = String(source[rowStart.lowerBound..<rowEnd.lowerBound])
+
+    #expect(selectionRow.contains(".accessibilityElement(children: .contain)"))
+    #expect(
+        selectionRow.contains(
+            ".accessibilityLabel(\"\\(title) runtime selection\")"
+        )
+    )
+}
+
 private struct AccessibilitySourceContract {
     let fileName: String
     let rootLabelPrefix: String

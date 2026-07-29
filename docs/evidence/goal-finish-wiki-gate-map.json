@@ -310,7 +310,7 @@
         "docs/evidence/task-16-native-cam-runtime-snapshot.md",
         "docs/evidence/task-16-cam-runtime-restart-state.md"
       ],
-      "limitation": "Native and CLI controls derive and drift-check the installed runtime and WAL-family corpus, return real disposable statistics without launching CAM, and atomically restore a revalidated pin/receipt as historical evidence that requires current-session re-pin. Packaged restart proof, capability discovery, and durable live-run state remain."
+      "limitation": "Native and CLI controls derive and drift-check the installed runtime and WAL-family corpus, return real disposable statistics without launching CAM, and a packaged quit/relaunch journey restores a revalidated pin/receipt as historical evidence with probing disabled until current-session re-pin. Capability discovery and durable live-run state remain."
     },
     {
       "id": "cam.bounded-loop",
