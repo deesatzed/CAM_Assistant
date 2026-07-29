@@ -59,6 +59,65 @@ if arguments.first == "vault" {
         )
         exit(1)
     }
+} else if arguments.first == "evaluate-repository-semantic-v3" {
+    do {
+        let request = try RepositorySemanticV3EvaluationRequest.parse(
+            arguments: arguments
+        )
+        let generator = try RepositorySemanticV3LocalGenerator(
+            assignment: request.assignment
+        )
+        _ = try await generator.health()
+        let report = try await RepositorySemanticV3Evaluator().evaluate(
+            manifestURL: request.manifestURL,
+            generator: generator
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(
+            at: request.outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(report).write(
+            to: request.outputURL,
+            options: .atomic
+        )
+        print(
+            """
+            repository semantic v3 claim recall: \(report.claimRecall)
+            claim precision: \(report.claimPrecision)
+            evidence precision: \(report.evidencePrecision)
+            counterevidence recall: \(report.counterevidenceRecall)
+            abstention accuracy: \(report.abstentionAccuracy)
+            frozen gates: \(report.meetsFrozenThresholds ? "pass" : "fail")
+            report: \(request.outputURL.path)
+            """
+        )
+        let exitCode = RepositorySemanticV3EvaluationExitCode.forReport(
+            report
+        )
+        if exitCode != 0 {
+            exit(exitCode)
+        }
+    } catch RepositorySemanticV3EvaluationRequestError
+        .invalidArguments {
+        FileHandle.standardError.write(
+            Data(
+                """
+                usage: cam-assistant evaluate-repository-semantic-v3 MANIFEST OUTPUT MODEL LOOPBACK_ENDPOINT
+                """.appending("\n").utf8
+            )
+        )
+        exit(64)
+    } catch {
+        FileHandle.standardError.write(
+            Data(
+                "repository semantic v3 evaluation failed: \(error)\n"
+                    .utf8
+            )
+        )
+        exit(1)
+    }
 } else if arguments.first == "evaluate-repository-semantic" {
     do {
         let request = try RepositorySemanticEvaluationRequest.parse(

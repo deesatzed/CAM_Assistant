@@ -1474,6 +1474,106 @@ func repositorySemanticV3EvaluatorPenalizesClaimDistractors() async throws {
     #expect(report.failedCaseIDs == ["actor-cache-claims"])
 }
 
+@Test("repository semantic v3 loopback generator hides labels and roles")
+func repositorySemanticV3LoopbackGeneratorHidesEvaluationAnswers()
+    async throws {
+    let evaluationCase = try #require(
+        try repositorySemanticV3Manifest().cases.first {
+            $0.id == "actor-cache-claims"
+        }
+    )
+    let output = """
+    {"statement":"The cache has serialized mutation ownership and direct concurrency coverage, while values do not survive restart.","claim_ids":["cache-actor-owned-mutation","cache-concurrent-access-tested","cache-memory-only"],"support_ids":["cache-actor","cache-concurrency-test"],"counterevidence_ids":["cache-no-persistence"],"confidence":0.84}
+    """
+    let transport = RecordingRepositorySemanticTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: Data(#"{"data":[{"id":"local/semantic"}]}"#.utf8)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: repositorySemanticChatEnvelope(
+                model: "local/semantic",
+                content: output
+            )
+        ),
+    ])
+    let generator = try RepositorySemanticV3LocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: transport
+    )
+
+    await #expect(
+        throws: RepositorySemanticV3LocalGeneratorError.healthRequired
+    ) {
+        _ = try await generator.generate(for: evaluationCase)
+    }
+    _ = try await generator.health()
+    let candidate = try await generator.generate(for: evaluationCase)
+    let validated = try #require(
+        try RepositorySemanticV3CandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+    #expect(validated.claims.map(\.id) == evaluationCase.requiredClaimIDs)
+
+    let requests = await transport.recordedRequests()
+    #expect(requests.count == 2)
+    #expect(requests[0].headers["Authorization"] == nil)
+    #expect(requests[1].headers == ["Content-Type": "application/json"])
+    let body = try #require(requests[1].body)
+    let json = try #require(
+        JSONSerialization.jsonObject(with: body) as? [String: Any]
+    )
+    let messages = try #require(json["messages"] as? [[String: Any]])
+    let systemContent = try #require(
+        messages.first?["content"] as? String
+    )
+    #expect(systemContent.contains("cache-actor-owned-mutation"))
+    #expect(systemContent.contains("cache-actor"))
+    #expect(!systemContent.contains("expectedOutcome"))
+    #expect(!systemContent.contains("requiredClaimIDs"))
+    #expect(!systemContent.contains("requiredSupportIDs"))
+    #expect(!systemContent.contains("requiredCounterevidenceIDs"))
+    #expect(!systemContent.contains(#""role""#))
+
+    let responseFormat = try #require(
+        json["response_format"] as? [String: Any]
+    )
+    let jsonSchema = try #require(
+        responseFormat["json_schema"] as? [String: Any]
+    )
+    let schema = try #require(
+        jsonSchema["schema"] as? [String: Any]
+    )
+    let properties = try #require(
+        schema["properties"] as? [String: Any]
+    )
+    let claimProperty = try #require(
+        properties["claim_ids"] as? [String: Any]
+    )
+    let claimItems = try #require(
+        claimProperty["items"] as? [String: Any]
+    )
+    #expect(
+        claimItems["enum"] as? [String]
+            == evaluationCase.claimCatalog.map(\.id)
+    )
+    for key in ["support_ids", "counterevidence_ids"] {
+        let property = try #require(
+            properties[key] as? [String: Any]
+        )
+        let items = try #require(
+            property["items"] as? [String: Any]
+        )
+        #expect(
+            items["enum"] as? [String]
+                == evaluationCase.evidence.map(\.id)
+        )
+    }
+}
+
 @Test("repository semantic candidate requires exact support counterevidence and concepts")
 func repositorySemanticCandidateRequiresExactEvidenceAndConcepts() throws {
     let manifest = try repositorySemanticManifest()
@@ -2297,6 +2397,43 @@ func repositorySemanticEvaluationRequestRequiresExplicitLoopback() throws {
         _ = try RepositorySemanticEvaluationRequest.parse(
             arguments: [
                 "evaluate-repository-semantic",
+                "manifest.json",
+                "report.json",
+                "remote/model",
+                "https://example.com/v1",
+            ]
+        )
+    }
+}
+
+@Test("repository semantic v3 evaluation request is explicit and loopback only")
+func repositorySemanticV3EvaluationRequestIsExplicitAndLoopbackOnly() throws {
+    let request = try RepositorySemanticV3EvaluationRequest.parse(
+        arguments: [
+            "evaluate-repository-semantic-v3",
+            "/tmp/semantic-v3.json",
+            "/tmp/semantic-v3-report.json",
+            "local/semantic",
+            "http://127.0.0.1:8080/v1",
+        ]
+    )
+
+    #expect(request.manifestURL.path == "/tmp/semantic-v3.json")
+    #expect(request.outputURL.path == "/tmp/semantic-v3-report.json")
+    #expect(request.assignment.provider == .local)
+    #expect(request.assignment.modelID == "local/semantic")
+    #expect(
+        throws: RepositorySemanticV3EvaluationRequestError
+            .invalidArguments
+    ) {
+        _ = try RepositorySemanticV3EvaluationRequest.parse(
+            arguments: ["evaluate-repository-semantic-v3"]
+        )
+    }
+    #expect(throws: ModelProfileError.invalidLocalEndpoint) {
+        _ = try RepositorySemanticV3EvaluationRequest.parse(
+            arguments: [
+                "evaluate-repository-semantic-v3",
                 "manifest.json",
                 "report.json",
                 "remote/model",

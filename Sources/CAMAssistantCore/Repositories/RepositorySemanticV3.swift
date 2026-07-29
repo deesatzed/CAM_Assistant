@@ -1,6 +1,36 @@
 import CryptoKit
 import Foundation
 
+public struct RepositorySemanticV3EvaluationRequest:
+    Equatable, Sendable {
+    public let manifestURL: URL
+    public let outputURL: URL
+    public let assignment: ModelAssignment
+
+    public static func parse(arguments: [String]) throws -> Self {
+        guard arguments.count == 5,
+              arguments.first
+                == "evaluate-repository-semantic-v3" else {
+            throw RepositorySemanticV3EvaluationRequestError
+                .invalidArguments
+        }
+        return try Self(
+            manifestURL: URL(filePath: arguments[1]),
+            outputURL: URL(filePath: arguments[2]),
+            assignment: ModelAssignment(
+                provider: .local,
+                modelID: arguments[3],
+                localEndpoint: arguments[4]
+            )
+        )
+    }
+}
+
+public enum RepositorySemanticV3EvaluationRequestError:
+    Error, Equatable {
+    case invalidArguments
+}
+
 public struct RepositorySemanticV3Thresholds:
     Codable, Equatable, Sendable {
     public let claimRecall: Double
@@ -756,5 +786,513 @@ public struct RepositorySemanticV3Evaluator: Sendable {
         default:
             "generator_error"
         }
+    }
+}
+
+public enum RepositorySemanticV3LocalGeneratorError:
+    Error, Equatable {
+    case invalidAssignment
+    case healthRequired
+    case evidenceBoundsExceeded
+    case transportUnavailable
+    case httpStatus(Int)
+    case invalidResponse
+    case selectedModelUnavailable(String)
+    case modelIdentityMismatch(expected: String, actual: String)
+    case unknownClaim(String)
+    case unknownEvidence(String)
+    case malformedCandidate
+}
+
+public actor RepositorySemanticV3LocalGenerator:
+    RepositorySemanticV3CandidateGenerator {
+    public nonisolated let runtimeIdentity: String
+    public nonisolated let modelID: String
+
+    private static let maximumClaimCount = 32
+    private static let maximumEvidenceCount = 64
+    private static let maximumDescriptionCharacters = 1_000
+    private static let maximumExcerptCharacters = 2_000
+    private static let maximumRequestBytes = 64_000
+    private static let maximumResponseBytes = 64_000
+
+    private let endpointIdentity: String
+    private let baseURL: URL
+    private let transport: any LocalModelTransport
+    private var healthVerified = false
+
+    public init(
+        assignment: ModelAssignment,
+        transport: any LocalModelTransport = URLSessionLocalModelTransport()
+    ) throws {
+        guard assignment.provider == .local,
+              let endpoint = assignment.localEndpoint,
+              ModelAssignment.isSafeLocalEndpoint(endpoint),
+              let baseURL = URL(string: endpoint) else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .invalidAssignment
+        }
+        modelID = assignment.modelID
+        endpointIdentity = endpoint.trimmingCharacters(
+            in: CharacterSet(charactersIn: "/")
+        )
+        runtimeIdentity = "loopback:\(endpointIdentity)"
+        self.baseURL = baseURL
+        self.transport = transport
+    }
+
+    public func health() async throws -> LocalModelHealth {
+        healthVerified = false
+        let response = try await perform(
+            LocalModelHTTPRequest(
+                method: .get,
+                url: baseURL.appending(path: "models")
+            )
+        )
+        let catalog: RepositorySemanticV3ModelListEnvelope
+        do {
+            catalog = try JSONDecoder().decode(
+                RepositorySemanticV3ModelListEnvelope.self,
+                from: response.data
+            )
+        } catch {
+            throw RepositorySemanticV3LocalGeneratorError
+                .invalidResponse
+        }
+        guard catalog.data.contains(where: { $0.id == modelID }) else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .selectedModelUnavailable(modelID)
+        }
+        healthVerified = true
+        return LocalModelHealth(
+            modelID: modelID,
+            endpointIdentity: endpointIdentity,
+            isAvailable: true
+        )
+    }
+
+    public func generate(
+        for evaluationCase: RepositorySemanticV3Case
+    ) async throws -> RepositorySemanticV3Candidate {
+        guard healthVerified else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .healthRequired
+        }
+        guard evaluationCase.claimCatalog.count
+                <= Self.maximumClaimCount,
+              evaluationCase.claimCatalog.allSatisfy({
+                  $0.description.count
+                    <= Self.maximumDescriptionCharacters
+              }),
+              evaluationCase.evidence.count
+                <= Self.maximumEvidenceCount,
+              evaluationCase.evidence.allSatisfy({
+                  $0.excerpt.count <= Self.maximumExcerptCharacters
+              }) else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .evidenceBoundsExceeded
+        }
+
+        let claimData = try JSONEncoder().encode(
+            evaluationCase.claimCatalog
+        )
+        let neutralEvidence = evaluationCase.evidence.map {
+            RepositorySemanticV3PromptEvidence(evidence: $0)
+        }
+        let evidenceData = try JSONEncoder().encode(neutralEvidence)
+        let claimText = String(decoding: claimData, as: UTF8.self)
+        let evidenceText = String(
+            decoding: evidenceData,
+            as: UTF8.self
+        )
+        let claimIDs = evaluationCase.claimCatalog.map(\.id)
+        let evidenceIDs = evaluationCase.evidence.map(\.id)
+        let request = RepositorySemanticV3ChatCompletionRequest(
+            model: modelID,
+            messages: [
+                RepositorySemanticV3ChatMessage(
+                    role: "system",
+                    content: """
+                    Analyze only the supplied immutable repository evidence. Select only catalog claim IDs and evidence IDs. Return exactly one JSON object with statement, claim_ids, support_ids, counterevidence_ids, and confidence. Cite direct support and important limiting counterevidence. If no catalog claim is supported, return an empty statement, empty ID arrays, and confidence 0. Never invent an ID. This is an ephemeral hypothesis, not truth or permission to retain, copy, execute, or modify code.
+
+                    Snapshot commit: \(evaluationCase.snapshotCommit)
+                    Claim catalog JSON: \(claimText)
+                    Evidence JSON: \(evidenceText)
+                    """
+                ),
+                RepositorySemanticV3ChatMessage(
+                    role: "user",
+                    content: evaluationCase.prompt
+                ),
+            ],
+            stream: false,
+            temperature: 0,
+            maxTokens: 512,
+            seed: 0,
+            responseFormat: .semanticCandidate(
+                claimIDs: claimIDs,
+                evidenceIDs: evidenceIDs
+            )
+        )
+        let body = try JSONEncoder().encode(request)
+        guard body.count <= Self.maximumRequestBytes else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .evidenceBoundsExceeded
+        }
+        let response = try await perform(
+            LocalModelHTTPRequest(
+                method: .post,
+                url: baseURL.appending(path: "chat/completions"),
+                headers: ["Content-Type": "application/json"],
+                body: body
+            )
+        )
+        let envelope: RepositorySemanticV3ChatCompletionEnvelope
+        do {
+            envelope = try JSONDecoder().decode(
+                RepositorySemanticV3ChatCompletionEnvelope.self,
+                from: response.data
+            )
+        } catch {
+            throw RepositorySemanticV3LocalGeneratorError
+                .invalidResponse
+        }
+        guard envelope.model == modelID else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .modelIdentityMismatch(
+                    expected: modelID,
+                    actual: envelope.model
+                )
+        }
+        guard let content = envelope.choices.first?.message.content,
+              let contentData = content.data(using: .utf8),
+              let output = try? JSONDecoder().decode(
+                  RepositorySemanticV3ModelOutput.self,
+                  from: contentData
+              ) else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .invalidResponse
+        }
+
+        let statement = output.statement.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        let noSelections = output.claimIDs.isEmpty
+            && output.supportIDs.isEmpty
+            && output.counterevidenceIDs.isEmpty
+        guard output.confidence.isFinite,
+              (0...1).contains(output.confidence),
+              (statement.isEmpty
+                && noSelections
+                && output.confidence == 0)
+                || (!statement.isEmpty
+                    && !output.claimIDs.isEmpty
+                    && !output.supportIDs.isEmpty
+                    && !output.counterevidenceIDs.isEmpty)
+        else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .malformedCandidate
+        }
+
+        let validClaimIDs = Set(claimIDs)
+        for id in output.claimIDs {
+            guard validClaimIDs.contains(id) else {
+                throw RepositorySemanticV3LocalGeneratorError
+                    .unknownClaim(id)
+            }
+        }
+        let validEvidenceIDs = Set(evidenceIDs)
+        for id in output.supportIDs + output.counterevidenceIDs {
+            guard validEvidenceIDs.contains(id) else {
+                throw RepositorySemanticV3LocalGeneratorError
+                    .unknownEvidence(id)
+            }
+        }
+
+        return RepositorySemanticV3Candidate(
+            snapshotCommit: evaluationCase.snapshotCommit,
+            statement: statement,
+            claimIDs: output.claimIDs,
+            supportIDs: output.supportIDs,
+            counterevidenceIDs: output.counterevidenceIDs,
+            confidence: output.confidence,
+            runtimeIdentity: runtimeIdentity,
+            modelID: modelID,
+            retention: .ephemeral
+        )
+    }
+
+    private func perform(
+        _ request: LocalModelHTTPRequest
+    ) async throws -> LocalModelHTTPResponse {
+        let response: LocalModelHTTPResponse
+        do {
+            response = try await transport.send(request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as RepositorySemanticV3LocalGeneratorError {
+            throw error
+        } catch {
+            throw RepositorySemanticV3LocalGeneratorError
+                .transportUnavailable
+        }
+        guard (200..<300).contains(response.statusCode) else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .httpStatus(response.statusCode)
+        }
+        guard response.data.count <= Self.maximumResponseBytes else {
+            throw RepositorySemanticV3LocalGeneratorError
+                .invalidResponse
+        }
+        return response
+    }
+}
+
+private struct RepositorySemanticV3PromptEvidence:
+    Encodable {
+    let id: String
+    let snapshotCommit: String
+    let filePath: String
+    let line: Int
+    let symbol: String
+    let excerpt: String
+
+    init(evidence: RepositorySemanticEvidence) {
+        id = evidence.id
+        snapshotCommit = evidence.snapshotCommit
+        filePath = evidence.filePath
+        line = evidence.line
+        symbol = evidence.symbol
+        excerpt = evidence.excerpt
+    }
+}
+
+private struct RepositorySemanticV3ModelListEnvelope:
+    Decodable {
+    let data: [RepositorySemanticV3ModelListItem]
+}
+
+private struct RepositorySemanticV3ModelListItem:
+    Decodable {
+    let id: String
+}
+
+private struct RepositorySemanticV3ChatMessage: Codable {
+    let role: String
+    let content: String
+}
+
+private struct RepositorySemanticV3ChatCompletionRequest:
+    Encodable {
+    let model: String
+    let messages: [RepositorySemanticV3ChatMessage]
+    let stream: Bool
+    let temperature: Int
+    let maxTokens: Int
+    let seed: Int
+    let responseFormat: RepositorySemanticV3ResponseFormat
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case messages
+        case stream
+        case temperature
+        case maxTokens = "max_tokens"
+        case seed
+        case responseFormat = "response_format"
+    }
+}
+
+private struct RepositorySemanticV3ResponseFormat:
+    Encodable {
+    let type: String
+    let jsonSchema: RepositorySemanticV3JSONSchema
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case jsonSchema = "json_schema"
+    }
+
+    static func semanticCandidate(
+        claimIDs: [String],
+        evidenceIDs: [String]
+    ) -> Self {
+        Self(
+            type: "json_schema",
+            jsonSchema: RepositorySemanticV3JSONSchema(
+                name: "repository_semantic_v3_candidate",
+                schema: RepositorySemanticV3CandidateSchema(
+                    claimIDs: claimIDs,
+                    evidenceIDs: evidenceIDs
+                )
+            )
+        )
+    }
+}
+
+private struct RepositorySemanticV3JSONSchema: Encodable {
+    let name: String
+    let schema: RepositorySemanticV3CandidateSchema
+}
+
+private struct RepositorySemanticV3CandidateSchema: Encodable {
+    let type = "object"
+    let properties: [String: RepositorySemanticV3SchemaProperty]
+    let required = [
+        "statement",
+        "claim_ids",
+        "support_ids",
+        "counterevidence_ids",
+        "confidence",
+    ]
+    let additionalProperties = false
+
+    init(claimIDs: [String], evidenceIDs: [String]) {
+        properties = [
+            "statement": RepositorySemanticV3SchemaProperty(
+                type: "string"
+            ),
+            "claim_ids": RepositorySemanticV3SchemaProperty(
+                type: "array",
+                allowedValues: claimIDs
+            ),
+            "support_ids": RepositorySemanticV3SchemaProperty(
+                type: "array",
+                allowedValues: evidenceIDs
+            ),
+            "counterevidence_ids":
+                RepositorySemanticV3SchemaProperty(
+                    type: "array",
+                    allowedValues: evidenceIDs
+                ),
+            "confidence": RepositorySemanticV3SchemaProperty(
+                type: "number",
+                minimum: 0,
+                maximum: 1
+            ),
+        ]
+    }
+}
+
+private struct RepositorySemanticV3SchemaProperty: Encodable {
+    let type: String
+    let items: RepositorySemanticV3SchemaItems?
+    let minimum: Double?
+    let maximum: Double?
+
+    init(
+        type: String,
+        allowedValues: [String]? = nil,
+        minimum: Double? = nil,
+        maximum: Double? = nil
+    ) {
+        self.type = type
+        items = allowedValues.map {
+            RepositorySemanticV3SchemaItems(
+                type: "string",
+                allowedValues: $0.isEmpty ? nil : $0
+            )
+        }
+        self.minimum = minimum
+        self.maximum = maximum
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case items
+        case minimum
+        case maximum
+    }
+}
+
+private struct RepositorySemanticV3SchemaItems: Encodable {
+    let type: String
+    let allowedValues: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case allowedValues = "enum"
+    }
+}
+
+private struct RepositorySemanticV3ChatCompletionEnvelope:
+    Decodable {
+    let model: String
+    let choices: [RepositorySemanticV3ChatChoice]
+}
+
+private struct RepositorySemanticV3ChatChoice: Decodable {
+    let message: RepositorySemanticV3ChatMessage
+}
+
+private struct RepositorySemanticV3ModelOutput: Decodable {
+    let statement: String
+    let claimIDs: [String]
+    let supportIDs: [String]
+    let counterevidenceIDs: [String]
+    let confidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case statement
+        case claimIDs = "claim_ids"
+        case supportIDs = "support_ids"
+        case counterevidenceIDs = "counterevidence_ids"
+        case confidence
+    }
+
+    init(from decoder: Decoder) throws {
+        let allKeys = try decoder.container(
+            keyedBy: RepositorySemanticV3DynamicCodingKey.self
+        ).allKeys.map(\.stringValue)
+        let allowed = Set([
+            "statement",
+            "claim_ids",
+            "support_ids",
+            "counterevidence_ids",
+            "confidence",
+        ])
+        guard Set(allKeys) == allowed else {
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription:
+                        "Semantic V3 response keys must match exactly"
+                )
+            )
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        statement = try container.decode(
+            String.self,
+            forKey: .statement
+        )
+        claimIDs = try container.decode(
+            [String].self,
+            forKey: .claimIDs
+        )
+        supportIDs = try container.decode(
+            [String].self,
+            forKey: .supportIDs
+        )
+        counterevidenceIDs = try container.decode(
+            [String].self,
+            forKey: .counterevidenceIDs
+        )
+        confidence = try container.decode(
+            Double.self,
+            forKey: .confidence
+        )
+    }
+}
+
+private struct RepositorySemanticV3DynamicCodingKey: CodingKey {
+    let stringValue: String
+    let intValue: Int? = nil
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+    }
+
+    init?(intValue: Int) {
+        return nil
     }
 }
