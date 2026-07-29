@@ -172,6 +172,28 @@ disabled until their individual proof gates are met.
 
 ## Verification Receipts
 
+### Clean packaged empty-state accessibility inspection — 2026-07-29
+
+- Rebuilt the packaged app at exact clean commit
+  `94977951b558435f97c5c4967092dd73edfa88dc`; embedded dirty state is false,
+  bundle version is `51`, and the executable SHA-256 is
+  `2112dac8cd45cb69e7132249b44b29c15f602c39c6d72a876166ea50743d3e61`.
+- Launched only with disposable application-support root
+  `/private/tmp/cam-gui-audit-clean.GrWMaK` and inspected a fresh native
+  accessibility tree after selecting Assistant, Library, Activity, Tasks,
+  CAM, Research, Repositories, Mac Care, Settings, and every Settings pane.
+- Every empty primary workspace exposed a named container or control set plus
+  an honest empty/offline/disabled authority message. The isolated database
+  remained empty across sources, derived documents, tasks, and repository
+  jobs; the disposable root was removed after quit.
+- An ordinary Tab key produced no observable focus change under the host's
+  current keyboard-navigation setting. No system setting was changed. This
+  remains a keyboard-harness limitation, not proof of an app focus defect.
+- Saved bounded evidence:
+  `docs/evidence/task-18-packaged-empty-state-accessibility.md`. Complete
+  VoiceOver speech, every tab stop, populated/error/large-data states, visual
+  accessibility, and repeatable repository-owned GUI automation remain open.
+
 ### Task 1 — 2026-07-24
 
 - Expected red: focused test failed because `BuildIdentity` was absent.

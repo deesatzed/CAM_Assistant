@@ -465,6 +465,7 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/task-12-packaged-accessibility.md",
+        "docs/evidence/task-18-packaged-empty-state-accessibility.md",
         "docs/evidence/task-18-ux-release-gap-audit.md"
       ],
       "limitation": "Focused and manual slices exist; complete VoiceOver speech, tab order, visual, large-data, and every-state journeys are missing."
