@@ -131,3 +131,13 @@ repository goal additionally requires broader intake coverage, saved
 non-mutation proof for every lifecycle path, complete idea-card fields,
 retained research-packet promotion, and live bounded CAM/Codex coordination.
 
+## Independent-review hardening addendum
+
+The original v1 fixture remains immutable. Before any live-model run, v2 adds
+same-role distractors and misleading lexical matches so evidence precision
+tests selection rather than schema following alone. Persisted assignments and
+generator construction both enforce loopback endpoints; cancellation
+propagates without a normal report; failed frozen gates save their report and
+exit nonzero; license provenance is validator-bound; response bytes and keys
+are bounded; legacy cards have a migration regression; and case results are
+sorted.

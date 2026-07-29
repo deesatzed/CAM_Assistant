@@ -1461,6 +1461,60 @@ disabled until their individual proof gates are met.
   notarization, deployment, external accounts, secrets, sensitive egress, and
   destructive Mac actions remain deliberate approval boundaries.
 
+### Frozen repository semantic evaluation — 2026-07-28
+
+- Approved design and TDD plan:
+  `docs/plans/2026-07-28-semantic-repository-intelligence-design.md` and
+  `docs/plans/2026-07-28-semantic-repository-intelligence.md`.
+- Frozen before implementation: four synthetic cases with exact
+  commit/file/line/symbol evidence, required support and counterevidence,
+  concept groups, and two explicit abstentions. Independent review then
+  required a separately frozen v2 with four same-role distractors and
+  misleading lexical matches. V2 manifest SHA-256:
+  `5fe3b45ab5bbfdabd08eadf0871348a5830a5d4cd6c2213350be493293f64b25`.
+- Expected REDs: the repository suite failed for the absent manifest,
+  deterministic validator, evaluator/generator protocol, strict loopback
+  generator, evidence-complete idea conversion, and CLI request parser before
+  each implementation.
+- Green: `./scripts/verify.sh repository-semantic` passes all `50` repository
+  tests. The scripted frozen run reaches `1.0` observation recall, evidence
+  precision, counterevidence recall, and abstention accuracy; a contaminated
+  run fails with separate invalid and unanswered case receipts, and citing a
+  same-role distractor lowers precision and fails the v2 gate.
+- Green: `./scripts/verify.sh all` passes the local `221`-test suite, app/CLI
+  release build, two-build package reproducibility, package identity,
+  42-file credential-signature scan with zero findings, and offline smoke.
+- Green: the strict loopback generator requires an explicit local assignment
+  and selected-model health check, revalidates decoded endpoints and generator
+  construction, bounds evidence/request/response bytes, sends no authorization
+  header, requests a strict JSON schema, rejects unknown response keys,
+  preserves explicit abstention and cancellation, and rejects identity drift
+  and unknown evidence.
+- Green: validated semantic candidates can form only ephemeral
+  evidence-complete cards preserving exact support/counterevidence citations,
+  confidence, license, rejected alternatives, rationale, and smallest
+  experiment. Legacy retained cards remain decodable.
+- Live truth: read-only checks of the previously evidenced loopback endpoints
+  on ports `1234` and `11434` both refused connection. No real-model report
+  was fabricated.
+- Goal-map effect: `repositories.semantic-evaluation` moves from `missing` to
+  `partial`; totals are now `11 passed`, `27 partial`, and `10 missing`.
+- Saved receipt:
+  `docs/evidence/task-15-repository-semantic-evaluation.md`.
+- Claim boundary: no named real model has passed the frozen corpus, and no
+  native selected-repository semantic journey exists. CAM-015 remains in
+  progress.
+- Independent-review adjudication:
+  - Accepted and fixed: decoded-assignment loopback bypass, successful CLI
+    status on a failed gate, caller-supplied license provenance, swallowed
+    cancellation, non-discriminative v1 evidence selection, legacy-card
+    migration coverage, permissive response decoding/unbounded responses, and
+    unsorted case results.
+  - Rejected: none.
+  - Needs investigation: none for this synthetic-validator checkpoint. Broad
+    repository quality and a named live-model result remain explicit future
+    proof gates rather than claims from this slice.
+
 ## Blockers
 
 None.

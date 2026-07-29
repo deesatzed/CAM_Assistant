@@ -6,8 +6,8 @@
   "summary": {
     "total": 48,
     "passed": 11,
-    "partial": 26,
-    "missing": 11,
+    "partial": 27,
+    "missing": 10,
     "deferred": 0
   },
   "gates": [
@@ -199,11 +199,12 @@
       "id": "repositories.semantic-evaluation",
       "sourceLine": 155,
       "title": "Cited semantic observations and frozen evaluation",
-      "status": "missing",
+      "status": "partial",
       "evidence": [
-        "docs/evidence/task-15-repository-job-lifecycle.md"
+        "docs/evidence/task-15-repository-job-lifecycle.md",
+        "docs/evidence/task-15-repository-semantic-evaluation.md"
       ],
-      "limitation": "Only deterministic markers, declarations, and import observations exist; semantic evidence and abstention evaluation awaits approved design."
+      "limitation": "A frozen v2 distractor/evidence/counterevidence/abstention evaluator, strict loopback generator, fail-closed CLI, and evidence-complete card conversion pass synthetic contract tests; no named real-model report or native live-repository semantic journey exists."
     },
     {
       "id": "repositories.idea-quality",

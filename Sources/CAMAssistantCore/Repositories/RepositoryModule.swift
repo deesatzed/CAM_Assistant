@@ -768,30 +768,124 @@ public struct RepositoryIdeaDraft: Equatable, Sendable {
 public struct RepositoryIdeaCard: Codable, Equatable, Sendable {
     public let id: String
     public let title: String
+    public let rationale: String?
     public let evidence: [RepositoryObservation]
     public let counterevidence: [String]
+    public let counterevidenceCitations: [RepositoryObservation]
+    public let rejectedAlternatives: [String]
     public let confidence: Double
     public let license: String
     public let validationExperiment: String
 
-    public init(id: String, title: String, evidence: [RepositoryObservation], counterevidence: [String], confidence: Double, license: String, validationExperiment: String) throws {
+    public init(
+        id: String,
+        title: String,
+        rationale: String? = nil,
+        evidence: [RepositoryObservation],
+        counterevidence: [String],
+        counterevidenceCitations: [RepositoryObservation] = [],
+        rejectedAlternatives: [String] = [],
+        confidence: Double,
+        license: String,
+        validationExperiment: String
+    ) throws {
         guard !counterevidence.isEmpty else { throw RepositoryIdeaError.missingCounterevidence }
         guard !id.isEmpty, !title.isEmpty, !evidence.isEmpty, (0...1).contains(confidence), !license.isEmpty, !validationExperiment.isEmpty else {
             throw RepositoryIdeaError.invalidCard
         }
-        self.id = id; self.title = title; self.evidence = evidence; self.counterevidence = counterevidence
+        self.id = id; self.title = title; self.rationale = rationale
+        self.evidence = evidence; self.counterevidence = counterevidence
+        self.counterevidenceCitations = counterevidenceCitations
+        self.rejectedAlternatives = rejectedAlternatives
         self.confidence = confidence; self.license = license; self.validationExperiment = validationExperiment
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case rationale
+        case evidence
+        case counterevidence
+        case counterevidenceCitations
+        case rejectedAlternatives
+        case confidence
+        case license
+        case validationExperiment
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            id: container.decode(String.self, forKey: .id),
+            title: container.decode(String.self, forKey: .title),
+            rationale: container.decodeIfPresent(
+                String.self,
+                forKey: .rationale
+            ),
+            evidence: container.decode(
+                [RepositoryObservation].self,
+                forKey: .evidence
+            ),
+            counterevidence: container.decode(
+                [String].self,
+                forKey: .counterevidence
+            ),
+            counterevidenceCitations: container.decodeIfPresent(
+                [RepositoryObservation].self,
+                forKey: .counterevidenceCitations
+            ) ?? [],
+            rejectedAlternatives: container.decodeIfPresent(
+                [String].self,
+                forKey: .rejectedAlternatives
+            ) ?? [],
+            confidence: container.decode(
+                Double.self,
+                forKey: .confidence
+            ),
+            license: container.decode(String.self, forKey: .license),
+            validationExperiment: container.decode(
+                String.self,
+                forKey: .validationExperiment
+            )
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encodeIfPresent(rationale, forKey: .rationale)
+        try container.encode(evidence, forKey: .evidence)
+        try container.encode(counterevidence, forKey: .counterevidence)
+        try container.encode(
+            counterevidenceCitations,
+            forKey: .counterevidenceCitations
+        )
+        try container.encode(
+            rejectedAlternatives,
+            forKey: .rejectedAlternatives
+        )
+        try container.encode(confidence, forKey: .confidence)
+        try container.encode(license, forKey: .license)
+        try container.encode(
+            validationExperiment,
+            forKey: .validationExperiment
+        )
     }
 
     public func promote(snapshot: RepositorySnapshot) throws -> RepositoryIdeaProposal {
         guard !snapshot.isDirty else { throw RepositoryIdeaError.dirtySnapshotNotEligible }
-        guard evidence.allSatisfy({ observation in
+        let citedObservations = evidence + counterevidenceCitations
+        guard citedObservations.allSatisfy({ observation in
             observation.snapshotCommit == snapshot.commit
                 && snapshot.files.contains { file in
                     file.path == observation.filePath && observation.line > 0 && observation.line <= file.lineCount
                 }
         }) else {
             throw RepositoryIdeaError.staleEvidence
+        }
+        guard license == (snapshot.license ?? "Unknown") else {
+            throw RepositoryIdeaError.licenseMismatch
         }
         return RepositoryIdeaProposal(kind: .researchPacket, sourceCommit: snapshot.commit, ideaID: id)
     }
@@ -902,6 +996,7 @@ public struct RepositoryIdeaListRow: Equatable, Sendable, Identifiable {
     public let dispositionLabel: String
     public let evidenceLabel: String
     public let counterevidence: String
+    public let rejectedAlternatives: String
     public let validationExperiment: String
 
     init(record: StoredRepositoryIdea) {
@@ -911,6 +1006,8 @@ public struct RepositoryIdeaListRow: Equatable, Sendable, Identifiable {
         let count = record.card.evidence.count
         evidenceLabel = "\(count) cited \(count == 1 ? "observation" : "observations") · commit \(record.snapshotCommit.prefix(12))"
         counterevidence = record.card.counterevidence.joined(separator: " ")
+        rejectedAlternatives = record.card.rejectedAlternatives
+            .joined(separator: " ")
         validationExperiment = record.card.validationExperiment
     }
 }
@@ -991,7 +1088,9 @@ public final class RepositoryIdeaStore {
 
 public enum RepositoryIdeaError: Error, Equatable {
     case missingCounterevidence
+    case missingRejectedAlternatives
     case invalidCard
     case staleEvidence
+    case licenseMismatch
     case dirtySnapshotNotEligible
 }

@@ -57,6 +57,60 @@ if arguments.first == "models" || arguments.first == "embeddings" {
         )
         exit(1)
     }
+} else if arguments.first == "evaluate-repository-semantic" {
+    do {
+        let request = try RepositorySemanticEvaluationRequest.parse(
+            arguments: arguments
+        )
+        let generator = try RepositorySemanticLocalGenerator(
+            assignment: request.assignment
+        )
+        _ = try await generator.health()
+        let report = try await RepositorySemanticEvaluator().evaluate(
+            manifestURL: request.manifestURL,
+            generator: generator
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(
+            at: request.outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(report).write(
+            to: request.outputURL,
+            options: .atomic
+        )
+        print(
+            """
+            repository semantic observation recall: \(report.observationRecall)
+            evidence precision: \(report.evidencePrecision)
+            counterevidence recall: \(report.counterevidenceRecall)
+            abstention accuracy: \(report.abstentionAccuracy)
+            frozen gates: \(report.meetsFrozenThresholds ? "pass" : "fail")
+            report: \(request.outputURL.path)
+            """
+        )
+        let exitCode = RepositorySemanticEvaluationExitCode.forReport(report)
+        if exitCode != 0 {
+            exit(exitCode)
+        }
+    } catch RepositorySemanticEvaluationRequestError.invalidArguments {
+        FileHandle.standardError.write(
+            Data(
+                """
+                usage: cam-assistant evaluate-repository-semantic MANIFEST OUTPUT MODEL LOOPBACK_ENDPOINT
+                """.appending("\n").utf8
+            )
+        )
+        exit(64)
+    } catch {
+        FileHandle.standardError.write(
+            Data(
+                "repository semantic evaluation failed: \(error)\n".utf8
+            )
+        )
+        exit(1)
+    }
 } else if arguments.first == "evaluate-generated" {
     do {
         let request = try GeneratedAnswerEvaluationRequest.parse(

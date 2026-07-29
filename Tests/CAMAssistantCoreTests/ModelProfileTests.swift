@@ -88,6 +88,37 @@ func modelProfilesRejectCredentialBearingEndpoints() throws {
     }
 }
 
+@Test("decoded model assignments revalidate the loopback boundary")
+func decodedModelAssignmentsRevalidateLoopbackBoundary() throws {
+    let remote = Data(
+        """
+        {
+          "provider": "local",
+          "modelID": "remote/model",
+          "localEndpoint": "https://example.com/v1"
+        }
+        """.utf8
+    )
+
+    #expect(throws: ModelProfileError.invalidLocalEndpoint) {
+        _ = try JSONDecoder().decode(ModelAssignment.self, from: remote)
+    }
+
+    let local = try JSONDecoder().decode(
+        ModelAssignment.self,
+        from: Data(
+            """
+            {
+              "provider": "local",
+              "modelID": "local/model",
+              "localEndpoint": "http://127.0.0.1:8080/v1"
+            }
+            """.utf8
+        )
+    )
+    #expect(local.localEndpoint == "http://127.0.0.1:8080/v1")
+}
+
 @Test("a selectable profile always contains a local default assignment")
 func modelProfilesRequireALocalDefault() throws {
     #expect(throws: ModelProfileError.missingLocalAssignment) {

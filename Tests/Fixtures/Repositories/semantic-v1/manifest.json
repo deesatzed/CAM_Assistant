@@ -1,0 +1,161 @@
+{
+  "manifestVersion": 1,
+  "frozenAt": "2026-07-28",
+  "corpusPurpose": "Synthetic evidence-first repository semantic observation evaluation. It contains no donor source, personal vault data, credentials, or web content.",
+  "thresholds": {
+    "observationRecall": 1.0,
+    "evidencePrecision": 1.0,
+    "counterevidenceRecall": 1.0,
+    "abstentionAccuracy": 1.0
+  },
+  "cases": [
+    {
+      "id": "actor-cache-boundary",
+      "snapshotCommit": "1111111111111111111111111111111111111111",
+      "license": "MIT",
+      "prompt": "What concurrency guarantee and important limitation does the cache evidence support?",
+      "expectedOutcome": "observation",
+      "requiredConceptGroups": [
+        ["actor-isolated", "actor isolated"],
+        ["concurrent access", "concurrency test"],
+        ["not persisted", "restart"]
+      ],
+      "requiredSupportIDs": [
+        "cache-actor",
+        "cache-concurrency-test"
+      ],
+      "requiredCounterevidenceIDs": [
+        "cache-no-persistence"
+      ],
+      "evidence": [
+        {
+          "id": "cache-actor",
+          "snapshotCommit": "1111111111111111111111111111111111111111",
+          "filePath": "Sources/Cache.swift",
+          "line": 1,
+          "symbol": "Cache",
+          "role": "support",
+          "excerpt": "actor Cache owns all mutations to its private values dictionary."
+        },
+        {
+          "id": "cache-concurrency-test",
+          "snapshotCommit": "1111111111111111111111111111111111111111",
+          "filePath": "Tests/CacheTests.swift",
+          "line": 14,
+          "symbol": "concurrentAccess",
+          "role": "support",
+          "excerpt": "The concurrent access test writes through a task group and verifies every value."
+        },
+        {
+          "id": "cache-no-persistence",
+          "snapshotCommit": "1111111111111111111111111111111111111111",
+          "filePath": "README.md",
+          "line": 22,
+          "symbol": "Limitations",
+          "role": "counterevidence",
+          "excerpt": "Cache contents are memory-only and are not persisted across process restart."
+        }
+      ]
+    },
+    {
+      "id": "idempotent-request-boundary",
+      "snapshotCommit": "2222222222222222222222222222222222222222",
+      "license": "Apache-2.0",
+      "prompt": "What retry property is implemented, and what recovery claim is not yet supported?",
+      "expectedOutcome": "observation",
+      "requiredConceptGroups": [
+        ["idempotency key", "idempotent"],
+        ["same receipt", "duplicate request"],
+        ["crash recovery", "restart recovery"],
+        ["not implemented", "unproven", "missing"]
+      ],
+      "requiredSupportIDs": [
+        "request-idempotency-key",
+        "request-duplicate-test"
+      ],
+      "requiredCounterevidenceIDs": [
+        "request-recovery-todo"
+      ],
+      "evidence": [
+        {
+          "id": "request-idempotency-key",
+          "snapshotCommit": "2222222222222222222222222222222222222222",
+          "filePath": "Sources/RequestRunner.swift",
+          "line": 31,
+          "symbol": "run",
+          "role": "support",
+          "excerpt": "run stores completed receipts by the caller-provided idempotency key."
+        },
+        {
+          "id": "request-duplicate-test",
+          "snapshotCommit": "2222222222222222222222222222222222222222",
+          "filePath": "Tests/RequestRunnerTests.swift",
+          "line": 48,
+          "symbol": "duplicateRequest",
+          "role": "support",
+          "excerpt": "The duplicate request test expects the same receipt and one underlying execution."
+        },
+        {
+          "id": "request-recovery-todo",
+          "snapshotCommit": "2222222222222222222222222222222222222222",
+          "filePath": "Sources/RequestRunner.swift",
+          "line": 52,
+          "symbol": "TODO",
+          "role": "counterevidence",
+          "excerpt": "TODO: persist in-flight state before claiming crash or restart recovery."
+        }
+      ]
+    },
+    {
+      "id": "encryption-abstention",
+      "snapshotCommit": "3333333333333333333333333333333333333333",
+      "license": "MIT",
+      "prompt": "Which encryption algorithm protects repository snapshots at rest?",
+      "expectedOutcome": "abstain",
+      "requiredConceptGroups": [],
+      "requiredSupportIDs": [],
+      "requiredCounterevidenceIDs": [],
+      "evidence": [
+        {
+          "id": "snapshot-local-path",
+          "snapshotCommit": "3333333333333333333333333333333333333333",
+          "filePath": "Sources/SnapshotStore.swift",
+          "line": 9,
+          "symbol": "SnapshotStore",
+          "role": "support",
+          "excerpt": "SnapshotStore writes repository metadata beneath the configured local root."
+        },
+        {
+          "id": "snapshot-local-doc",
+          "snapshotCommit": "3333333333333333333333333333333333333333",
+          "filePath": "README.md",
+          "line": 8,
+          "symbol": "Storage",
+          "role": "support",
+          "excerpt": "Repository snapshot receipts remain on the local Mac."
+        }
+      ]
+    },
+    {
+      "id": "performance-abstention",
+      "snapshotCommit": "4444444444444444444444444444444444444444",
+      "license": "BSD-3-Clause",
+      "prompt": "What sustained production throughput does the parser guarantee?",
+      "expectedOutcome": "abstain",
+      "requiredConceptGroups": [],
+      "requiredSupportIDs": [],
+      "requiredCounterevidenceIDs": [],
+      "evidence": [
+        {
+          "id": "parser-smoke-test",
+          "snapshotCommit": "4444444444444444444444444444444444444444",
+          "filePath": "Tests/ParserTests.swift",
+          "line": 17,
+          "symbol": "smallFixture",
+          "role": "support",
+          "excerpt": "The parser smoke test processes ten synthetic records."
+        }
+      ]
+    }
+  ]
+}

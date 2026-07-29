@@ -71,6 +71,8 @@ scope, security, data ownership, licensing, or verification.
 | 2026-07-28 | Module capabilities are advertised only when the module is enabled, healthy, and has every permission declared by its manifest. Discovery, enablement, and partial grants provide no capability authority; disable clears grants | Active |
 | 2026-07-28 | Repository semantic evidence uses the approved evidence-first hybrid: deterministic clean-commit observations remain authoritative; an explicitly selected loopback local model may propose candidates only when deterministic citation and abstention validation can fail closed | Active |
 | 2026-07-28 | Codex verification is batched through the repository-owned `scripts/verify.sh` entry point with SwiftPM's nested sandbox disabled. Repeated raw Swift command variants are not part of the normal workflow | Active |
+| 2026-07-28 | Repository semantic candidates are evaluated against a frozen synthetic evidence/counterevidence/abstention corpus. A selected loopback model must health-check first and return strict structured IDs; deterministic validation, not model prose, decides eligibility, and accepted candidates remain ephemeral until explicit promotion | Active |
+| 2026-07-28 | Independent review hardened repository semantic evaluation to v2: persisted assignments revalidate loopback endpoints, generator construction rechecks them, cancellation propagates without a completed report, failed gates exit nonzero after saving evidence, license provenance is case-bound, response keys are strict, and same-role distractors make evidence precision discriminative | Active |
 
 ## Initial Default Decisions
 

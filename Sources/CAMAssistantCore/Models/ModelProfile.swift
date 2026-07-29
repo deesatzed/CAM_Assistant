@@ -41,7 +41,38 @@ public struct ModelAssignment: Codable, Equatable, Sendable {
         self.localEndpoint = localEndpoint
     }
 
-    private static func isSafeLocalEndpoint(_ value: String) -> Bool {
+    private enum CodingKeys: String, CodingKey {
+        case provider
+        case modelID
+        case localEndpoint
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            provider: container.decode(
+                ModelProvider.self,
+                forKey: .provider
+            ),
+            modelID: container.decode(String.self, forKey: .modelID),
+            localEndpoint: container.decodeIfPresent(
+                String.self,
+                forKey: .localEndpoint
+            )
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(provider, forKey: .provider)
+        try container.encode(modelID, forKey: .modelID)
+        try container.encodeIfPresent(
+            localEndpoint,
+            forKey: .localEndpoint
+        )
+    }
+
+    static func isSafeLocalEndpoint(_ value: String) -> Bool {
         guard let components = URLComponents(string: value),
               components.scheme == "http" || components.scheme == "https",
               let host = components.host?.lowercased(),

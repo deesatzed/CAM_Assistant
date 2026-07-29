@@ -1162,6 +1162,985 @@ func incrementalRepositoryIndexingSkipsCommittedFilesAboveTheLocalSizeBound() th
     #expect(try queue.documents().count == 3)
 }
 
+@Test("repository semantic evaluation fixture is frozen and valid")
+func repositorySemanticEvaluationFixtureIsFrozenAndValid() throws {
+    let fixtureURL = repositorySemanticFixtureURL()
+    let data = try Data(contentsOf: fixtureURL)
+    let manifest = try RepositorySemanticEvaluationManifest.decode(data)
+
+    try manifest.validate()
+
+    #expect(manifest.manifestVersion == 2)
+    #expect(manifest.cases.count == 4)
+    #expect(
+        manifest.cases.filter { $0.expectedOutcome == .observation }.count == 2
+    )
+    #expect(
+        manifest.cases.filter { $0.expectedOutcome == .abstain }.count == 2
+    )
+    #expect(manifest.cases.flatMap(\.evidence).count == 13)
+    #expect(
+        manifest.cases.flatMap(\.evidence)
+            .filter { $0.id.contains("distractor") }.count == 4
+    )
+    #expect(manifest.thresholds.evidencePrecision == 1)
+    #expect(manifest.thresholds.counterevidenceRecall == 1)
+    #expect(
+        RepositorySemanticEvaluationManifest.sha256(of: data)
+            == "5fe3b45ab5bbfdabd08eadf0871348a5830a5d4cd6c2213350be493293f64b25"
+    )
+}
+
+@Test("repository semantic candidate requires exact support counterevidence and concepts")
+func repositorySemanticCandidateRequiresExactEvidenceAndConcepts() throws {
+    let manifest = try repositorySemanticManifest()
+    let evaluationCase = try #require(
+        manifest.cases.first { $0.id == "actor-cache-boundary" }
+    )
+    let candidate = RepositorySemanticCandidate(
+        snapshotCommit: evaluationCase.snapshotCommit,
+        statement: "Cache mutations are actor-isolated and have a concurrent access test, but values are not persisted across restart.",
+        supportIDs: ["cache-actor", "cache-concurrency-test"],
+        counterevidenceIDs: ["cache-no-persistence"],
+        confidence: 0.82,
+        runtimeIdentity: "scripted/semantic-v1",
+        modelID: "scripted",
+        retention: .ephemeral
+    )
+
+    let validated = try #require(
+        try RepositorySemanticCandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+
+    #expect(validated.caseID == evaluationCase.id)
+    #expect(validated.snapshotCommit == evaluationCase.snapshotCommit)
+    #expect(validated.license == evaluationCase.license)
+    #expect(validated.support.map(\.id) == [
+        "cache-actor",
+        "cache-concurrency-test",
+    ])
+    #expect(validated.counterevidence.map(\.id) == [
+        "cache-no-persistence",
+    ])
+    #expect(validated.retention == .ephemeral)
+}
+
+@Test("repository semantic candidate fails closed for unknown and role-swapped evidence")
+func repositorySemanticCandidateFailsClosedForEvidenceMismatch() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "actor-cache-boundary"
+        }
+    )
+    let base = RepositorySemanticCandidate(
+        snapshotCommit: evaluationCase.snapshotCommit,
+        statement: "Cache mutations are actor-isolated and have a concurrent access test, but values are not persisted across restart.",
+        supportIDs: ["cache-actor", "cache-concurrency-test"],
+        counterevidenceIDs: ["cache-no-persistence"],
+        confidence: 0.8,
+        runtimeIdentity: "scripted/semantic-v1",
+        modelID: "scripted",
+        retention: .ephemeral
+    )
+
+    #expect(throws: RepositorySemanticValidationError.unknownEvidence(
+        "invented"
+    )) {
+        _ = try RepositorySemanticCandidateValidator().validate(
+            RepositorySemanticCandidate(
+                snapshotCommit: base.snapshotCommit,
+                statement: base.statement,
+                supportIDs: ["cache-actor", "invented"],
+                counterevidenceIDs: base.counterevidenceIDs,
+                confidence: base.confidence,
+                runtimeIdentity: base.runtimeIdentity,
+                modelID: base.modelID,
+                retention: base.retention
+            ),
+            for: evaluationCase
+        )
+    }
+    #expect(throws: RepositorySemanticValidationError.evidenceRoleMismatch(
+        "cache-no-persistence"
+    )) {
+        _ = try RepositorySemanticCandidateValidator().validate(
+            RepositorySemanticCandidate(
+                snapshotCommit: base.snapshotCommit,
+                statement: base.statement,
+                supportIDs: [
+                    "cache-actor",
+                    "cache-concurrency-test",
+                    "cache-no-persistence",
+                ],
+                counterevidenceIDs: [],
+                confidence: base.confidence,
+                runtimeIdentity: base.runtimeIdentity,
+                modelID: base.modelID,
+                retention: base.retention
+            ),
+            for: evaluationCase
+        )
+    }
+}
+
+@Test("repository semantic candidate rejects missing concepts and non-finite confidence")
+func repositorySemanticCandidateRejectsUnsupportedProseAndConfidence() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "idempotent-request-boundary"
+        }
+    )
+    let unsupported = RepositorySemanticCandidate(
+        snapshotCommit: evaluationCase.snapshotCommit,
+        statement: "The request runner is robust.",
+        supportIDs: evaluationCase.requiredSupportIDs,
+        counterevidenceIDs: evaluationCase.requiredCounterevidenceIDs,
+        confidence: 0.9,
+        runtimeIdentity: "scripted/semantic-v1",
+        modelID: "scripted",
+        retention: .ephemeral
+    )
+
+    #expect(throws: RepositorySemanticValidationError.missingRequiredConcept) {
+        _ = try RepositorySemanticCandidateValidator().validate(
+            unsupported,
+            for: evaluationCase
+        )
+    }
+    #expect(throws: RepositorySemanticValidationError.invalidConfidence) {
+        _ = try RepositorySemanticCandidateValidator().validate(
+            RepositorySemanticCandidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "Requests use an idempotency key and duplicate requests return the same receipt, but crash recovery is not implemented.",
+                supportIDs: evaluationCase.requiredSupportIDs,
+                counterevidenceIDs: evaluationCase.requiredCounterevidenceIDs,
+                confidence: .nan,
+                runtimeIdentity: "scripted/semantic-v1",
+                modelID: "scripted",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+}
+
+@Test("repository semantic abstention must be explicit and citation free")
+func repositorySemanticAbstentionMustBeExplicitAndCitationFree() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "encryption-abstention"
+        }
+    )
+    let validator = RepositorySemanticCandidateValidator()
+    let abstention = RepositorySemanticCandidate.abstention(
+        snapshotCommit: evaluationCase.snapshotCommit,
+        runtimeIdentity: "scripted/semantic-v1",
+        modelID: "scripted"
+    )
+
+    #expect(try validator.validate(abstention, for: evaluationCase) == nil)
+    #expect(throws: RepositorySemanticValidationError.malformedCandidate) {
+        _ = try validator.validate(
+            RepositorySemanticCandidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "",
+                supportIDs: ["snapshot-local-path"],
+                counterevidenceIDs: [],
+                confidence: 0,
+                runtimeIdentity: "scripted/semantic-v1",
+                modelID: "scripted",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+    #expect(throws: RepositorySemanticValidationError.expectedAbstention) {
+        _ = try validator.validate(
+            RepositorySemanticCandidate(
+                snapshotCommit: evaluationCase.snapshotCommit,
+                statement: "AES protects the snapshots.",
+                supportIDs: ["snapshot-local-path"],
+                counterevidenceIDs: [],
+                confidence: 0.4,
+                runtimeIdentity: "scripted/semantic-v1",
+                modelID: "scripted",
+                retention: .ephemeral
+            ),
+            for: evaluationCase
+        )
+    }
+}
+
+@Test("repository semantic evaluator measures evidence counterevidence and abstention")
+func repositorySemanticEvaluatorMeasuresFrozenContract() async throws {
+    let manifest = try repositorySemanticManifest()
+    let generator = ScriptedRepositorySemanticGenerator(
+        candidates: try validRepositorySemanticCandidates(manifest: manifest)
+    )
+
+    let report = try await RepositorySemanticEvaluator().evaluate(
+        manifestURL: repositorySemanticFixtureURL(),
+        generator: generator
+    )
+
+    #expect(report.evaluatorVersion == "repository-semantic-evaluator-v2")
+    #expect(
+        report.manifestHash
+            == "5fe3b45ab5bbfdabd08eadf0871348a5830a5d4cd6c2213350be493293f64b25"
+    )
+    #expect(report.runtimeIdentity == "scripted/semantic-v1")
+    #expect(report.modelID == "scripted")
+    #expect(report.caseCount == 4)
+    #expect(report.observationCaseCount == 2)
+    #expect(report.abstentionCaseCount == 2)
+    #expect(report.observationRecall == 1)
+    #expect(report.evidencePrecision == 1)
+    #expect(report.counterevidenceRecall == 1)
+    #expect(report.abstentionAccuracy == 1)
+    #expect(report.failedCaseIDs.isEmpty)
+    #expect(report.unansweredCaseIDs.isEmpty)
+    #expect(report.caseResults.allSatisfy { $0.passed })
+    #expect(
+        report.caseResults.map(\.caseID)
+            == report.caseResults.map(\.caseID).sorted()
+    )
+    #expect(report.meetsFrozenThresholds)
+    #expect(RepositorySemanticEvaluationExitCode.forReport(report) == 0)
+}
+
+@Test("repository semantic evaluator exposes invalid and unanswered cases")
+func repositorySemanticEvaluatorExposesFailuresWithoutPersuasiveProse()
+    async throws {
+    let manifest = try repositorySemanticManifest()
+    let cases = Dictionary(
+        uniqueKeysWithValues: manifest.cases.map { ($0.id, $0) }
+    )
+    let actorCase = try #require(cases["actor-cache-boundary"])
+    let idempotentCase = try #require(
+        cases["idempotent-request-boundary"]
+    )
+    var candidates = try validRepositorySemanticCandidates(
+        manifest: manifest
+    )
+    candidates[actorCase.id] = RepositorySemanticCandidate(
+        snapshotCommit: actorCase.snapshotCommit,
+        statement: "Cache mutations are actor-isolated and have a concurrent access test, but values are not persisted across restart.",
+        supportIDs: ["cache-actor", "invented"],
+        counterevidenceIDs: ["cache-no-persistence"],
+        confidence: 0.8,
+        runtimeIdentity: "scripted/semantic-v1",
+        modelID: "scripted",
+        retention: .ephemeral
+    )
+    candidates[idempotentCase.id] = .abstention(
+        snapshotCommit: idempotentCase.snapshotCommit,
+        runtimeIdentity: "scripted/semantic-v1",
+        modelID: "scripted"
+    )
+
+    let report = try await RepositorySemanticEvaluator().evaluate(
+        manifestURL: repositorySemanticFixtureURL(),
+        generator: ScriptedRepositorySemanticGenerator(
+            candidates: candidates
+        )
+    )
+
+    #expect(report.observationRecall == 0)
+    #expect(report.failedCaseIDs == ["actor-cache-boundary"])
+    #expect(report.unansweredCaseIDs == ["idempotent-request-boundary"])
+    #expect(
+        report.caseResults.first {
+            $0.caseID == actorCase.id
+        }?.errorCode == "unknown_evidence"
+    )
+    #expect(
+        report.caseResults.first {
+            $0.caseID == idempotentCase.id
+        }?.abstained == true
+    )
+    #expect(!report.meetsFrozenThresholds)
+    #expect(RepositorySemanticEvaluationExitCode.forReport(report) == 2)
+}
+
+@Test("repository semantic v2 metrics reject same-role distractor citations")
+func repositorySemanticEvaluatorRejectsDistractorCitations() async throws {
+    let manifest = try repositorySemanticManifest()
+    var candidates = try validRepositorySemanticCandidates(
+        manifest: manifest
+    )
+    let evaluationCase = try #require(
+        manifest.cases.first { $0.id == "actor-cache-boundary" }
+    )
+    let base = try #require(candidates[evaluationCase.id])
+    candidates[evaluationCase.id] = RepositorySemanticCandidate(
+        snapshotCommit: base.snapshotCommit,
+        statement: base.statement,
+        supportIDs: base.supportIDs + ["cache-support-distractor"],
+        counterevidenceIDs: base.counterevidenceIDs,
+        confidence: base.confidence,
+        runtimeIdentity: base.runtimeIdentity,
+        modelID: base.modelID,
+        retention: base.retention
+    )
+
+    let report = try await RepositorySemanticEvaluator().evaluate(
+        manifestURL: repositorySemanticFixtureURL(),
+        generator: ScriptedRepositorySemanticGenerator(
+            candidates: candidates
+        )
+    )
+
+    #expect(report.observationRecall == 1)
+    #expect(report.evidencePrecision < 1)
+    #expect(!report.meetsFrozenThresholds)
+}
+
+@Test("repository semantic evaluator propagates cancellation without a completed report")
+func repositorySemanticEvaluatorPropagatesCancellation() async throws {
+    let generator = CancellingRepositorySemanticGenerator()
+
+    await #expect(throws: CancellationError.self) {
+        _ = try await RepositorySemanticEvaluator().evaluate(
+            manifestURL: repositorySemanticFixtureURL(),
+            generator: generator
+        )
+    }
+    #expect(await generator.requestCount() == 1)
+}
+
+@Test("repository semantic local generator requires health and sends bounded evidence")
+func repositorySemanticLocalGeneratorRequiresHealthAndBoundedEvidence()
+    async throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "actor-cache-boundary"
+        }
+    )
+    let transport = RecordingRepositorySemanticTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: Data(#"{"data":[{"id":"local/semantic"}]}"#.utf8)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: repositorySemanticChatEnvelope(
+                model: "local/semantic",
+                content: #"{"statement":"Cache mutations are actor-isolated and have a concurrent access test, but values are not persisted across restart.","support_ids":["cache-actor","cache-concurrency-test"],"counterevidence_ids":["cache-no-persistence"],"confidence":0.82}"#
+            )
+        ),
+    ])
+    let generator = try RepositorySemanticLocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: transport
+    )
+
+    await #expect(
+        throws: RepositorySemanticLocalGeneratorError.healthRequired
+    ) {
+        _ = try await generator.generate(for: evaluationCase)
+    }
+    #expect(await transport.recordedRequests().isEmpty)
+
+    let health = try await generator.health()
+    #expect(health.modelID == "local/semantic")
+    #expect(health.isAvailable)
+    let candidate = try await generator.generate(for: evaluationCase)
+    let validated = try #require(
+        try RepositorySemanticCandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+    #expect(validated.support.map(\.id) == evaluationCase.requiredSupportIDs)
+    #expect(
+        validated.counterevidence.map(\.id)
+            == evaluationCase.requiredCounterevidenceIDs
+    )
+    #expect(candidate.retention == .ephemeral)
+
+    let requests = await transport.recordedRequests()
+    #expect(requests.count == 2)
+    #expect(requests[0].method == .get)
+    #expect(
+        requests[0].url.absoluteString
+            == "http://127.0.0.1:8080/v1/models"
+    )
+    #expect(requests[0].headers["Authorization"] == nil)
+    #expect(requests[1].method == .post)
+    #expect(
+        requests[1].url.absoluteString
+            == "http://127.0.0.1:8080/v1/chat/completions"
+    )
+    #expect(requests[1].headers == ["Content-Type": "application/json"])
+    let body = try #require(requests[1].body)
+    let bodyText = try #require(String(data: body, encoding: .utf8))
+    #expect(bodyText.contains("cache-actor"))
+    #expect(bodyText.contains("cache-no-persistence"))
+    #expect(!bodyText.contains("Authorization"))
+    let json = try #require(
+        JSONSerialization.jsonObject(with: body) as? [String: Any]
+    )
+    #expect(json["model"] as? String == "local/semantic")
+    #expect(json["stream"] as? Bool == false)
+    #expect(json["temperature"] as? Int == 0)
+    let messages = try #require(json["messages"] as? [[String: Any]])
+    let systemMessage = try #require(messages.first?["content"] as? String)
+    let evidenceMarker = "Evidence JSON: "
+    let evidenceMarkerRange = try #require(
+        systemMessage.range(of: evidenceMarker)
+    )
+    let embeddedEvidence = Data(
+        systemMessage[evidenceMarkerRange.upperBound...].utf8
+    )
+    let evidenceJSON = try #require(
+        JSONSerialization.jsonObject(
+            with: embeddedEvidence
+        ) as? [[String: Any]]
+    )
+    #expect(evidenceJSON.first?["filePath"] as? String == "Sources/Cache.swift")
+    let responseFormat = try #require(
+        json["response_format"] as? [String: Any]
+    )
+    let jsonSchema = try #require(
+        responseFormat["json_schema"] as? [String: Any]
+    )
+    #expect(jsonSchema["name"] as? String == "repository_semantic_candidate")
+}
+
+@Test("repository semantic local generator preserves explicit abstention")
+func repositorySemanticLocalGeneratorPreservesExplicitAbstention()
+    async throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "encryption-abstention"
+        }
+    )
+    let transport = RecordingRepositorySemanticTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: Data(#"{"data":[{"id":"local/semantic"}]}"#.utf8)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: repositorySemanticChatEnvelope(
+                model: "local/semantic",
+                content: #"{"statement":"","support_ids":[],"counterevidence_ids":[],"confidence":0}"#
+            )
+        ),
+    ])
+    let generator = try RepositorySemanticLocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: transport
+    )
+    _ = try await generator.health()
+
+    let candidate = try await generator.generate(for: evaluationCase)
+
+    #expect(candidate.statement.isEmpty)
+    #expect(candidate.supportIDs.isEmpty)
+    #expect(candidate.counterevidenceIDs.isEmpty)
+    #expect(
+        try RepositorySemanticCandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        ) == nil
+    )
+}
+
+@Test("repository semantic local generator rejects assignment drift and unknown evidence")
+func repositorySemanticLocalGeneratorFailsClosed() async throws {
+    let remote = try ModelAssignment(
+        provider: .openAI,
+        modelID: "remote/model",
+        localEndpoint: nil
+    )
+    #expect(
+        throws: RepositorySemanticLocalGeneratorError.invalidAssignment
+    ) {
+        _ = try RepositorySemanticLocalGenerator(
+            assignment: remote,
+            transport: RecordingRepositorySemanticTransport(responses: [])
+        )
+    }
+
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "actor-cache-boundary"
+        }
+    )
+    let driftTransport = RecordingRepositorySemanticTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: Data(#"{"data":[{"id":"local/semantic"}]}"#.utf8)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: repositorySemanticChatEnvelope(
+                model: "other/model",
+                content: #"{"statement":"","support_ids":[],"counterevidence_ids":[],"confidence":0}"#
+            )
+        ),
+    ])
+    let drifted = try RepositorySemanticLocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: driftTransport
+    )
+    _ = try await drifted.health()
+    await #expect(
+        throws: RepositorySemanticLocalGeneratorError.modelIdentityMismatch(
+            expected: "local/semantic",
+            actual: "other/model"
+        )
+    ) {
+        _ = try await drifted.generate(for: evaluationCase)
+    }
+
+    let unknownTransport = RecordingRepositorySemanticTransport(responses: [
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: Data(#"{"data":[{"id":"local/semantic"}]}"#.utf8)
+        ),
+        LocalModelHTTPResponse(
+            statusCode: 200,
+            data: repositorySemanticChatEnvelope(
+                model: "local/semantic",
+                content: #"{"statement":"Invented.","support_ids":["invented"],"counterevidence_ids":[],"confidence":0.9}"#
+            )
+        ),
+    ])
+    let unknown = try RepositorySemanticLocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: unknownTransport
+    )
+    _ = try await unknown.health()
+    await #expect(
+        throws: RepositorySemanticLocalGeneratorError.unknownEvidence(
+            "invented"
+        )
+    ) {
+        _ = try await unknown.generate(for: evaluationCase)
+    }
+
+    let unknownKeyTransport = RecordingRepositorySemanticTransport(
+        responses: [
+            LocalModelHTTPResponse(
+                statusCode: 200,
+                data: Data(
+                    #"{"data":[{"id":"local/semantic"}]}"#.utf8
+                )
+            ),
+            LocalModelHTTPResponse(
+                statusCode: 200,
+                data: repositorySemanticChatEnvelope(
+                    model: "local/semantic",
+                    content: #"{"statement":"","support_ids":[],"counterevidence_ids":[],"confidence":0,"unexpected":"reject"}"#
+                )
+            ),
+        ]
+    )
+    let unknownKeyGenerator = try RepositorySemanticLocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: unknownKeyTransport
+    )
+    _ = try await unknownKeyGenerator.health()
+    await #expect(
+        throws: RepositorySemanticLocalGeneratorError.invalidResponse
+    ) {
+        _ = try await unknownKeyGenerator.generate(for: evaluationCase)
+    }
+}
+
+@Test("repository semantic local transport preserves cancellation")
+func repositorySemanticLocalTransportPreservesCancellation() async throws {
+    let generator = try RepositorySemanticLocalGenerator(
+        assignment: repositorySemanticLocalAssignment(),
+        transport: CancellingRepositorySemanticTransport()
+    )
+
+    await #expect(throws: CancellationError.self) {
+        _ = try await generator.health()
+    }
+}
+
+@Test("validated repository semantic candidate forms only an evidence-complete idea card")
+func validatedRepositorySemanticCandidateFormsEvidenceCompleteIdeaCard()
+    throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "actor-cache-boundary"
+        }
+    )
+    let candidate = try #require(
+        try validRepositorySemanticCandidates(
+            manifest: repositorySemanticManifest()
+        )[evaluationCase.id]
+    )
+    let validated = try #require(
+        try RepositorySemanticCandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+
+    let card = try validated.ideaCard(
+        id: "semantic-cache",
+        title: "Evaluate actor-isolated cache",
+        rejectedAlternatives: [
+            "Keep the current unsynchronized dictionary.",
+        ],
+        validationExperiment:
+            "Run the concurrent test under Thread Sanitizer and add a restart test."
+    )
+
+    #expect(card.evidence.map(\.filePath) == [
+        "Sources/Cache.swift",
+        "Tests/CacheTests.swift",
+    ])
+    #expect(card.counterevidence == [
+        "Cache contents are memory-only and are not persisted across process restart.",
+    ])
+    #expect(card.counterevidenceCitations.map(\.filePath) == [
+        "README.md",
+    ])
+    #expect(card.rejectedAlternatives == [
+        "Keep the current unsynchronized dictionary.",
+    ])
+    #expect(card.confidence == 0.82)
+    #expect(card.license == "MIT")
+    #expect(card.rationale == candidate.statement)
+    #expect(
+        card.validationExperiment
+            == "Run the concurrent test under Thread Sanitizer and add a restart test."
+    )
+    #expect(
+        throws: RepositoryIdeaError.missingRejectedAlternatives
+    ) {
+        _ = try validated.ideaCard(
+            id: "semantic-cache-incomplete",
+            title: "Incomplete",
+            rejectedAlternatives: [],
+            validationExperiment: "Run one focused test."
+        )
+    }
+}
+
+@Test("semantic idea promotion revalidates counterevidence and license")
+func semanticIdeaPromotionRevalidatesAllEvidenceAndLicense() throws {
+    let evaluationCase = try #require(
+        try repositorySemanticManifest().cases.first {
+            $0.id == "actor-cache-boundary"
+        }
+    )
+    let candidate = try #require(
+        try validRepositorySemanticCandidates(
+            manifest: repositorySemanticManifest()
+        )[evaluationCase.id]
+    )
+    let validated = try #require(
+        try RepositorySemanticCandidateValidator().validate(
+            candidate,
+            for: evaluationCase
+        )
+    )
+    let card = try validated.ideaCard(
+        id: "semantic-promotion",
+        title: "Evaluate cache",
+        rejectedAlternatives: ["Keep the current dictionary."],
+        validationExperiment: "Run concurrency and restart tests."
+    )
+    let snapshot = RepositorySnapshot(
+        canonicalPath: "/tmp/semantic",
+        remote: nil,
+        branch: "main",
+        commit: evaluationCase.snapshotCommit,
+        isDirty: false,
+        license: evaluationCase.license,
+        files: evaluationCase.evidence.map {
+            RepositoryFileEvidence(
+                path: $0.filePath,
+                lineCount: $0.line
+            )
+        }
+    )
+
+    #expect(try card.promote(snapshot: snapshot).ideaID == card.id)
+
+    let staleCounter = try RepositoryIdeaCard(
+        id: "stale-counter",
+        title: card.title,
+        rationale: card.rationale,
+        evidence: card.evidence,
+        counterevidence: card.counterevidence,
+        counterevidenceCitations: card.counterevidenceCitations.map {
+            RepositoryObservation(
+                snapshotCommit: String(repeating: "f", count: 40),
+                filePath: $0.filePath,
+                line: $0.line,
+                symbol: $0.symbol,
+                statement: $0.statement
+            )
+        },
+        rejectedAlternatives: card.rejectedAlternatives,
+        confidence: card.confidence,
+        license: card.license,
+        validationExperiment: card.validationExperiment
+    )
+    #expect(throws: RepositoryIdeaError.staleEvidence) {
+        _ = try staleCounter.promote(snapshot: snapshot)
+    }
+
+    let wrongLicense = try RepositoryIdeaCard(
+        id: "wrong-license",
+        title: card.title,
+        rationale: card.rationale,
+        evidence: card.evidence,
+        counterevidence: card.counterevidence,
+        counterevidenceCitations: card.counterevidenceCitations,
+        rejectedAlternatives: card.rejectedAlternatives,
+        confidence: card.confidence,
+        license: "GPL",
+        validationExperiment: card.validationExperiment
+    )
+    #expect(throws: RepositoryIdeaError.licenseMismatch) {
+        _ = try wrongLicense.promote(snapshot: snapshot)
+    }
+}
+
+@Test("legacy repository idea cards decode through current validation")
+func legacyRepositoryIdeaCardsDecodeThroughCurrentValidation() throws {
+    let legacy = Data(
+        """
+        {
+          "id": "legacy-card",
+          "title": "Legacy card",
+          "evidence": [{
+            "snapshotCommit": "1111111111111111111111111111111111111111",
+            "filePath": "Sources/Legacy.swift",
+            "line": 4,
+            "symbol": "Legacy",
+            "statement": "Legacy evidence."
+          }],
+          "counterevidence": ["Legacy limitation."],
+          "confidence": 0.5,
+          "license": "MIT",
+          "validationExperiment": "Run the legacy test."
+        }
+        """.utf8
+    )
+
+    let card = try JSONDecoder().decode(
+        RepositoryIdeaCard.self,
+        from: legacy
+    )
+    #expect(card.rationale == nil)
+    #expect(card.counterevidenceCitations.isEmpty)
+    #expect(card.rejectedAlternatives.isEmpty)
+    #expect(
+        try JSONDecoder().decode(
+            RepositoryIdeaCard.self,
+            from: JSONEncoder().encode(card)
+        ) == card
+    )
+}
+
+@Test("repository semantic evaluation request accepts only explicit loopback model")
+func repositorySemanticEvaluationRequestRequiresExplicitLoopback() throws {
+    let request = try RepositorySemanticEvaluationRequest.parse(
+        arguments: [
+            "evaluate-repository-semantic",
+            "manifest.json",
+            "report.json",
+            "local/semantic",
+            "http://127.0.0.1:8080/v1",
+        ]
+    )
+
+    #expect(request.manifestURL.path.hasSuffix("/manifest.json"))
+    #expect(request.outputURL.path.hasSuffix("/report.json"))
+    #expect(request.assignment.provider == .local)
+    #expect(request.assignment.modelID == "local/semantic")
+    #expect(
+        throws: RepositorySemanticEvaluationRequestError
+            .invalidArguments
+    ) {
+        _ = try RepositorySemanticEvaluationRequest.parse(
+            arguments: ["evaluate-repository-semantic"]
+        )
+    }
+    #expect(throws: ModelProfileError.invalidLocalEndpoint) {
+        _ = try RepositorySemanticEvaluationRequest.parse(
+            arguments: [
+                "evaluate-repository-semantic",
+                "manifest.json",
+                "report.json",
+                "remote/model",
+                "https://example.com/v1",
+            ]
+        )
+    }
+}
+
+private struct ScriptedRepositorySemanticGenerator:
+    RepositorySemanticCandidateGenerator {
+    let runtimeIdentity = "scripted/semantic-v1"
+    let modelID = "scripted"
+    let candidates: [String: RepositorySemanticCandidate]
+
+    func generate(
+        for evaluationCase: RepositorySemanticEvaluationCase
+    ) async throws -> RepositorySemanticCandidate {
+        guard let candidate = candidates[evaluationCase.id] else {
+            throw RepositorySemanticGeneratorError.missingCandidate(
+                evaluationCase.id
+            )
+        }
+        return candidate
+    }
+}
+
+private actor CancellingRepositorySemanticGenerator:
+    RepositorySemanticCandidateGenerator {
+    nonisolated let runtimeIdentity = "scripted/cancelling"
+    nonisolated let modelID = "scripted"
+    private var requests = 0
+
+    func generate(
+        for evaluationCase: RepositorySemanticEvaluationCase
+    ) async throws -> RepositorySemanticCandidate {
+        requests += 1
+        throw CancellationError()
+    }
+
+    func requestCount() -> Int {
+        requests
+    }
+}
+
+private actor RecordingRepositorySemanticTransport: LocalModelTransport {
+    private var responses: [LocalModelHTTPResponse]
+    private var requests: [LocalModelHTTPRequest] = []
+
+    init(responses: [LocalModelHTTPResponse]) {
+        self.responses = responses
+    }
+
+    func send(
+        _ request: LocalModelHTTPRequest
+    ) async throws -> LocalModelHTTPResponse {
+        requests.append(request)
+        guard !responses.isEmpty else {
+            throw LocalModelInferenceError.transportUnavailable
+        }
+        return responses.removeFirst()
+    }
+
+    func recordedRequests() -> [LocalModelHTTPRequest] {
+        requests
+    }
+}
+
+private struct CancellingRepositorySemanticTransport:
+    LocalModelTransport {
+    func send(
+        _ request: LocalModelHTTPRequest
+    ) async throws -> LocalModelHTTPResponse {
+        throw CancellationError()
+    }
+}
+
+private func repositorySemanticChatEnvelope(
+    model: String,
+    content: String
+) -> Data {
+    try! JSONSerialization.data(
+        withJSONObject: [
+            "model": model,
+            "choices": [
+                [
+                    "message": [
+                        "role": "assistant",
+                        "content": content,
+                    ],
+                ],
+            ],
+        ]
+    )
+}
+
+private func repositorySemanticLocalAssignment() throws -> ModelAssignment {
+    try ModelAssignment(
+        provider: .local,
+        modelID: "local/semantic",
+        localEndpoint: "http://127.0.0.1:8080/v1"
+    )
+}
+
+private func validRepositorySemanticCandidates(
+    manifest: RepositorySemanticEvaluationManifest
+) throws -> [String: RepositorySemanticCandidate] {
+    let cases = Dictionary(
+        uniqueKeysWithValues: manifest.cases.map { ($0.id, $0) }
+    )
+    let actor = try #require(cases["actor-cache-boundary"])
+    let idempotent = try #require(
+        cases["idempotent-request-boundary"]
+    )
+    let encryption = try #require(cases["encryption-abstention"])
+    let performance = try #require(cases["performance-abstention"])
+    return [
+        actor.id: RepositorySemanticCandidate(
+            snapshotCommit: actor.snapshotCommit,
+            statement: "Cache mutations are actor-isolated and have a concurrent access test, but values are not persisted across restart.",
+            supportIDs: actor.requiredSupportIDs,
+            counterevidenceIDs: actor.requiredCounterevidenceIDs,
+            confidence: 0.82,
+            runtimeIdentity: "scripted/semantic-v1",
+            modelID: "scripted",
+            retention: .ephemeral
+        ),
+        idempotent.id: RepositorySemanticCandidate(
+            snapshotCommit: idempotent.snapshotCommit,
+            statement: "The idempotency key makes a duplicate request return the same receipt, but crash recovery is not implemented.",
+            supportIDs: idempotent.requiredSupportIDs,
+            counterevidenceIDs: idempotent.requiredCounterevidenceIDs,
+            confidence: 0.78,
+            runtimeIdentity: "scripted/semantic-v1",
+            modelID: "scripted",
+            retention: .ephemeral
+        ),
+        encryption.id: .abstention(
+            snapshotCommit: encryption.snapshotCommit,
+            runtimeIdentity: "scripted/semantic-v1",
+            modelID: "scripted"
+        ),
+        performance.id: .abstention(
+            snapshotCommit: performance.snapshotCommit,
+            runtimeIdentity: "scripted/semantic-v1",
+            modelID: "scripted"
+        ),
+    ]
+}
+
+private func repositorySemanticManifest() throws
+    -> RepositorySemanticEvaluationManifest {
+    let data = try Data(contentsOf: repositorySemanticFixtureURL())
+    let manifest = try RepositorySemanticEvaluationManifest.decode(data)
+    try manifest.validate()
+    return manifest
+}
+
+private func repositorySemanticFixtureURL() -> URL {
+    URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(
+            path: "Fixtures/Repositories/semantic-v2/manifest.json"
+        )
+}
+
 private struct TemporaryRepository {
     let root: URL
 
