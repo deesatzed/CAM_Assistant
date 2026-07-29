@@ -77,6 +77,39 @@ disabled until their individual proof gates are met.
 3. Extend the isolated packaged journey through full-vault backup/restore and
    the remaining keyboard, VoiceOver, reduced-motion, and error states.
 
+### Live CAM runtime identity and disposable preflight — 2026-07-29
+
+- The installed `cam` CLI, selected CAM_Codx/CAM_CAM repositories, selected
+  config, and selected corpus were identified without loading credential
+  values or authorizing execution.
+- Pinned selected identities: CAM_Codx
+  `60f747db61791a6addba8db1cbafbd5121fd2a29`, CAM_CAM
+  `db5495a5b963688a9c29e5d06c5447e781544f1c`, config SHA-256
+  `13c04f0939142042bc560849b0ea7193d9a9d9cbddfd02ee949094312f4f7597`,
+  and corpus SHA-256
+  `e391bf171f66c2086ad8b8785432d9b142f8f4c5a9ad5e7f8db41ea69339ca74`.
+- The installed `claw` `0.1.0` entry point resolves through
+  `/Volumes/WS4TB/WS4TBr/CAM_Codx/CAM_CAM`, a different checkout at the same
+  runtime commit. This path/commit distinction is now an explicit drift check.
+- Immutable SQLite inspection passed `quick_check` and found 2,516
+  methodologies. A copied corpus/config then passed real `cam stats`,
+  `cam status`, and `cam doctor expectations`; CAM reported 197 source
+  repositories and successfully loaded `sqlite-vec`.
+- Critical boundary: direct protected-corpus `status`/`stats` failed because
+  CAM unconditionally enables WAL and initializes schema. The disposable
+  database hash changed after the nominal health commands, directly proving
+  that current CAM health startup is mutating.
+- The selected corpus/config hashes and donor Git states remained unchanged.
+  No provider request, mining, MCP server, repository mutation, or credential
+  value access occurred.
+- Goal-map effect: `cam.runtime-verification` moves from `missing` to
+  `partial`; totals are now `12 passed`, `27 partial`, and `9 missing`.
+- Saved evidence:
+  `docs/evidence/task-16-live-cam-runtime-preflight.md`.
+- Next implementation boundary: app-owned discovery must pin executable,
+  source, config, corpus, and capability identities, then probe only an
+  integrity-checked disposable copy before any separately approved executor.
+
 ## Verification Receipts
 
 ### Task 1 — 2026-07-24

@@ -6,8 +6,8 @@
   "summary": {
     "total": 48,
     "passed": 12,
-    "partial": 26,
-    "missing": 10,
+    "partial": 27,
+    "missing": 9,
     "deferred": 0
   },
   "gates": [
@@ -295,11 +295,12 @@
       "id": "cam.runtime-verification",
       "sourceLine": 181,
       "title": "Pinned live CAM runtime verification",
-      "status": "missing",
+      "status": "partial",
       "evidence": [
-        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+        "docs/evidence/task-16-live-cam-runtime-preflight.md"
       ],
-      "limitation": "Runtime, configuration, database, and corpus identity remain fixture-supplied rather than live-probed."
+      "limitation": "A real installed runtime, config, corpus, capability surface, and disposable-copy health path are pinned, but the app does not yet perform the probe; nominal CAM status commands mutate startup state and cannot safely target the personal corpus."
     },
     {
       "id": "cam.bounded-loop",
