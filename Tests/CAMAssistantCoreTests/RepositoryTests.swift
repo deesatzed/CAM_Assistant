@@ -1690,6 +1690,46 @@ func repositorySemanticLocalGeneratorPreservesExplicitAbstention()
             for: evaluationCase
         ) == nil
     )
+
+    let requests = await transport.recordedRequests()
+    let body = try #require(requests.last?.body)
+    let json = try #require(
+        JSONSerialization.jsonObject(with: body) as? [String: Any]
+    )
+    let responseFormat = try #require(
+        json["response_format"] as? [String: Any]
+    )
+    let jsonSchema = try #require(
+        responseFormat["json_schema"] as? [String: Any]
+    )
+    let schema = try #require(
+        jsonSchema["schema"] as? [String: Any]
+    )
+    let properties = try #require(
+        schema["properties"] as? [String: Any]
+    )
+    let supportProperty = try #require(
+        properties["support_ids"] as? [String: Any]
+    )
+    let supportItems = try #require(
+        supportProperty["items"] as? [String: Any]
+    )
+    #expect(supportItems["type"] as? String == "string")
+    #expect(
+        supportItems["enum"] as? [String]
+            == evaluationCase.evidence
+                .filter { $0.role == .support }
+                .map(\.id)
+    )
+
+    let counterevidenceProperty = try #require(
+        properties["counterevidence_ids"] as? [String: Any]
+    )
+    let counterevidenceItems = try #require(
+        counterevidenceProperty["items"] as? [String: Any]
+    )
+    #expect(counterevidenceItems["type"] as? String == "string")
+    #expect(counterevidenceItems["enum"] == nil)
 }
 
 @Test("repository semantic local generator rejects assignment drift and unknown evidence")

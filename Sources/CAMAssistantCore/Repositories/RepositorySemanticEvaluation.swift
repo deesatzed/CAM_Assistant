@@ -1103,7 +1103,7 @@ private struct RepositorySemanticSchemaProperty: Encodable {
         items = allowedValues.map {
             RepositorySemanticSchemaItems(
                 type: "string",
-                allowedValues: $0
+                allowedValues: $0.isEmpty ? nil : $0
             )
         }
         self.minimum = minimum
@@ -1128,7 +1128,7 @@ private struct RepositorySemanticSchemaProperty: Encodable {
 
 private struct RepositorySemanticSchemaItems: Encodable {
     let type: String
-    let allowedValues: [String]
+    let allowedValues: [String]?
 
     enum CodingKeys: String, CodingKey {
         case type

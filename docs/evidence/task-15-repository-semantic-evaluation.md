@@ -124,6 +124,35 @@ semantic claim support without tuning labels to these responses.
 After the runs, both models were unloaded and the LM Studio API server was
 stopped. No model remained resident.
 
+## Empty-enum repair and unchanged-v2 rerun — 2026-07-29
+
+The generator now omits the JSON Schema `enum` keyword only when an allowed-ID
+set is empty. It still emits exact non-empty enums, and post-response validation
+still rejects every unknown evidence ID. The frozen v2 manifest, labels,
+thresholds, and evaluator remain unchanged.
+
+A regression test first reproduced the invalid `enum: []` request. All 51
+repository tests then passed after the minimal schema fix.
+
+Gemma 12B was loaded again on loopback only and the unchanged v2 manifest was
+rerun with the debug CLI built from the repaired source. The command preserved
+exit `2` and a failed overall verdict, but both required-abstention cases now
+passed:
+
+| Metric | Before | After repair |
+|---|---:|---:|
+| Observation recall | `0.0` | `0.0` |
+| Evidence precision | `0.0` | `0.0` |
+| Counterevidence recall | `0.0` | `0.0` |
+| Abstention accuracy | `0.0` | `1.0` |
+
+The two observation cases still fail `missing_required_concept`; this is the
+separate frozen lexical-matcher limitation and was not tuned after seeing
+model output. The new immutable failed receipt is
+`task-15-repository-semantic-gemma-schema-fix-rerun-failed.json`, SHA-256
+`cb4d0cb5350b9ec6bec9bc6bad794265af2e79c564e8370ba8e6a7b410781095`.
+The model was unloaded and the loopback server stopped after the run.
+
 ## Authority and privacy boundary
 
 Deterministic clean-commit evidence remains authoritative. Model output is an
@@ -140,7 +169,8 @@ real selected model. The repository semantic gate remains partial until:
 
 1. a named selected loopback model produces a saved frozen report that passes
    a valid pre-registered evidence/counterevidence/abstention contract;
-2. the structured-output contract supports valid citation-free abstention;
+2. a separately pre-registered contract measures semantic claim support
+   without tuning the immutable v2 lexical labels;
 3. a native clean-repository journey builds bounded exact evidence, presents
    accepted/abstained/failed candidates, and requires explicit Keep or
    promotion;

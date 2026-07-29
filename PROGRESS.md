@@ -69,15 +69,15 @@ individual proof gates are met.
 
 ## Next Actions
 
-1. Preserve generated-answer v1 as the fixed baseline and run a versioned v2
-   experiment that separates a human-usable generation target from the fast
-   deterministic retrieval gate, or tests a constrained evidence-composition
-   strategy; do not tune v1 labels after the observed results.
-2. Preserve the passing integrity-checked full-vault recovery contract while
-   completing aggregate and clean fresh-clone evidence for its published
-   checkpoint.
-3. Extend the isolated packaged journeys through the remaining keyboard,
-   VoiceOver speech, contrast/text-scale/large-data, and error states.
+1. Pre-register a new semantic-support contract before another repository
+   model-quality run; preserve immutable v2 and do not add phrases based on its
+   observed outputs.
+2. Connect the approved evidence-first repository flow to a native
+   clean-snapshot journey that presents accepted, abstained, and failed
+   ephemeral candidates before explicit Keep or promotion.
+3. Preserve generated-answer v1 as the fixed baseline while separately
+   designing its versioned latency contract, then extend packaged accessibility
+   proof through VoiceOver speech, contrast, text scale, and large-data states.
 
 ### Live CAM runtime identity and disposable preflight — 2026-07-29
 
@@ -1723,6 +1723,34 @@ individual proof gates are met.
 - Boundary: the V1 does not overwrite, merge, upload, schedule, encrypt, or
   silently switch the running vault. Password encryption remains an optional
   future wrapper. No normal personal application-support vault was used.
+
+### Repository semantic empty-enum repair and live rerun — 2026-07-29
+
+- Expected red: the required-abstention transport regression exposed an empty
+  JSON Schema `enum`, reproducing the LM Studio pre-inference rejection.
+- Green: empty allowed-ID sets now omit only the `enum` keyword; non-empty sets
+  remain exact enums, and decoded IDs still fail closed against the complete
+  evidence set. All `51` repository tests pass.
+- The frozen semantic-v2 manifest remained byte-identical at
+  `5fe3b45ab5bbfdabd08eadf0871348a5830a5d4cd6c2213350be493293f64b25`.
+- A real loopback Gemma 12B rerun preserved exit `2` and the failed overall
+  verdict. Abstention accuracy improved from `0.0` to `1.0`; both observation
+  cases remain failed with `missing_required_concept`, so observation recall,
+  evidence precision, and counterevidence recall remain `0.0`.
+- Saved failed receipt:
+  `docs/evidence/task-15-repository-semantic-gemma-schema-fix-rerun-failed.json`,
+  SHA-256
+  `cb4d0cb5350b9ec6bec9bc6bad794265af2e79c564e8370ba8e6a7b410781095`.
+- The model was unloaded and the loopback server stopped. No personal data,
+  donor source, cloud, web, CAM, authorization header, or network bind was
+  used.
+- Aggregate verification passes the honest 48-gate map, all `244` Swift tests,
+  release app/CLI builds, reproducible packaging, package identity, a
+  `51`-file zero-finding credential-signature scan, and offline smoke with
+  recursive fresh-clone verification intentionally deferred until commit.
+- CAM-015 remains in progress. A separately pre-registered semantic-support
+  contract and native clean-repository journey remain required; immutable v2
+  is not tuned after model observation.
 
 ## Blockers
 
