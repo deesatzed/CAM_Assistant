@@ -1880,6 +1880,65 @@ workflows remain disabled until their individual proof gates are met.
   `502941` byte count and SHA-256 while identifying tool
   `pinned-curl-public-document-v1`.
 
+### Native CAM runtime pin and disposable snapshot verifier — 2026-07-29
+
+- Expected reds added for derived behind-launcher identity, package drift,
+  inline secrets, committed WAL state, external-write/nonterminating/output
+  launcher behavior, cleanup, and CLI receipts.
+- Independent review rejected the first copied-state subprocess design because
+  it did not enforce hard process/output confinement, trusted caller metadata,
+  copied only the SQLite main file, and lacked complete postconditions and
+  failure receipts. That proof was discarded rather than relabeled.
+- The replacement schema-v2 pin derives the interpreter, installed
+  distribution/version/entry point, editable package root, source Git commit,
+  installation loader/metadata, sqlite extension, secret-free config, and
+  stable main/WAL database-family identity.
+- `cam.stats.snapshot.v1` never launches CAM. It reads fixed statistics from a
+  stable disposable SQLite family, emits typed success/failure state, checks
+  every donor surface, and automatically removes config/database copies.
+- Independent re-review then found cancellation, timeout, scan-bounding, and
+  read-write-copy defects. The accepted remediation adds a terminal
+  cancellation check, monotonic phase deadlines plus a SQLite progress
+  handler, per-chunk/entry deadlines and surface size/file-count ceilings,
+  streaming row/byte/source ceilings, a read-only/query-only SQLite connection,
+  immutable handling for closed WAL-mode databases, a required unchanged
+  disposable-family digest, and explicit cleanup truth in receipts.
+- Native CAM controls expose file selection, derived pin, probe progress,
+  cancellable/time-bounded initial hashing, cancellable probe progress, full
+  identities, typed counts, and the explicit
+  no-mining/no-provider/no-MCP/no-personal-mutation boundary. The CLI supports
+  bounded pinning and probe receipts.
+- Real proof derived runtime identity
+  `557d14e9fd5b9e276a2b4d58920bd0a39e2efb220b71743f04bae19f6c2cb45a`
+  and returned `2,516` methodologies and `197` source repositories. Seven
+  donor surfaces matched before/after, stderr was zero bytes, and the
+  disposable workspace was removed.
+- Focused green proof: all `25` CAM and `24` app tests pass, including initial
+  pin timeout/cancellation,
+  deterministic cancellation, in-hash deadline, scan-ceiling, disposable
+  mutation, cleanup failure, closed-WAL, active-writer WAL+SHM, and stale
+  native completion rejection cases.
+- Backup decision: no duplicate product-managed CAM-corpus backup is required
+  for this verifier. Isolation, stable snapshots, donor drift proof, and
+  cleanup protect the read-only operation; full-vault backup covers app-owned
+  durable truth, while Time Machine/APFS/encrypted external backup may protect
+  the external corpus at host level.
+- Saved evidence:
+  `docs/evidence/task-16-native-cam-runtime-snapshot.md`.
+- Boundary: no CAM process, mining, exact approval, provider, MCP server,
+  durable runtime run, coordination executor, or personal-corpus mutation is
+  claimed. CAM-016 remains in progress.
+- Goal-map effect: `cam.disposable-integration` moves from `missing` to
+  `partial`; totals are now `16 passed`, `27 partial`, and `5 missing`,
+  overall incomplete.
+- Exact final-worktree aggregate green: portability and the 48-gate validator
+  pass; all `307` Swift tests pass; native app and CLI release builds pass;
+  two-build package reproducibility passes with canonical manifest
+  `b0cf81e4293c43ee3d53d4394ddefd9fe71eae389c137c03be2212c65bbf09b9`;
+  the 55-file credential-signature scan has zero findings; and direct current
+  debug-binary offline smoke reports capture/search available with no automatic
+  cloud route.
+
 ## Blockers
 
 None.

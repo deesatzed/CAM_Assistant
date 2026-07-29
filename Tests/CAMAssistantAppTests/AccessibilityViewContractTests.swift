@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+@testable import CAMAssistantApp
 
 @Test("workspace accessibility containers preserve child controls and empty states")
 func workspaceAccessibilityContainersPreserveChildren() throws {
@@ -188,6 +189,61 @@ func researchViewExposesExactAcquisitionAndPacketReview() throws {
         },
         "ResearchView must expose one exact bounded acquisition and explicit ephemeral packet retention"
     )
+}
+
+@Test("CAM view exposes local runtime pinning and disposable probe without mining authority")
+func camViewExposesRuntimePinningAndDisposableProbe() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(
+                path: "Sources/CAMAssistantApp/Views/CAMStatusView.swift"
+            ),
+        encoding: .utf8
+    )
+    let requiredContracts = [
+        "Section(\"Selected runtime\")",
+        "\"Select CAM Executable…\"",
+        "\"Select Configuration…\"",
+        "\"Select Database…\"",
+        "Button(\"Pin Selected Runtime\"",
+        "Button(\"Cancel Runtime Pin\"",
+        "Button(\"Run Disposable Statistics Probe\"",
+        "Button(\"Cancel Disposable Probe\"",
+        "pinOperation.accepts(generation)",
+        "probeOperation.accepts(generation)",
+        "Section(\"Verified disposable receipt\")",
+        "The donor database is never passed to CAM",
+        "after native inspection",
+        "Mining, provider calls, MCP serving, and personal-corpus mutation remain disabled.",
+        ".accessibilityElement(children: .contain)",
+        "\"CAM. Local runtime pinning and disposable read-only inspection",
+    ]
+
+    #expect(
+        requiredContracts.allSatisfy(source.contains),
+        "CAMStatusView must expose explicit pinning and copied-state inspection without implying mining authority"
+    )
+}
+
+@Test("CAM operation lifecycle rejects stale completion and resets on disappearance")
+func camOperationLifecycleRejectsStaleCompletionAndResets() {
+    var lifecycle = CAMOperationLifecycleState()
+    let stalePin = lifecycle.begin()
+    #expect(lifecycle.isRunning)
+
+    lifecycle.invalidate()
+    #expect(!lifecycle.isRunning)
+    #expect(!lifecycle.accepts(stalePin))
+
+    let currentPin = lifecycle.begin()
+    #expect(lifecycle.accepts(currentPin))
+    lifecycle.finish(currentPin)
+    #expect(!lifecycle.isRunning)
+
+    let disappearingProbe = lifecycle.begin()
+    lifecycle.invalidate()
+    #expect(!lifecycle.isRunning)
+    #expect(!lifecycle.accepts(disappearingProbe))
 }
 
 private struct AccessibilitySourceContract {

@@ -6,8 +6,8 @@
   "summary": {
     "total": 48,
     "passed": 16,
-    "partial": 26,
-    "missing": 6,
+    "partial": 27,
+    "missing": 5,
     "deferred": 0
   },
   "gates": [
@@ -306,9 +306,10 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/task-16-live-cam-codex-gap-audit.md",
-        "docs/evidence/task-16-live-cam-runtime-preflight.md"
+        "docs/evidence/task-16-live-cam-runtime-preflight.md",
+        "docs/evidence/task-16-native-cam-runtime-snapshot.md"
       ],
-      "limitation": "A real installed runtime, config, corpus, capability surface, and disposable-copy health path are pinned, but the app does not yet perform the probe; nominal CAM status commands mutate startup state and cannot safely target the personal corpus."
+      "limitation": "Native and CLI controls now derive and drift-check the launcher, interpreter, package/source commit, install metadata, sqlite dependency, secret-free config, and WAL-family corpus and return real disposable statistics without launching CAM; capability discovery and durable restart-safe pin/run state remain."
     },
     {
       "id": "cam.bounded-loop",
@@ -326,9 +327,10 @@
       "title": "Closed typed CAM executor",
       "status": "missing",
       "evidence": [
-        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+        "docs/evidence/task-16-native-cam-runtime-snapshot.md"
       ],
-      "limitation": "No live closed tool registry with timeouts, retries, idempotency, postconditions, and failure receipts exists."
+      "limitation": "A closed typed native snapshot verifier and failure receipts exist, but it deliberately does not launch CAM; no confined live CAM tool registry with retry, idempotency, mining postconditions, and recovery exists."
     },
     {
       "id": "cam.mining-plan",
@@ -344,11 +346,12 @@
       "id": "cam.disposable-integration",
       "sourceLine": 191,
       "title": "Disposable CAM integration proof",
-      "status": "missing",
+      "status": "partial",
       "evidence": [
-        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
+        "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+        "docs/evidence/task-16-native-cam-runtime-snapshot.md"
       ],
-      "limitation": "No isolated disposable CAM corpus and configuration integration has run."
+      "limitation": "The app and CLI stable-copy config plus the SQLite main/WAL family, read fixed native statistics, prove seven donor identities unchanged, and auto-clean; no CAM process or mining action has executed against disposable state."
     },
     {
       "id": "cam.failure-never-success",
