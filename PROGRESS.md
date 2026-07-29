@@ -137,6 +137,34 @@ disabled until their individual proof gates are met.
   `docs/evidence/task-15-repository-semantic-vibethinker-failed.json` and
   `docs/evidence/task-15-repository-semantic-gemma-failed.json`.
 
+### Additional generated-answer local-model investigation — 2026-07-29
+
+- The installed 423M `gemma-4-12b-it-qat-assistant-mtp` model was selected as
+  a fast candidate but failed two local LM Studio load attempts before
+  inference. Runtime logs identify the exact cause:
+  `Gemma4Assistant requires ctx_other to be set`.
+- The installed
+  `qwen3.6-35b-a3b-claude-4.7-opus-oq4e-dwq-mc-mtp-mlx` model loaded with
+  MTP speculative decoding at 19.32 GiB resident memory and ran the unchanged
+  frozen generated-v1 corpus.
+- The complete 21-measurement run retained perfect retrieval but produced
+  zero cited-claim support, zero abstention accuracy, seven failed cases, and
+  `3,821.14 ms` p95. It is both lower quality and slower than the current
+  Gemma 12B result.
+- The report serializes `meetsFrozenThresholds=false`, but the CLI returned
+  process status `0`. This is a separate automation defect; no result or
+  threshold was changed.
+- The Qwen report is saved at
+  `docs/evidence/task-13-generated-answer-qwen36-a3b-mtp-failed-report.json`
+  with SHA-256
+  `191ca518a66fa90867319c64fa1fecb99d5039f8e21d148013b6ee5e84a19669`.
+- Fresh verification after archiving the report passes the 48-gate source
+  coverage validator with the honest `12 passed / 27 partial / 9 missing`
+  verdict, all 221 Swift tests, deterministic two-build packaging, and the
+  48-file release credential-signature scan with zero findings.
+- All models were unloaded and LM Studio was stopped. CAM-013 remains in
+  progress and the generated-answer goal gate remains partial.
+
 ## Verification Receipts
 
 ### Task 1 — 2026-07-24

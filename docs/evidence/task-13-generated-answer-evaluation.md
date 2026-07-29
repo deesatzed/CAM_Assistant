@@ -41,6 +41,7 @@ donor-repository content was used.
 | Ollama `ornith:9b`, baseline structured prompt | 1.00 | 1.00 | 0.00 | 1.00 | 60,614.74 | Fail |
 | LM Studio MLX `vibethinker-3b-optiq-5bpw-mlx`, exact-ID schema | 1.00 | 1.00 | 0.1667 | 1.00 | 1,393.37 | Fail |
 | LM Studio `gemma-4-12b-it-optiq`, exact-ID schema | 1.00 | 1.00 | 1.00 | 1.00 | 2,010.38 | Fail: latency |
+| LM Studio MLX `qwen3.6-35b-a3b-claude-4.7-opus-oq4e-dwq-mc-mtp-mlx`, exact-ID schema + MTP | 1.00 | 1.00 | 0.00 | 0.00 | 3,821.14 | Fail |
 
 The saved machine-readable reports contain case-level answers, cited passage
 IDs, failures, runtime/model/endpoint identity, latency distributions, and
@@ -65,6 +66,39 @@ Archived report SHA-256 values:
 | `ornith-9b-metal-report.json` | `cbf0e96b7b3aa75dab0554c867a5006efa77fb9edc95ea17cdbdcf12a52b227c` |
 | `vibethinker-3b-mlx-report.json` | `d934ca4e1d5f746e268a1f6611f1ecd233a79741165ec332a3f504d266944a78` |
 | `gemma-4-12b-optiq-report.json` | `fd18e613f1dc0e2d87cdaf9b85302e1198150a9c43258605f9dfb70f1b81db4a` |
+| `qwen36-a3b-mtp-failed-report.json` | `191ca518a66fa90867319c64fa1fecb99d5039f8e21d148013b6ee5e84a19669` |
+
+## Additional installed-model investigation — 2026-07-29
+
+The installed 423M
+`gemma-4-12b-it-qat-assistant-mtp` candidate was selected as the best apparent
+chance to meet the frozen latency gate. It did not reach inference. Two load
+attempts—one with a 4,096-token context and one with defaults—failed
+identically in LM Studio `llama.cpp` runtime `2.27.1`:
+
+```text
+Gemma4Assistant requires ctx_other to be set
+```
+
+That is an invalid runtime/model combination, not a generated-answer quality
+result, so no evaluation report was created.
+
+The installed Qwen 35B-A3B MLX candidate then ran the complete unchanged
+seven-case workload with one warm-up and three measured runs per case. It used
+MTP speculative decoding, a 4,096-token context, parallelism one, and
+19.32 GiB resident memory. Retrieval remained perfect, but every structured
+response failed decoding, cited-claim support and abstention were both zero,
+and p95 was `3,821.14 ms`. Its report remains an explicit model failure.
+
+The generated-evaluation CLI returned process status `0` even though the saved
+report serialized `meetsFrozenThresholds=false` with seven failed cases. This
+is an automation defect: scripts must inspect the report today, and a future
+implementation must make failed frozen gates exit nonzero without changing the
+frozen evaluator or archived result.
+
+The Qwen model was unloaded and LM Studio was stopped after the run. No model
+remained resident and no cloud, web, CAM, credential, personal, or donor route
+was used.
 
 ## Implementation outcome
 
@@ -100,7 +134,9 @@ first tested model to pass all six answer cases, the unsupported-case
 abstention, exact citations, and deterministic claim support across 21 measured
 samples. Its `2,010.38 ms` p95 is about four times the frozen `<500 ms` limit,
 so it is usable for the packaged local-chat workflow but cannot close the
-frozen performance gate.
+frozen performance gate. The larger Qwen MoE candidate was both slower and
+invalid on quality, while the 423M candidate could not load in the installed
+runtime.
 
 CAM-013 therefore remains in progress. Preserve v1 unchanged. The next safe
 model track is a versioned v2 experiment that separates human-usable response
