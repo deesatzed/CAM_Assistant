@@ -53,6 +53,9 @@ case "$suite" in
   modules)
     swift test --disable-sandbox --scratch-path .swift-build --filter ModuleRegistryTests
     ;;
+  backup)
+    swift test --disable-sandbox --scratch-path .swift-build --filter FullVaultBackupTests
+    ;;
   portability)
     "$SCRIPT_DIR/verify-portability.sh"
     ;;
@@ -113,7 +116,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
     exit 64
     ;;
 esac

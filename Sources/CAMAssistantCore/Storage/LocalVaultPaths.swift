@@ -1,5 +1,18 @@
 import Foundation
 
+public enum LocalVaultStateFile: String, CaseIterable, Sendable {
+    case approvals = "approvals.json"
+    case contradictions = "contradictions.json"
+    case hotkeys = "hotkeys.json"
+    case knowledgeClaims = "knowledge-claims.json"
+    case modelProfiles = "models.json"
+    case moduleState = "module-state.json"
+    case repositorySources = "repository-sources.json"
+    case researchPackets = "research-packets.json"
+    case researchPlans = "research-plans.json"
+    case watchedSources = "watched-sources.json"
+}
+
 public enum LocalVaultPaths {
     public static let applicationSupportRootEnvironmentKey =
         "CAM_ASSISTANT_APPLICATION_SUPPORT_ROOT"
@@ -52,6 +65,21 @@ public enum LocalVaultPaths {
             fileManager: fileManager,
             environment: environment
         ).appending(path: "content", directoryHint: .isDirectory)
+    }
+
+    public static func stateURL(
+        _ stateFile: LocalVaultStateFile,
+        vaultRoot: URL
+    ) -> URL {
+        vaultRoot.appending(path: stateFile.rawValue)
+    }
+
+    public static func coordinationURL(vaultRoot: URL) -> URL {
+        vaultRoot.appending(path: "coordination", directoryHint: .isDirectory)
+    }
+
+    public static func retrievalIndexURL(vaultRoot: URL) -> URL {
+        vaultRoot.appending(path: "retrieval-index", directoryHint: .isDirectory)
     }
 }
 
