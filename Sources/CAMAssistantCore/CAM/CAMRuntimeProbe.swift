@@ -1415,7 +1415,7 @@ public struct CAMDisposableStatisticsProbe: Sendable {
         return evidence.sorted { $0.surface.rawValue < $1.surface.rawValue }
     }
 
-    private static func readNativeStatistics(
+    static func readNativeStatistics(
         databaseURL: URL,
         configurationURL: URL,
         deadline: ContinuousClock.Instant

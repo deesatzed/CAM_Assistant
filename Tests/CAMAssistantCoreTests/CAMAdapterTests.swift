@@ -273,6 +273,126 @@ func camClosedToolRequestValidatesClosedContract() throws {
     }
 }
 
+@Test("closed CAM tool executes typed statistics only on disposable state")
+func camClosedToolExecutesTypedDisposableStatistics() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .liveStatsSuccess)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-success",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+
+    let result = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    )
+    let receipt = result.receipt
+
+    #expect(result.replayed == false)
+    #expect(receipt.toolID == .statistics)
+    #expect(receipt.status == .verified)
+    #expect(receipt.failureCode == nil)
+    #expect(receipt.attemptCount == 1)
+    #expect(receipt.processExitCode == 0)
+    #expect(receipt.statistics?.methodologyCount == 12)
+    #expect(receipt.statistics?.sourceRepositoryCount == 3)
+    #expect(receipt.runtimeIdentitySHA256 == pin.identitySHA256)
+    #expect(receipt.donorSurfaceEvidence.allSatisfy {
+        $0.beforeSHA256 == $0.afterSHA256
+    })
+    #expect(receipt.disposableDatabaseSHA256Before != nil)
+    #expect(receipt.disposableDatabaseSHA256After != nil)
+    #expect(receipt.sandboxed)
+    #expect(!receipt.workspaceRetained)
+    #expect(!FileManager.default.fileExists(atPath: receipt.workspaceURL.path))
+}
+
+@Test("closed CAM tool sandbox denies writes outside its disposable operation")
+func camClosedToolSandboxDeniesExternalWrites() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(
+        behavior: .liveStatsExternalWrite
+    )
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-external-write",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+
+    let receipt = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    ).receipt
+
+    #expect(receipt.status == .failed)
+    #expect(receipt.failureCode == "process_failed")
+    #expect(receipt.processExitCode != 0)
+    #expect(!FileManager.default.fileExists(atPath: fixture.externalMarkerURL.path))
+    #expect(receipt.donorSurfaceEvidence.allSatisfy {
+        $0.beforeSHA256 == $0.afterSHA256
+    })
+    #expect(!receipt.workspaceRetained)
+}
+
+@Test("closed CAM tool rejects output for any database except its copy")
+func camClosedToolRejectsWrongDatabaseOutput() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(
+        behavior: .liveStatsWrongDatabase
+    )
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-wrong-database",
+        timeoutSeconds: 5
+    )
+
+    let receipt = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    ).receipt
+
+    #expect(receipt.status == .postconditionFailed)
+    #expect(receipt.failureCode == "database_path_mismatch")
+    #expect(receipt.statistics == nil)
+    #expect(!receipt.workspaceRetained)
+}
+
+@Test("closed CAM tool rejects selected runtime drift before launch")
+func camClosedToolRejectsRuntimeDriftBeforeLaunch() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .liveStatsSuccess)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    try Data("# runtime drift\n".utf8).append(to: fixture.packageCLIURL)
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-runtime-drift",
+        timeoutSeconds: 5
+    )
+
+    let receipt = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    ).receipt
+
+    #expect(receipt.status == .drifted)
+    #expect(receipt.failureCode == "runtime_drift")
+    #expect(receipt.attemptCount == 0)
+}
+
 @Test("closed CAM statistics probe reads only a disposable snapshot and returns typed evidence")
 func closedCAMStatisticsProbeReadsOnlyDisposableSnapshot() async throws {
     let fixture = try CAMInstalledRuntimeFixture()
@@ -801,6 +921,9 @@ private enum CAMInstalledRuntimeBehavior {
     case oversizedStderr
     case ignoresTermination
     case attemptExternalWrite
+    case liveStatsSuccess
+    case liveStatsExternalWrite
+    case liveStatsWrongDatabase
 }
 
 private struct CAMInstalledRuntimeFixture {
@@ -846,13 +969,9 @@ private struct CAMInstalledRuntimeFixture {
             at: packageRootURL,
             withIntermediateDirectories: true
         )
-        try FileManager.default.copyItem(
-            at: URL(filePath: "/bin/sh"),
-            to: interpreterURL
-        )
-        try FileManager.default.setAttributes(
-            [.posixPermissions: 0o700],
-            ofItemAtPath: interpreterURL.path
+        try FileManager.default.createSymbolicLink(
+            at: interpreterURL,
+            withDestinationURL: URL(filePath: "/bin/sh")
         )
         try Data("# synthetic claw package\n".utf8).write(
             to: packageRootURL.appending(path: "__init__.py")
@@ -904,6 +1023,21 @@ private struct CAMInstalledRuntimeFixture {
             fi
             \(CAMInstalledRuntimeFixture.successScript)
             """
+        case .liveStatsSuccess:
+            script = CAMInstalledRuntimeFixture.liveStatsScript(
+                databasePath: "$CLAW_DB_PATH"
+            )
+        case .liveStatsExternalWrite:
+            script = """
+            printf forbidden > "\(externalMarkerURL.path)" || exit 91
+            \(CAMInstalledRuntimeFixture.liveStatsScript(
+                databasePath: "$CLAW_DB_PATH"
+            ))
+            """
+        case .liveStatsWrongDatabase:
+            script = CAMInstalledRuntimeFixture.liveStatsScript(
+                databasePath: "/tmp/not-the-disposable-database"
+            )
         }
         try Data(
             """
@@ -989,6 +1123,12 @@ private struct CAMInstalledRuntimeFixture {
     printf x >> "$CLAW_DB_PATH"
     printf '%s' '{"methodology_count":12,"source_repo_count":3,"lifecycle_states":{"embryonic":9,"viable":2,"thriving":1,"declining":0},"federation_enabled":true}'
     """
+
+    private static func liveStatsScript(databasePath: String) -> String {
+        """
+        printf '{"ganglion":"synthetic","ganglion_description":"","methodology_count":12,"active_methodology_count":3,"source_repo_count":3,"lifecycle_states":{"embryonic":9,"viable":2,"thriving":1},"federation_enabled":true,"sibling_count":0,"db_path":"%s","cag":{"enabled":false,"loaded":false,"methodology_count":0}}' "\(databasePath)"
+        """
+    }
 
     private static func runGit(_ arguments: [String], at root: URL) throws {
         let process = Process()
