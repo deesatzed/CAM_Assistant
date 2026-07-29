@@ -1536,6 +1536,23 @@ disabled until their individual proof gates are met.
 - Saved evidence:
   `docs/evidence/task-17-module-permission-enforcement.md`.
 
+### Remaining-gate reality audit — 2026-07-28
+
+- Rechecked repository idea quality, semantic evaluation, promotions, typed
+  research results, native research review, and module permission/health
+  against current public types and focused tests.
+- No additional gate is fully proved. The map remains `12 passed`,
+  `26 partial`, and `10 missing`.
+- Tightened stale limitations: semantic cards now enforce the complete
+  evidence/rejected-alternative/experiment shape, but manual cards do not;
+  research packets separate facts and inferences but have no typed unanswered
+  questions or recommendations.
+- Read-only checks of loopback ports `1234` and `11434` again refused
+  connection. No named-model receipt was fabricated and no cloud fallback was
+  attempted.
+- Saved evidence:
+  `docs/evidence/goal-map-reality-audit-2026-07-28.md`.
+
 ## Blockers
 
 None.

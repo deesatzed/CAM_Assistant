@@ -212,9 +212,11 @@
       "title": "Evidence-complete idea cards",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-11-repositories-mac-care.md"
+        "docs/evidence/task-11-repositories-mac-care.md",
+        "docs/evidence/task-15-repository-semantic-evaluation.md",
+        "docs/evidence/goal-map-reality-audit-2026-07-28.md"
       ],
-      "limitation": "Evidence, counterevidence, confidence, and validation criteria exist; license status, rejected alternatives, and smallest-experiment enforcement are incomplete."
+      "limitation": "The semantic path enforces cited counterevidence, confidence, snapshot license, rejected alternatives, and a smallest experiment; legacy/manual cards still permit empty rejected alternatives and expose license provenance without a reviewed compatibility status."
     },
     {
       "id": "repositories.promotions",
@@ -254,9 +256,10 @@
       "title": "Typed and separately cited research results",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-10-research-knowledge.md"
+        "docs/evidence/task-10-research-knowledge.md",
+        "docs/evidence/goal-map-reality-audit-2026-07-28.md"
       ],
-      "limitation": "Facts, inferences, and contradictions are distinct; complete unanswered-question and recommendation packet behavior is not proven."
+      "limitation": "Citation-verified facts, fact-bound inferences, and contradiction records are distinct; ResearchPacket has no typed unanswered-question or recommendation collections."
     },
     {
       "id": "research.native-review",
