@@ -3,7 +3,9 @@ import Foundation
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
-if arguments.first == "models" || arguments.first == "embeddings" {
+if arguments.first == "vault" {
+    exit(runVaultCommand(arguments: arguments))
+} else if arguments.first == "models" || arguments.first == "embeddings" {
     exit(runModelCommand(arguments: arguments))
 } else if arguments.first == "orchestration-lock-probe" {
     exit(runOrchestrationLockProbe(arguments: arguments))

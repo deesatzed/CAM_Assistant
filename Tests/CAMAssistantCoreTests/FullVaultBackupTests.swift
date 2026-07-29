@@ -569,6 +569,95 @@ func fullVaultRestoreRefusesExistingDestination() throws {
     }
 }
 
+@Test("vault command parser accepts only explicit absolute backup operations")
+func vaultCommandParserAcceptsExplicitAbsoluteOperations() throws {
+    #expect(
+        try VaultCommand.parse(
+            arguments: [
+                "vault",
+                "backup",
+                "/tmp/Source",
+                "/tmp/Backup.camvault",
+            ]
+        ) == .backup(
+            sourceRoot: URL(filePath: "/tmp/Source"),
+            packageURL: URL(filePath: "/tmp/Backup.camvault")
+        )
+    )
+    #expect(
+        try VaultCommand.parse(
+            arguments: [
+                "vault",
+                "validate",
+                "/tmp/Backup.camvault",
+            ]
+        ) == .validate(
+            packageURL: URL(filePath: "/tmp/Backup.camvault")
+        )
+    )
+    #expect(
+        try VaultCommand.parse(
+            arguments: [
+                "vault",
+                "restore",
+                "/tmp/Backup.camvault",
+                "/tmp/Restored",
+            ]
+        ) == .restore(
+            packageURL: URL(filePath: "/tmp/Backup.camvault"),
+            destinationRoot: URL(filePath: "/tmp/Restored")
+        )
+    )
+    #expect(throws: VaultCommandError.invalidArguments) {
+        try VaultCommand.parse(
+            arguments: ["vault", "backup", "relative", "/tmp/Backup.camvault"]
+        )
+    }
+    #expect(throws: VaultCommandError.invalidArguments) {
+        try VaultCommand.parse(arguments: ["vault", "restore"])
+    }
+}
+
+@Test("vault command executor emits status-only receipts")
+func vaultCommandExecutorEmitsStatusOnlyReceipts() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let sourceRoot = workspace.appending(path: "Source")
+    let packageURL = workspace.appending(path: "Command.camvault")
+    let destinationRoot = workspace.appending(path: "Restored")
+    let database = try SQLiteStore(
+        databaseURL: sourceRoot.appending(path: "vault.sqlite")
+    )
+    let privateFixture = "private fixture payload must not appear in output"
+    _ = try ContentStore(
+        rootDirectory: sourceRoot.appending(path: "content")
+    ).put(Data(privateFixture.utf8))
+
+    let executor = VaultCommandExecutor()
+    let backup = try executor.execute(
+        .backup(sourceRoot: sourceRoot, packageURL: packageURL)
+    )
+    let validation = try executor.execute(
+        .validate(packageURL: packageURL)
+    )
+    try database.close()
+    let restore = try executor.execute(
+        .restore(
+            packageURL: packageURL,
+            destinationRoot: destinationRoot
+        )
+    )
+
+    #expect(backup.hasPrefix("vault backup: pass\n"))
+    #expect(validation.hasPrefix("vault validation: pass\n"))
+    #expect(restore.hasPrefix("vault restore: pass\n"))
+    #expect(backup.contains("entries: 2"))
+    #expect(restore.contains("watched sources paused: 0"))
+    #expect(!backup.contains(privateFixture))
+    #expect(!validation.contains(privateFixture))
+    #expect(!restore.contains(privateFixture))
+}
+
 private func rewriteBackupManifest(
     at packageURL: URL,
     replacing relativePath: String,
