@@ -2131,6 +2131,28 @@ disabled until their individual proof gates are met.
 
 None.
 
+### Stable portable checkpoint and integration regroup — 2026-07-30
+
+- Candidate checkpoint: `a01b150ab259f373cd576462d76a84749dc86a46` on
+  `agent/portable-canonical-repo`, with matching published remote branch.
+- Green proof: the repository-owned disposable non-local fresh-clone verifier
+  completed portability, serial aggregate tests, release build, package,
+  privacy scan, offline smoke, and clone cleanliness checks at that candidate.
+  The current saved privacy receipt scans 58 files with zero findings.
+- Product alignment: Layer 1 remains native local trust/memory; Layer 2 is
+  explicit, resumable CAM/Codex-compatible coordination; Layer 3 contains
+  separately permissioned models, research, repositories, CAM, Mac Care, and
+  modules. The app remains useful offline with every optional arm disabled.
+- Admission policy: the two waiting arms remain outside the checkpoint until
+  each has a recorded owner/license, data and authority boundary, user-visible
+  journey, disable/rollback path, and end-to-end proof target. This is scope
+  sequencing, not a product blocker.
+- Honest limit: the 48-gate map remains incomplete (16 passed, 28 partial,
+  4 missing). This checkpoint proves portability of the present build, not
+  final daily-use completion.
+- Saved receipt:
+  `docs/evidence/task-18-stable-checkpoint-2026-07-30.md`.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

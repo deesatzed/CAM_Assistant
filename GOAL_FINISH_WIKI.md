@@ -14,16 +14,23 @@ Run from the repository root:
 
 ## Current verified baseline
 
-The starting point is not a blank project. As of 2026-07-26:
+The starting point is not a blank project. At the stable checkpoint
+`a01b150ab259f373cd576462d76a84749dc86a46` (2026-07-30):
 
-- the aggregate verifier passes 156 tests and release-builds the app and CLI;
+- the fresh-clone aggregate verifier passes 330 tests and release-builds the app and CLI;
 - an unsigned local `CAM Assistant.app` can be packaged and launched;
 - local vault, ingestion, retrieval, privacy, model-profile, module, task,
   research, knowledge, repository, CAM-contract, coordination, watched-source,
   hotkey-registration, and read-only Mac Care foundations exist;
-- external research, live model generation, live CAM mining, Mac mutation,
-  production distribution, and complete GUI journey proof do not yet exist;
+- direct public-document research acquisition exists, while live model
+  quality/latency proof, real CAM mining, Mac mutation, production
+  distribution, and complete GUI journey proof do not yet exist;
 - `docs/VERIFICATION_REPORT.md` is the requirement-by-requirement baseline.
+
+The current machine-readable finish map is intentionally incomplete: 16 of 48
+gates pass, 28 are partial, and 4 are missing. See
+`docs/evidence/task-18-stable-checkpoint-2026-07-30.md` for the portable
+checkpoint receipt and its limits.
 
 Existing green foundations must be preserved. A passing unit test, fixture
 adapter, unavailable executor, proposal, or UI status label must never be

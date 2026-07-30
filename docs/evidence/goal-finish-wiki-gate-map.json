@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceGoal": "GOAL_FINISH_WIKI.md",
-  "sourceGoalSHA256": "92f771c5edf9df76e827f2b7f13f87aa2cd1e8f690e053aa9bb113a448b1755a",
+  "sourceGoalSHA256": "0ab883954545ee0a3ee77e752429d36524e88f14987492ccf6c7330c0d936ef2",
   "overallStatus": "incomplete",
   "summary": {
     "total": 48,
@@ -13,7 +13,7 @@
   "gates": [
     {
       "id": "wiki.capture-lifecycle",
-      "sourceLine": 96,
+      "sourceLine": 103,
       "title": "Packaged clipboard and watched-folder lifecycle",
       "status": "partial",
       "evidence": [
@@ -24,7 +24,7 @@
     },
     {
       "id": "wiki.hotkeys",
-      "sourceLine": 98,
+      "sourceLine": 105,
       "title": "Packaged global hotkey dispatch",
       "status": "partial",
       "evidence": [
@@ -34,7 +34,7 @@
     },
     {
       "id": "wiki.library-lifecycle",
-      "sourceLine": 100,
+      "sourceLine": 107,
       "title": "Library provenance knowledge and lifecycle",
       "status": "partial",
       "evidence": [
@@ -46,7 +46,7 @@
     },
     {
       "id": "wiki.full-vault-backup",
-      "sourceLine": 103,
+      "sourceLine": 110,
       "title": "Full-vault backup and restore",
       "status": "passed",
       "evidence": [
@@ -56,7 +56,7 @@
     },
     {
       "id": "wiki.stable-source-generations",
-      "sourceLine": 106,
+      "sourceLine": 113,
       "title": "Stable sources and replaceable generations",
       "status": "passed",
       "evidence": [
@@ -67,7 +67,7 @@
     },
     {
       "id": "chat.local-model-selection",
-      "sourceLine": 111,
+      "sourceLine": 118,
       "title": "Explicit local-model selection and health",
       "status": "passed",
       "evidence": [
@@ -77,7 +77,7 @@
     },
     {
       "id": "chat.grounded-presentation",
-      "sourceLine": 113,
+      "sourceLine": 120,
       "title": "Grounded chat presentation",
       "status": "partial",
       "evidence": [
@@ -87,7 +87,7 @@
     },
     {
       "id": "chat.frozen-evaluation",
-      "sourceLine": 116,
+      "sourceLine": 123,
       "title": "Frozen generated-claim evaluation",
       "status": "partial",
       "evidence": [
@@ -99,7 +99,7 @@
     },
     {
       "id": "chat.abstention",
-      "sourceLine": 121,
+      "sourceLine": 128,
       "title": "Unsupported synthesis abstention",
       "status": "passed",
       "evidence": [
@@ -108,7 +108,7 @@
     },
     {
       "id": "chat.ephemeral-promotion",
-      "sourceLine": 123,
+      "sourceLine": 130,
       "title": "Ephemeral answers and explicit promotion",
       "status": "partial",
       "evidence": [
@@ -118,7 +118,7 @@
     },
     {
       "id": "privacy.routing",
-      "sourceLine": 128,
+      "sourceLine": 135,
       "title": "Explicit route grammar and visible failure",
       "status": "passed",
       "evidence": [
@@ -127,7 +127,7 @@
     },
     {
       "id": "privacy.zero-egress",
-      "sourceLine": 131,
+      "sourceLine": 138,
       "title": "Zero outbound bytes for restricted fixtures",
       "status": "passed",
       "evidence": [
@@ -136,7 +136,7 @@
     },
     {
       "id": "models.live-catalog-promotion",
-      "sourceLine": 134,
+      "sourceLine": 141,
       "title": "Live catalog and atomic model promotions",
       "status": "missing",
       "evidence": [
@@ -146,7 +146,7 @@
     },
     {
       "id": "approvals.exact-action",
-      "sourceLine": 137,
+      "sourceLine": 144,
       "title": "Exact outbound and mutation approval",
       "status": "partial",
       "evidence": [
@@ -157,7 +157,7 @@
     },
     {
       "id": "audit.redaction",
-      "sourceLine": 140,
+      "sourceLine": 147,
       "title": "Status-only audit and exported evidence",
       "status": "passed",
       "evidence": [
@@ -168,7 +168,7 @@
     },
     {
       "id": "repositories.persistent-jobs",
-      "sourceLine": 145,
+      "sourceLine": 152,
       "title": "Persistent repository jobs and receipts",
       "status": "partial",
       "evidence": [
@@ -178,7 +178,7 @@
     },
     {
       "id": "repositories.nonmutation",
-      "sourceLine": 149,
+      "sourceLine": 156,
       "title": "Repository intake nonmutation",
       "status": "partial",
       "evidence": [
@@ -189,7 +189,7 @@
     },
     {
       "id": "repositories.index-coverage",
-      "sourceLine": 152,
+      "sourceLine": 159,
       "title": "Permitted repository content coverage",
       "status": "partial",
       "evidence": [
@@ -199,7 +199,7 @@
     },
     {
       "id": "repositories.semantic-evaluation",
-      "sourceLine": 155,
+      "sourceLine": 162,
       "title": "Cited semantic observations and frozen evaluation",
       "status": "partial",
       "evidence": [
@@ -214,7 +214,7 @@
     },
     {
       "id": "repositories.idea-quality",
-      "sourceLine": 158,
+      "sourceLine": 165,
       "title": "Evidence-complete idea cards",
       "status": "partial",
       "evidence": [
@@ -227,7 +227,7 @@
     },
     {
       "id": "repositories.promotions",
-      "sourceLine": 160,
+      "sourceLine": 167,
       "title": "Explicit idea promotion",
       "status": "partial",
       "evidence": [
@@ -238,7 +238,7 @@
     },
     {
       "id": "repositories.adaptation-provenance",
-      "sourceLine": 162,
+      "sourceLine": 169,
       "title": "Code adaptation provenance",
       "status": "partial",
       "evidence": [
@@ -249,7 +249,7 @@
     },
     {
       "id": "research.acquisition",
-      "sourceLine": 167,
+      "sourceLine": 174,
       "title": "Policy-gated research acquisition",
       "status": "passed",
       "evidence": [
@@ -259,7 +259,7 @@
     },
     {
       "id": "research.typed-results",
-      "sourceLine": 170,
+      "sourceLine": 177,
       "title": "Typed and separately cited research results",
       "status": "partial",
       "evidence": [
@@ -271,7 +271,7 @@
     },
     {
       "id": "research.native-review",
-      "sourceLine": 172,
+      "sourceLine": 179,
       "title": "Native validated-packet review",
       "status": "passed",
       "evidence": [
@@ -281,7 +281,7 @@
     },
     {
       "id": "research.untrusted-output",
-      "sourceLine": 174,
+      "sourceLine": 181,
       "title": "External output remains untrusted data",
       "status": "passed",
       "evidence": [
@@ -292,7 +292,7 @@
     },
     {
       "id": "research.offline-planning",
-      "sourceLine": 176,
+      "sourceLine": 183,
       "title": "Offline research planning and review",
       "status": "passed",
       "evidence": [
@@ -301,7 +301,7 @@
     },
     {
       "id": "cam.runtime-verification",
-      "sourceLine": 181,
+      "sourceLine": 188,
       "title": "Pinned live CAM runtime verification",
       "status": "partial",
       "evidence": [
@@ -315,7 +315,7 @@
     },
     {
       "id": "cam.bounded-loop",
-      "sourceLine": 183,
+      "sourceLine": 190,
       "title": "Bounded resumable coordination loop",
       "status": "partial",
       "evidence": [
@@ -325,7 +325,7 @@
     },
     {
       "id": "cam.closed-executor",
-      "sourceLine": 185,
+      "sourceLine": 192,
       "title": "Closed typed CAM executor",
     "status": "partial",
       "evidence": [
@@ -337,7 +337,7 @@
     },
     {
       "id": "cam.mining-plan",
-      "sourceLine": 188,
+      "sourceLine": 195,
       "title": "Exact-approved CAM mining plan",
       "status": "partial",
       "evidence": [
@@ -348,7 +348,7 @@
     },
     {
       "id": "cam.disposable-integration",
-      "sourceLine": 191,
+      "sourceLine": 198,
       "title": "Disposable CAM integration proof",
       "status": "partial",
       "evidence": [
@@ -361,7 +361,7 @@
     },
     {
       "id": "cam.failure-never-success",
-      "sourceLine": 193,
+      "sourceLine": 200,
       "title": "Failure cannot become verified success",
       "status": "partial",
       "evidence": [
@@ -374,7 +374,7 @@
     },
     {
       "id": "cam.advanced-disabled",
-      "sourceLine": 196,
+      "sourceLine": 203,
       "title": "Advanced orchestration remains proof-gated",
       "status": "passed",
       "evidence": [
@@ -384,7 +384,7 @@
     },
     {
       "id": "mac-care.assessment-evidence",
-      "sourceLine": 202,
+      "sourceLine": 209,
       "title": "Read-only Mac assessment evidence",
       "status": "partial",
       "evidence": [
@@ -394,7 +394,7 @@
     },
     {
       "id": "mac-care.no-necessity-inference",
-      "sourceLine": 204,
+      "sourceLine": 211,
       "title": "No unsupported application-necessity judgment",
       "status": "passed",
       "evidence": [
@@ -404,7 +404,7 @@
     },
     {
       "id": "mac-care.closed-actions",
-      "sourceLine": 206,
+      "sourceLine": 213,
       "title": "Closed reversible Mac action set",
       "status": "missing",
       "evidence": [
@@ -414,7 +414,7 @@
     },
     {
       "id": "mac-care.dangerous-deferral",
-      "sourceLine": 209,
+      "sourceLine": 216,
       "title": "Dangerous Mac actions remain deferred",
       "status": "passed",
       "evidence": [
@@ -424,7 +424,7 @@
     },
     {
       "id": "modules.manifest-trust",
-      "sourceLine": 215,
+      "sourceLine": 222,
       "title": "Versioned trusted module manifests",
       "status": "partial",
       "evidence": [
@@ -434,7 +434,7 @@
     },
     {
       "id": "modules.no-grant-on-enable",
-      "sourceLine": 218,
+      "sourceLine": 225,
       "title": "Discovery and enablement grant no permission",
       "status": "passed",
       "evidence": [
@@ -445,7 +445,7 @@
     },
     {
       "id": "modules.permissions-and-health",
-      "sourceLine": 219,
+      "sourceLine": 226,
       "title": "Explicit permission receipts and isolated health",
       "status": "partial",
       "evidence": [
@@ -456,7 +456,7 @@
     },
     {
       "id": "modules.homegrown-lifecycle",
-      "sourceLine": 221,
+      "sourceLine": 228,
       "title": "Packaged home-grown module lifecycle",
       "status": "missing",
       "evidence": [
@@ -466,7 +466,7 @@
     },
     {
       "id": "ux.workspace-set",
-      "sourceLine": 226,
+      "sourceLine": 233,
       "title": "Complete compact and expandable workspace",
       "status": "partial",
       "evidence": [
@@ -476,7 +476,7 @@
     },
     {
       "id": "ux.accessibility-and-states",
-      "sourceLine": 229,
+      "sourceLine": 236,
       "title": "Keyboard VoiceOver focus motion and state proof",
       "status": "partial",
       "evidence": [
@@ -488,7 +488,7 @@
     },
     {
       "id": "ux.fresh-restart-journeys",
-      "sourceLine": 232,
+      "sourceLine": 239,
       "title": "Fresh-user and restart/recovery journeys",
       "status": "missing",
       "evidence": [
@@ -498,7 +498,7 @@
     },
     {
       "id": "release.aggregate-verifier",
-      "sourceLine": 234,
+      "sourceLine": 241,
       "title": "Complete aggregate verifier",
       "status": "partial",
       "evidence": [
@@ -509,7 +509,7 @@
     },
     {
       "id": "release.reproducible-package",
-      "sourceLine": 237,
+      "sourceLine": 244,
       "title": "Reproducible unsigned package and gated distribution",
       "status": "passed",
       "evidence": [
@@ -519,7 +519,7 @@
     },
     {
       "id": "release.final-report",
-      "sourceLine": 240,
+      "sourceLine": 247,
       "title": "Complete final release report",
       "status": "partial",
       "evidence": [
