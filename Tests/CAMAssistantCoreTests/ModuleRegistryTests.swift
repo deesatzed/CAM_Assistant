@@ -29,6 +29,23 @@ func allInitialManifestsSatisfySchema() throws {
     #expect(manifests.allSatisfy { !$0.permissions.isEmpty })
 }
 
+@Test("packaged text summary manifest is digest trusted before installation")
+func packagedTextSummaryManifestIsDigestTrustedBeforeInstallation() throws {
+    let data = try PackagedModuleTrust.textSummaryManifestData()
+    let manifest = try ModuleManifest.decodeValidated(data)
+
+    #expect(manifest.id == "cam.text-summary")
+    #expect(manifest.capabilities == ["text.summary"])
+    #expect(PackagedModuleTrust.isTrustedTextSummaryManifest(data))
+
+    let tampered = Data(
+        String(decoding: data, as: UTF8.self)
+            .replacingOccurrences(of: "Text summary", with: "Text summary altered")
+            .utf8
+    )
+    #expect(!PackagedModuleTrust.isTrustedTextSummaryManifest(tampered))
+}
+
 @Test("invalid versions and unknown permissions fail before registration")
 func invalidVersionsAndPermissionsFailBeforeRegistration() throws {
     let invalidVersion = manifestJSON(id: "cam.invalid-version", version: "1")

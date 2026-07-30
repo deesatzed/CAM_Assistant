@@ -13,6 +13,7 @@ let package = Package(
     targets: [
         .target(
             name: "CAMAssistantCore",
+            resources: [.process("Resources")],
             linkerSettings: [
                 .linkedLibrary("sqlite3"),
             ]

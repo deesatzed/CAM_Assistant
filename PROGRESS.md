@@ -2179,6 +2179,18 @@ None.
   in 0.150 seconds. This corrects cancellation/recovery reliability but does
   not add mining authority.
 
+### Packaged home-grown module trust root — 2026-07-30
+
+- Added one repository-packaged native manifest, `cam.text-summary`, as the
+  closed first local-trust root. `CAMAssistantCore` packages it as a SwiftPM
+  resource and accepts it only when its compiled SHA-256 matches exactly.
+- Red/green proof: the trust type was first absent; the resource lookup then
+  failed until it was corrected to SwiftPM's processed bundle location. The
+  focused module suite now passes all `8` tests, including manifest validation
+  and one-byte tamper rejection.
+- Boundary: this does not yet install, grant, dispatch, disable, remove, or
+  present the module. Task 2 will add those separate authority transitions.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.text-summary",
+  "version": "1.0.0",
+  "owner": "CAM Assistant",
+  "purpose": "Text summary",
+  "isCore": false,
+  "entryPoint": "native:text-summary",
+  "transport": "native",
+  "permissions": ["readLocal"],
+  "acceptedDataClasses": ["public"],
+  "emittedDataClasses": ["public"],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "none",
+  "healthCheck": {
+    "kind": "native",
+    "target": "self",
+    "timeoutSeconds": 2
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Disable only this module",
+  "auditReceiptSchema": "cam.audit.status.v1",
+  "rollback": "Disable and remove the app-owned installed manifest",
+  "license": "Proprietary",
+  "provenance": "CAM Assistant packaged module",
+  "capabilities": ["text.summary"]
+}
