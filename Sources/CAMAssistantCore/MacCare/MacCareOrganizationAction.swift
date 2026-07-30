@@ -27,6 +27,40 @@ public struct MacCareOrganizationPlan: Codable, Equatable, Sendable {
         self.sourceSHA256 = sourceSHA256
         stateRevision = 1
     }
+
+    public func actionCard(expiresAt: Date) throws -> ActionCard {
+        let payload = "\(actionID)|\(id.uuidString)|\(sourceSHA256)|\(destinationRelativePath)"
+        let data = Data(payload.utf8)
+        return try ActionCard(
+            goal: "Move one explicitly selected file inside an approved organization root.",
+            moduleID: "mac-care.organization",
+            target: "Mac Care organization action \(id.uuidString)",
+            accessedResources: [sourceRelativePath, destinationRelativePath],
+            excludedResources: ["vault", "CAM", "repositories", "credentials"],
+            riskReason: "Moves one selected local file and requires verified undo.",
+            outboundManifest: OutboundManifest(operation: actionID, requestedRole: nil, stateVersion: stateRevision, riskClass: .generic, redactedPayload: payload, payloadSHA256: GoldenRetrievalManifest.sha256(of: data), outboundByteCount: data.count),
+            expiresAt: expiresAt,
+            rollbackDescription: "Move the verified destination file back to its original vacant path."
+        )
+    }
+}
+
+public enum MacCareOrganizationActionStatus: String, Codable, Equatable, Sendable { case verified }
+public struct MacCareOrganizationActionResult: Equatable, Sendable { public let status: MacCareOrganizationActionStatus; public let approvalID: UUID }
+public struct MacCareOrganizationExecutor: Sendable {
+    public init() {}
+    public func execute(plan: MacCareOrganizationPlan, rootURL: URL, approvalID: UUID, approvalStore: ApprovalStore, card: ActionCard, now: Date = Date()) throws -> MacCareOrganizationActionResult {
+        let receipt = try approvalStore.consume(approvalID: approvalID, for: card, now: now)
+        let root = rootURL.standardizedFileURL
+        let source = root.appending(path: plan.sourceRelativePath)
+        let destination = root.appending(path: plan.destinationRelativePath)
+        let data = try Data(contentsOf: source)
+        guard Int64(data.count) == plan.sourceByteCount, GoldenRetrievalManifest.sha256(of: data) == plan.sourceSHA256, !FileManager.default.fileExists(atPath: destination.path) else { throw MacCareOrganizationPlanError.sourceReadFailed }
+        try FileManager.default.moveItem(at: source, to: destination)
+        let moved = try Data(contentsOf: destination)
+        guard GoldenRetrievalManifest.sha256(of: moved) == plan.sourceSHA256 else { throw MacCareOrganizationPlanError.sourceReadFailed }
+        return MacCareOrganizationActionResult(status: .verified, approvalID: receipt.approvalID)
+    }
 }
 
 public enum MacCareOrganizationPlanError: Error, Equatable {

@@ -139,3 +139,31 @@ func macCareOrganizationPlanBindsOneRegularFixtureFileInsideOneRoot() throws {
         )
     }
 }
+
+@Test("Mac Care organization move consumes exact approval and verifies the planned file")
+func macCareOrganizationMoveConsumesExactApprovalAndVerifiesPlannedFile() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let inbox = root.appending(path: "Inbox", directoryHint: .isDirectory)
+    let archive = root.appending(path: "Archive", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: true)
+    let source = inbox.appending(path: "notes.txt")
+    try Data("local notes".utf8).write(to: source)
+    let plan = try MacCareOrganizationPlanner().propose(
+        rootURL: root, sourceURL: source, destinationDirectoryURL: archive
+    )
+    let card = try plan.actionCard(expiresAt: Date(timeIntervalSince1970: 100))
+    let approvals = try ApprovalStore(stateURL: root.appending(path: "approvals.json"))
+    let approval = try approvals.approve(card, source: "user", now: Date(timeIntervalSince1970: 10))
+
+    let result = try MacCareOrganizationExecutor().execute(
+        plan: plan, rootURL: root, approvalID: approval.id,
+        approvalStore: approvals, card: card, now: Date(timeIntervalSince1970: 20)
+    )
+
+    #expect(result.status == .verified)
+    #expect(!FileManager.default.fileExists(atPath: source.path))
+    #expect(FileManager.default.fileExists(atPath: archive.appending(path: "notes.txt").path))
+    #expect(result.approvalID == approval.id)
+}
