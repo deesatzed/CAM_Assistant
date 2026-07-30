@@ -2167,6 +2167,11 @@ None.
 - Boundary: this adds no subprocess, CAM `mine` invocation, repository copy,
   database mutation, promotion, live/personal corpus access, or UI authority.
   Those remain the next test-first tasks in the disposable-only plan.
+- Platform finding: an uncommitted external fixture runner was exercised with
+  three `sandbox-exec` profile variants. Each launched the fixed `mine`
+  command but denied the copied-database write, so the runner was removed
+  rather than weakened or relabelled as a success. A paired inside-write /
+  outside-denial platform probe is now required before resuming that executor.
 
 ## Questions for User
 

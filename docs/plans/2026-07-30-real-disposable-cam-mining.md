@@ -35,6 +35,20 @@ deletes the operation on every terminal path. No result is promoted.
 - A successful disposable run proves only that the closed integration works on
   the fixture. It is not live mining authorization.
 
+## Current platform finding
+
+The first test-first external runner was not retained. Its fixed `mine`
+argument vector launched a shell CAM fixture, but three candidate
+`sandbox-exec` profiles all denied the fixture's write to the copied SQLite
+database. The executor therefore reported a non-success terminal state and
+was removed rather than weakening the profile or treating a no-op as mining.
+The separately committed fixture-root admission contract remains green.
+
+Before Task 2 is resumed, add one minimal platform probe that proves a child
+can write inside an executor-owned operation root while a companion probe
+proves it cannot write a sibling/outside marker. Only then may that profile be
+used for the real disposable command.
+
 ### Task 1: Freeze the disposable external-command contract
 
 **Files:**
