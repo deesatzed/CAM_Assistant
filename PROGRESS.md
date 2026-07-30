@@ -134,8 +134,8 @@ disabled until their individual proof gates are met.
   --filter CAMAdapterTests` passed all 38 CAM adapter/runtime tests.
 - Boundary: this is crash-visible fail-closed core recovery for the existing
   read-only disposable statistics tool. It does not auto-resume, clean up, or
-  terminate a prior process; native restart presentation, exact-approved mining,
-  mutation checkpoints, and rollback remain unimplemented.
+  terminate a prior process; exact-approved mining, mutation checkpoints, and
+  rollback remain unimplemented.
 
 ### Native closed CAM interruption status — 2026-07-30
 

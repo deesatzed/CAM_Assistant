@@ -73,10 +73,10 @@ copy, and never after cancellation, drift, invalid output, postcondition
 failure, or cleanup failure. No failure can become verified success without a
 successful final attempt and all postconditions.
 
-The first slice persists terminal receipts but does not yet implement durable
-in-flight recovery. An interrupted run is safe because its authority is
-limited to a disposable directory; later work will add restart-visible
-in-flight state and native recovery controls.
+The first slice persists terminal receipts and fail-closed durable in-flight
+state. An interrupted run is safe because its authority is limited to a
+disposable directory; the native app shows restart-visible status only. It
+does not resume, inspect, clean up, or control the unknown prior process.
 
 ## User and authority boundary
 
@@ -100,4 +100,3 @@ The implementation must demonstrate:
 - a CLI receipt path with status-only output;
 - a real disposable execution against the selected installed CAM runtime;
 - focused CAM verification, aggregate verification, and clean-clone proof.
-
