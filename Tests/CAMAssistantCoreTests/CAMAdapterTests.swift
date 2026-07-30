@@ -668,6 +668,53 @@ func camCLICreatesPinAndDisposableStatisticsReceipt() throws {
     #expect(receipt.statistics?.methodologyCount == 12)
 }
 
+@Test("CAM CLI executes and replays the closed disposable statistics tool")
+func camCLIExecutesClosedDisposableStatisticsTool() throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .liveStatsSuccess)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let pinURL = fixture.root.appending(path: "closed-runtime-pin.json")
+    let receiptURL = fixture.root.appending(path: "closed-runtime-receipt.json")
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    try encoder.encode(pin).write(to: pinURL, options: .atomic)
+    let cli = try camDebugCLIURL()
+
+    for _ in 0..<2 {
+        let process = Process()
+        process.executableURL = cli
+        process.arguments = [
+            "cam",
+            "runtime-execute-stats",
+            pinURL.path,
+            fixture.workspaceURL.path,
+            receiptURL.path,
+            "cli-closed-stats",
+            "--timeout-seconds",
+            "5",
+            "--maximum-attempts",
+            "2",
+        ]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        #expect(process.terminationStatus == 0)
+    }
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    let receipt = try decoder.decode(
+        CAMClosedToolReceipt.self,
+        from: Data(contentsOf: receiptURL)
+    )
+    #expect(receipt.status == .verified)
+    #expect(receipt.toolID == .statistics)
+    #expect(receipt.statistics?.methodologyCount == 12)
+    #expect(receipt.statistics?.sourceRepositoryCount == 3)
+    #expect(receipt.idempotencyKey == "cli-closed-stats")
+}
+
 @Test("CAM runtime pin derives interpreter package metadata and source commit")
 func camRuntimePinDerivesInstalledRuntimeIdentity() async throws {
     let fixture = try CAMInstalledRuntimeFixture()
