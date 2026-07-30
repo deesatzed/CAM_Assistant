@@ -99,6 +99,22 @@ permission allowed the same closed command to run in the normal macOS context;
 the verified receipt above is the valid proof. The failed host-harness receipt
 is not promoted as success.
 
+## Exact-checkpoint aggregate proof
+
+The aggregate verifier retains the strict sub-second wall-clock assertion for
+the bounded-hash timeout test. A first 326-test aggregate run exposed
+test-runner scheduling contention rather than a missed internal deadline. The
+repository aggregate command now requests one Swift Testing worker, which
+keeps that timing proof reproducible without relaxing its assertion.
+
+A temporary non-local clone of exact checkpoint
+`acefa12531094cab49fdf46a81e9deaa2cead2c3` then passed repository
+portability, the 48-gate map (`16 passed`, `28 partial`, `4 missing`), all
+`326` tests, release app/CLI builds, two-build package reproducibility manifest
+`b9087a47ded2d6920a45621b892357808edc8f80bc26c290bce71ee192ffe1f3`, package
+identity with `dirty=false`, the `57`-file zero-finding credential-signature
+scan, and offline smoke.
+
 ## Remaining boundary
 
 This does not authorize arbitrary CAM commands, mining, providers, MCP,

@@ -107,6 +107,13 @@ disabled until their individual proof gates are met.
   Statistics Tool` action, explicit cancellation, bounded typed receipt
   presentation, and its no-mining authority boundary. The app suite passed 26
   tests including its expected-red/green source contract.
+- Aggregate verification preserves the strict bounded-hash deadline assertion
+  while running one Swift Testing worker to avoid aggregate scheduler
+  contention. A clean temporary clone of `acefa12531094cab49fdf46a81e9deaa2cead2c3`
+  passed the 48-gate map, all `326` tests, release builds, deterministic
+  package manifest `b9087a47ded2d6920a45621b892357808edc8f80bc26c290bce71ee192ffe1f3`,
+  package identity with `dirty=false`, 57-file zero-finding credential scan,
+  and offline smoke.
 - Saved evidence: `docs/evidence/task-16-closed-cam-executor.md`.
 - Goal-map effect: `cam.closed-executor` moves from `missing` to `partial`.
   Totals are now `16 passed`, `28 partial`, and `4 missing`, overall incomplete.
