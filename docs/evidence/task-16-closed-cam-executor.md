@@ -1,6 +1,6 @@
 # Closed CAM Statistics Executor Proof
 
-**Date:** 2026-07-29  
+**Date:** 2026-07-30
 **Status:** Verified partial CAM-016 implementation. This is a closed,
 read-only-in-effect statistics tool, not mining authority.
 
@@ -34,6 +34,15 @@ to a different request fails closed. At most three bounded attempts are
 permitted, and only retryable child-launch/process failures retry on a fresh
 copy.
 
+Before a child can launch, the executor atomically writes a status-only
+in-flight journal keyed by the idempotency-key digest. It contains only schema,
+tool, request/runtime/key digests, and start time. A later process finding a
+matching journal refuses to relaunch and returns the non-successful
+`interrupted_previous_run` receipt. It does not resume, terminate, inspect,
+delete, or clean up an unknown previous process/workspace. A terminal receipt
+is saved before the executor removes its own journal, so stale journals cannot
+override a canonical terminal receipt.
+
 The CLI entry point is:
 
 ```text
@@ -61,8 +70,9 @@ Expected-red tests preceded implementation. The focused CAM suite passed:
 The tests cover invalid request bounds, runtime drift before launch, external
 write denial, mismatched database output, timeout, cancellation, output
 limits, retry-on-fresh-copy, idempotent replay, conflicting idempotency keys,
-and the CLI round trip. A process failure, timeout, cancellation, output cap,
-drift, invalid output, or postcondition mismatch produces a non-verified typed
+durable interrupted-run refusal without a new launch, and the CLI round trip.
+A process failure, timeout, cancellation, output cap, drift, invalid output,
+interrupted prior run, or postcondition mismatch produces a non-verified typed
 receipt.
 
 ## Installed-runtime proof
@@ -119,6 +129,7 @@ scan, and offline smoke.
 
 This does not authorize arbitrary CAM commands, mining, providers, MCP,
 network access, source-repository reads, or a personal/live corpus action. It
-does not yet provide durable recovery for an interrupted live process,
-exact-approved mining, mining postconditions, or a transaction/rollback
-checkpoint for corpus mutation. Those are the next CAM-016 slices.
+does not auto-resume, terminate, inspect, or clean up an interrupted process,
+and it has no native restart-visible recovery control yet. Exact-approved
+mining, mining postconditions, trajectory proof, and a transaction/rollback
+checkpoint for corpus mutation remain later CAM-016 slices.

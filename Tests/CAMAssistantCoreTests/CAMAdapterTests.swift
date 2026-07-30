@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import CAMAssistantCore
@@ -575,6 +576,51 @@ func camClosedToolRefusesConflictingIdempotencyRequest() async throws {
     #expect(refused.receipt.failureCode == "idempotency_conflict")
     #expect(refused.receipt.attemptCount == 0)
     #expect(!refused.replayed)
+}
+
+@Test("closed CAM tool fails closed when a prior durable run is interrupted")
+func camClosedToolRecoversInterruptedDurableRunWithoutLaunchingAgain() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(
+        behavior: .liveStatsExternalWrite
+    )
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-interrupted",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+    let keyDigest = SHA256.hash(data: Data(request.idempotencyKey.utf8))
+        .map { String(format: "%02x", $0) }
+        .joined()
+    let journalURL = fixture.workspaceURL
+        .appending(path: "closed-cam-inflight")
+        .appending(path: "\(keyDigest).json")
+    try FileManager.default.createDirectory(
+        at: journalURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let journal = """
+    {"idempotencyKey":"\(request.idempotencyKey)","requestSHA256":"\(request.requestSHA256)","runtimeIdentitySHA256":"\(pin.identitySHA256)","schemaVersion":1,"startedAt":"2026-07-30T00:00:00Z","toolID":"\(request.toolID.rawValue)"}
+    """
+    try Data(journal.utf8).write(to: journalURL, options: .atomic)
+
+    let result = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    )
+
+    #expect(!result.replayed)
+    #expect(result.receipt.status == .failed)
+    #expect(result.receipt.failureCode == "interrupted_previous_run")
+    #expect(result.receipt.attemptCount == 0)
+    #expect(result.receipt.statistics == nil)
+    #expect(!result.receipt.sandboxed)
+    #expect(!FileManager.default.fileExists(atPath: fixture.externalMarkerURL.path))
+    #expect(FileManager.default.fileExists(atPath: journalURL.path))
 }
 
 @Test("closed CAM statistics probe reads only a disposable snapshot and returns typed evidence")

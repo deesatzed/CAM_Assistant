@@ -170,6 +170,37 @@ public actor CAMClosedToolExecutor {
         case .missing:
             break
         }
+        switch Self.lookupInFlightJournal(
+            request: request,
+            workspaceRoot: workspaceRoot
+        ) {
+        case .missing:
+            break
+        case .matching:
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "interrupted_previous_run",
+                startedAt: startedAt
+            )
+        case .conflict:
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "idempotency_conflict",
+                startedAt: startedAt
+            )
+        case .invalid:
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "idempotency_journal_invalid",
+                startedAt: startedAt
+            )
+        }
         guard !inFlightKeys.contains(request.idempotencyKey) else {
             return Self.preflightFailure(
                 request: request,
@@ -181,6 +212,27 @@ public actor CAMClosedToolExecutor {
         }
         inFlightKeys.insert(request.idempotencyKey)
         defer { inFlightKeys.remove(request.idempotencyKey) }
+        do {
+            try Self.saveInFlightJournal(
+                request: request,
+                workspaceRoot: workspaceRoot,
+                startedAt: startedAt
+            )
+        } catch {
+            let code = FileManager.default.fileExists(
+                atPath: Self.inFlightJournalURL(
+                    idempotencyKey: request.idempotencyKey,
+                    workspaceRoot: workspaceRoot
+                ).path
+            ) ? "idempotency_in_flight" : "idempotency_journal_persistence_failed"
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: code,
+                startedAt: startedAt
+            )
+        }
 
         var result = Self.preflightFailure(
             request: request,
@@ -213,6 +265,10 @@ public actor CAMClosedToolExecutor {
             ) else {
                 throw CAMClosedExecutionError.receiptPersistenceFailed
             }
+            try? Self.removeInFlightJournal(
+                request: request,
+                workspaceRoot: workspaceRoot
+            )
             return CAMClosedToolExecutionResult(
                 receipt: canonical,
                 replayed: false
@@ -653,6 +709,80 @@ public actor CAMClosedToolExecutor {
             ].contains(receipt.failureCode)
     }
 
+    private static func lookupInFlightJournal(
+        request: CAMClosedToolRequest,
+        workspaceRoot: URL
+    ) -> CAMClosedInFlightJournalLookup {
+        let url = inFlightJournalURL(
+            idempotencyKey: request.idempotencyKey,
+            workspaceRoot: workspaceRoot
+        )
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return .missing
+        }
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let journal = try decoder.decode(
+                CAMClosedInFlightJournal.self,
+                from: Data(contentsOf: url)
+            )
+            guard journal.schemaVersion == 1,
+                  journal.idempotencyKey == request.idempotencyKey,
+                  journal.toolID == request.toolID,
+                  journal.runtimeIdentitySHA256
+                    == request.runtimeIdentitySHA256 else {
+                return .invalid
+            }
+            return journal.requestSHA256 == request.requestSHA256
+                ? .matching
+                : .conflict
+        } catch {
+            return .invalid
+        }
+    }
+
+    private static func saveInFlightJournal(
+        request: CAMClosedToolRequest,
+        workspaceRoot: URL,
+        startedAt: Date
+    ) throws {
+        let url = inFlightJournalURL(
+            idempotencyKey: request.idempotencyKey,
+            workspaceRoot: workspaceRoot
+        )
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let temporary = url.deletingLastPathComponent().appending(
+            path: ".inflight-\(UUID().uuidString).tmp"
+        )
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        try encoder.encode(
+            CAMClosedInFlightJournal(
+                request: request,
+                startedAt: startedAt
+            )
+        ).write(to: temporary, options: .atomic)
+        try FileManager.default.linkItem(at: temporary, to: url)
+    }
+
+    private static func removeInFlightJournal(
+        request: CAMClosedToolRequest,
+        workspaceRoot: URL
+    ) throws {
+        let url = inFlightJournalURL(
+            idempotencyKey: request.idempotencyKey,
+            workspaceRoot: workspaceRoot
+        )
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
     private static func lookupReceipt(
         request: CAMClosedToolRequest,
         workspaceRoot: URL
@@ -734,6 +864,21 @@ public actor CAMClosedToolExecutor {
         return workspaceRoot.standardizedFileURL
             .appending(
                 path: "closed-cam-receipts",
+                directoryHint: .isDirectory
+            )
+            .appending(path: "\(keyDigest).json")
+    }
+
+    private static func inFlightJournalURL(
+        idempotencyKey: String,
+        workspaceRoot: URL
+    ) -> URL {
+        let keyDigest = SHA256.hash(
+            data: Data(idempotencyKey.utf8)
+        ).hexString
+        return workspaceRoot.standardizedFileURL
+            .appending(
+                path: "closed-cam-inflight",
                 directoryHint: .isDirectory
             )
             .appending(path: "\(keyDigest).json")
@@ -892,9 +1037,34 @@ private struct CAMClosedProcessFailure: Error {
     let stderr: Data
 }
 
+private struct CAMClosedInFlightJournal: Codable {
+    let schemaVersion: Int
+    let toolID: CAMClosedToolID
+    let requestSHA256: String
+    let runtimeIdentitySHA256: String
+    let idempotencyKey: String
+    let startedAt: Date
+
+    init(request: CAMClosedToolRequest, startedAt: Date) {
+        schemaVersion = 1
+        toolID = request.toolID
+        requestSHA256 = request.requestSHA256
+        runtimeIdentitySHA256 = request.runtimeIdentitySHA256
+        idempotencyKey = request.idempotencyKey
+        self.startedAt = startedAt
+    }
+}
+
 private enum CAMClosedReceiptLookup {
     case missing
     case replay(CAMClosedToolReceipt)
+    case conflict
+    case invalid
+}
+
+private enum CAMClosedInFlightJournalLookup {
+    case missing
+    case matching
     case conflict
     case invalid
 }

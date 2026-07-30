@@ -69,8 +69,9 @@ disabled until their individual proof gates are met.
 
 ## Next Actions
 
-1. Add durable interrupted-live-run recovery and an operation-local rollback
-   checkpoint before any exact-approved mining action is made executable.
+1. Expose the closed-executor durable interrupted-run state after restart, then
+   design an operation-local rollback checkpoint before any exact-approved
+   mining action is made executable.
 2. Run the unchanged V3 contract against a different named loopback model;
    preserve every failure and do not change its claim catalog, roles,
    distractors, labels, or thresholds.
@@ -117,6 +118,24 @@ disabled until their individual proof gates are met.
 - Saved evidence: `docs/evidence/task-16-closed-cam-executor.md`.
 - Goal-map effect: `cam.closed-executor` moves from `missing` to `partial`.
   Totals are now `16 passed`, `28 partial`, and `4 missing`, overall incomplete.
+
+### Closed CAM interrupted-run fail-closed journal — 2026-07-30
+
+- Expected red: a valid pre-existing status-only in-flight journal did not
+  prevent a new closed statistics launch; the fixture safely returned its
+  sandboxed external-write failure instead of the required interruption state.
+- Green: before any child launch, the executor atomically persists a
+  digest-only in-flight journal. A later executor finding the matching journal
+  returns `interrupted_previous_run` with zero attempts, no statistics, no
+  sandbox launch, and no deletion or inspection of the unknown prior process or
+  workspace. A canonical terminal receipt wins over any stale journal, and the
+  normal executor removes only its own journal after receipt persistence.
+- Verification: `swift test --disable-sandbox --scratch-path .swift-build
+  --filter CAMAdapterTests` passed all 38 CAM adapter/runtime tests.
+- Boundary: this is crash-visible fail-closed core recovery for the existing
+  read-only disposable statistics tool. It does not auto-resume, clean up, or
+  terminate a prior process; native restart presentation, exact-approved mining,
+  mutation checkpoints, and rollback remain unimplemented.
 
 ### Live CAM runtime identity and disposable preflight — 2026-07-29
 
