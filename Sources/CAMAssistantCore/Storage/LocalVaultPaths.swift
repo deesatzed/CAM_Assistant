@@ -81,6 +81,12 @@ public enum LocalVaultPaths {
     public static func retrievalIndexURL(vaultRoot: URL) -> URL {
         vaultRoot.appending(path: "retrieval-index", directoryHint: .isDirectory)
     }
+
+    public static func meaningPreviewDatabaseURL(vaultRoot: URL) -> URL {
+        vaultRoot
+            .appending(path: "meaning-preview", directoryHint: .isDirectory)
+            .appending(path: "MeaningPreview.sqlite")
+    }
 }
 
 public enum LocalVaultPathsError: Error, Equatable {

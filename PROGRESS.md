@@ -2306,6 +2306,21 @@ None.
   --filter MeaningPreviewTests` passed both deterministic mapping and
   fail-closed exclusion tests.
 
+### ADD2CAM isolated Meaning Preview store (initial slice) — 2026-07-30
+
+- Expected red: the pilot had no separate store, pilot database path, snapshot,
+  or restart-safe persistence API.
+- Green: `MeaningPreviewStore` owns a dedicated v1 SQLite namespace under the
+  CAM application-support root. It saves an atomic encoded MeaningCore state
+  plus identifier-only provenance without any reference to CAM's primary vault
+  schema or URL. A temporary-root test proves primary-vault bytes remain
+  unchanged and the isolated snapshot survives store recreation.
+- Focused Meaning Preview (3 tests) and existing storage (8 tests) suites pass.
+  This is not the full Gate 3 claim: archive/reinitialize recovery, malformed
+  state presentation, full backup boundary, disable lifecycle, and durable
+  feedback/decision receipts remain. Evidence:
+  `docs/evidence/add2cam-04-isolated-store.md`.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

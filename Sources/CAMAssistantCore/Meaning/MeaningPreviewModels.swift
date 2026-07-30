@@ -85,12 +85,30 @@ public struct MeaningContextSelection: Sendable, Equatable {
     }
 }
 
-public struct MeaningContextProvenance: Sendable, Equatable {
+public struct MeaningContextProvenance: Codable, Sendable, Equatable {
     public let itemID: String
     public let sourceID: String
     public let observedAt: Date
     public let uncertainty: MeaningContextUncertainty
     public let permittedUse: MeaningContextPermittedUse
+}
+
+public struct MeaningPreviewSnapshot: Codable, Sendable, Equatable {
+    public static let currentSchemaVersion = 1
+
+    public let schemaVersion: Int
+    public let coreState: CoreState
+    public let provenance: [MeaningContextProvenance]
+
+    public init(
+        schemaVersion: Int = MeaningPreviewSnapshot.currentSchemaVersion,
+        coreState: CoreState = CoreState(),
+        provenance: [MeaningContextProvenance] = []
+    ) {
+        self.schemaVersion = schemaVersion
+        self.coreState = coreState
+        self.provenance = provenance
+    }
 }
 
 public struct MeaningContextProjection: Sendable, Equatable {

@@ -75,3 +75,36 @@ func meaningContextAdapterFailsClosedForUnsafeSelections() {
         "missing": .missing,
     ])
 }
+
+@Test("Meaning Preview storage is separate from CAM and survives restart without raw source bytes")
+func meaningPreviewStorageIsIsolatedAndRestartSafe() throws {
+    let root = try meaningPreviewTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let primaryURL = root.appending(path: "vault.sqlite")
+    let primary = try SQLiteStore(databaseURL: primaryURL)
+    try primary.execute("CREATE TABLE primary_marker(value TEXT NOT NULL)")
+    try primary.execute("INSERT INTO primary_marker(value) VALUES ('unchanged')")
+    let primaryBytes = try Data(contentsOf: primaryURL)
+
+    let pilotURL = LocalVaultPaths.meaningPreviewDatabaseURL(vaultRoot: root)
+    let snapshot = MeaningPreviewSnapshot(
+        coreState: CoreState(memory: [
+            .fact(text: "Derived utility note", source: .hostImport, observedAt: .fixed),
+        ]),
+        provenance: [.init(itemID: "item", sourceID: "source", observedAt: .fixed, uncertainty: .supported, permittedUse: .meaningPreview)]
+    )
+    try MeaningPreviewStore(databaseURL: pilotURL).save(snapshot)
+
+    #expect(pilotURL != primaryURL)
+    #expect(try Data(contentsOf: primaryURL) == primaryBytes)
+    #expect(try MeaningPreviewStore(databaseURL: pilotURL).load() == snapshot)
+    #expect(!String(decoding: try Data(contentsOf: pilotURL), as: UTF8.self).contains("API_KEY=secret-fixture"))
+}
+
+private func meaningPreviewTemporaryDirectory() throws -> URL {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "cam-assistant-meaning-preview", directoryHint: .isDirectory)
+        .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    return root
+}
