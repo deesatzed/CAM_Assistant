@@ -93,3 +93,49 @@ func macCarePresentationOffersReadOnlyReviewFindings() throws {
         "Review the 2-application inventory; usage and removal recommendations are unavailable.",
     ])
 }
+
+@Test("Mac Care organization plan binds one regular fixture file inside one root")
+func macCareOrganizationPlanBindsOneRegularFixtureFileInsideOneRoot() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let sourceDirectory = root.appending(path: "Inbox", directoryHint: .isDirectory)
+    let destinationDirectory = root.appending(path: "Archive", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+    let source = sourceDirectory.appending(path: "notes.txt")
+    try Data("local notes".utf8).write(to: source)
+
+    let plan = try MacCareOrganizationPlanner().propose(
+        rootURL: root,
+        sourceURL: source,
+        destinationDirectoryURL: destinationDirectory,
+        replacementName: "reviewed-notes.txt"
+    )
+
+    #expect(plan.actionID == "mac-care.move-one-selected-file.v1")
+    #expect(plan.sourceRelativePath == "Inbox/notes.txt")
+    #expect(plan.destinationRelativePath == "Archive/reviewed-notes.txt")
+    #expect(plan.sourceByteCount == 11)
+    #expect(plan.sourceSHA256.count == 64)
+    #expect(plan.stateRevision == 1)
+
+    try Data("existing".utf8).write(
+        to: destinationDirectory.appending(path: "conflict.txt")
+    )
+    #expect(throws: MacCareOrganizationPlanError.destinationExists) {
+        _ = try MacCareOrganizationPlanner().propose(
+            rootURL: root,
+            sourceURL: source,
+            destinationDirectoryURL: destinationDirectory,
+            replacementName: "conflict.txt"
+        )
+    }
+    #expect(throws: MacCareOrganizationPlanError.invalidReplacementName) {
+        _ = try MacCareOrganizationPlanner().propose(
+            rootURL: root,
+            sourceURL: source,
+            destinationDirectoryURL: destinationDirectory,
+            replacementName: "../escape.txt"
+        )
+    }
+}
