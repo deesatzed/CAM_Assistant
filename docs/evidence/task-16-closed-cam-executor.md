@@ -114,8 +114,9 @@ is not promoted as success.
 The aggregate verifier retains the strict sub-second wall-clock assertion for
 the bounded-hash timeout test. A first 326-test aggregate run exposed
 test-runner scheduling contention rather than a missed internal deadline. The
-repository aggregate command now requests one Swift Testing worker, which
-keeps that timing proof reproducible without relaxing its assertion.
+repository aggregate command uses SwiftPM's default non-parallel test mode,
+which keeps that timing proof reproducible without relaxing its assertion. A
+release-proof guard rejects reintroducing parallel scheduling.
 
 A temporary non-local clone of exact checkpoint
 `acefa12531094cab49fdf46a81e9deaa2cead2c3` then passed repository
