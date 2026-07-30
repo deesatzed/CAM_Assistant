@@ -131,7 +131,9 @@ public struct CAMClosedToolExecutionResult: Equatable, Sendable {
     public let replayed: Bool
 }
 
-public struct CAMClosedToolExecutor: Sendable {
+public actor CAMClosedToolExecutor {
+    private var inFlightKeys: Set<String> = []
+
     public init() {}
 
     public func attempt(
@@ -140,8 +142,101 @@ public struct CAMClosedToolExecutor: Sendable {
         workspaceRoot: URL
     ) async -> CAMClosedToolExecutionResult {
         let startedAt = Date()
+        switch Self.lookupReceipt(
+            request: request,
+            workspaceRoot: workspaceRoot
+        ) {
+        case .replay(let receipt):
+            return CAMClosedToolExecutionResult(
+                receipt: receipt,
+                replayed: true
+            )
+        case .conflict:
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "idempotency_conflict",
+                startedAt: startedAt
+            )
+        case .invalid:
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "idempotency_receipt_invalid",
+                startedAt: startedAt
+            )
+        case .missing:
+            break
+        }
+        guard !inFlightKeys.contains(request.idempotencyKey) else {
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "idempotency_in_flight",
+                startedAt: startedAt
+            )
+        }
+        inFlightKeys.insert(request.idempotencyKey)
+        defer { inFlightKeys.remove(request.idempotencyKey) }
+
+        var result = Self.preflightFailure(
+            request: request,
+            pin: pin,
+            workspaceRoot: workspaceRoot,
+            code: "execution_failed",
+            startedAt: startedAt
+        )
+        for attemptNumber in 1...request.maximumAttempts {
+            result = await executeAttempt(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                attemptNumber: attemptNumber
+            )
+            if result.receipt.status == .verified
+                || !Self.isRetryable(result.receipt) {
+                break
+            }
+        }
+        do {
+            try Self.save(
+                result.receipt,
+                request: request,
+                workspaceRoot: workspaceRoot
+            )
+            guard case .replay(let canonical) = Self.lookupReceipt(
+                request: request,
+                workspaceRoot: workspaceRoot
+            ) else {
+                throw CAMClosedExecutionError.receiptPersistenceFailed
+            }
+            return CAMClosedToolExecutionResult(
+                receipt: canonical,
+                replayed: false
+            )
+        } catch {
+            return Self.preflightFailure(
+                request: request,
+                pin: pin,
+                workspaceRoot: workspaceRoot,
+                code: "receipt_persistence_failed",
+                startedAt: startedAt
+            )
+        }
+    }
+
+    private func executeAttempt(
+        request: CAMClosedToolRequest,
+        pin: CAMVerifiedRuntimePin,
+        workspaceRoot: URL,
+        attemptNumber: Int
+    ) async -> CAMClosedToolExecutionResult {
+        let startedAt = Date()
         var runRoot = workspaceRoot.standardizedFileURL
-        var attemptCount = 0
+        var attemptCount = attemptNumber - 1
         var output = Data()
         var standardError = Data()
         var surfaceEvidence: [CAMRuntimeSurfaceEvidence] = []
@@ -177,13 +272,14 @@ public struct CAMClosedToolExecutor: Sendable {
                 throw CAMClosedExecutionError.runtimeDrift
             }
 
-            attemptCount = 1
+            attemptCount = attemptNumber
             sandboxed = true
             let processResult = try await Self.runStatisticsProcess(
                 pin: pin,
                 configurationURL: copiedConfiguration,
                 databaseURL: copiedDatabase,
                 runRoot: runRoot,
+                attemptNumber: attemptNumber,
                 timeoutSeconds: request.timeoutSeconds,
                 maximumOutputBytes: request.maximumOutputBytes
             )
@@ -252,7 +348,16 @@ public struct CAMClosedToolExecutor: Sendable {
                 replayed: false
             )
         } catch {
-            let mapped = Self.map(error)
+            let underlying: Error
+            if let processFailure = error as? CAMClosedProcessFailure {
+                processExitCode = processFailure.status
+                output = processFailure.stdout
+                standardError = processFailure.stderr
+                underlying = processFailure.error
+            } else {
+                underlying = error
+            }
+            let mapped = Self.map(underlying)
             if attemptCount > 0,
                let evidence = try? Self.revalidate(pin) {
                 surfaceEvidence = evidence
@@ -329,6 +434,7 @@ public struct CAMClosedToolExecutor: Sendable {
         configurationURL: URL,
         databaseURL: URL,
         runRoot: URL,
+        attemptNumber: Int,
         timeoutSeconds: Double,
         maximumOutputBytes: Int
     ) async throws -> CAMClosedProcessResult {
@@ -371,6 +477,7 @@ public struct CAMClosedToolExecutor: Sendable {
         process.environment = [
             "CLAW_CONFIG": configurationURL.path,
             "CLAW_DB_PATH": databaseURL.path,
+            "CAM_ASSISTANT_ATTEMPT": String(attemptNumber),
             "HOME": runRoot.path,
             "NO_COLOR": "1",
             "PATH":
@@ -396,14 +503,31 @@ public struct CAMClosedToolExecutor: Sendable {
                 guard ContinuousClock.now < deadline else {
                     throw CAMClosedExecutionError.processTimedOut
                 }
+                if try fileSize(stdoutURL) > maximumOutputBytes
+                    || fileSize(stderrURL) > maximumOutputBytes
+                    || fileSize(stdoutURL) + fileSize(stderrURL)
+                        > maximumOutputBytes {
+                    throw CAMClosedExecutionError.outputTooLarge
+                }
                 try await Task.sleep(for: .milliseconds(10))
             }
-        } catch is CancellationError {
-            terminate(process)
-            throw CAMClosedExecutionError.processCancelled
         } catch {
+            let typed: CAMClosedExecutionError
+            if error is CancellationError {
+                typed = .processCancelled
+            } else {
+                typed = (error as? CAMClosedExecutionError)
+                    ?? .processFailed
+            }
             terminate(process)
-            throw error
+            try? stdoutHandle.synchronize()
+            try? stderrHandle.synchronize()
+            throw CAMClosedProcessFailure(
+                error: typed,
+                status: process.terminationStatus,
+                stdout: (try? Data(contentsOf: stdoutURL)) ?? Data(),
+                stderr: (try? Data(contentsOf: stderrURL)) ?? Data()
+            )
         }
         try stdoutHandle.synchronize()
         try stderrHandle.synchronize()
@@ -412,7 +536,12 @@ public struct CAMClosedToolExecutor: Sendable {
         guard stdoutSize <= maximumOutputBytes,
               stderrSize <= maximumOutputBytes,
               stdoutSize + stderrSize <= maximumOutputBytes else {
-            throw CAMClosedExecutionError.outputTooLarge
+            throw CAMClosedProcessFailure(
+                error: .outputTooLarge,
+                status: process.terminationStatus,
+                stdout: try Data(contentsOf: stdoutURL),
+                stderr: try Data(contentsOf: stderrURL)
+            )
         }
         return CAMClosedProcessResult(
             status: process.terminationStatus,
@@ -514,6 +643,132 @@ public struct CAMClosedToolExecutor: Sendable {
         }
     }
 
+    private static func isRetryable(
+        _ receipt: CAMClosedToolReceipt
+    ) -> Bool {
+        receipt.status == .failed
+            && [
+                "process_failed",
+                "process_launch_failed",
+            ].contains(receipt.failureCode)
+    }
+
+    private static func lookupReceipt(
+        request: CAMClosedToolRequest,
+        workspaceRoot: URL
+    ) -> CAMClosedReceiptLookup {
+        let url = receiptURL(
+            idempotencyKey: request.idempotencyKey,
+            workspaceRoot: workspaceRoot
+        )
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return .missing
+        }
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let receipt = try decoder.decode(
+                CAMClosedToolReceipt.self,
+                from: Data(contentsOf: url)
+            )
+            guard receipt.schemaVersion == 1,
+                  receipt.idempotencyKey == request.idempotencyKey,
+                  receipt.toolID == request.toolID,
+                  receipt.runtimeIdentitySHA256
+                    == request.runtimeIdentitySHA256 else {
+                return .invalid
+            }
+            guard receipt.requestSHA256 == request.requestSHA256 else {
+                return .conflict
+            }
+            guard receipt.status != .verified
+                    || (
+                        receipt.failureCode == nil
+                            && receipt.statistics != nil
+                            && receipt.sandboxed
+                            && !receipt.workspaceRetained
+                            && !receipt.donorSurfaceEvidence.isEmpty
+                            && receipt.donorSurfaceEvidence.allSatisfy {
+                                $0.beforeSHA256 == $0.afterSHA256
+                            }
+                    ) else {
+                return .invalid
+            }
+            return .replay(receipt)
+        } catch {
+            return .invalid
+        }
+    }
+
+    private static func save(
+        _ receipt: CAMClosedToolReceipt,
+        request: CAMClosedToolRequest,
+        workspaceRoot: URL
+    ) throws {
+        let url = receiptURL(
+            idempotencyKey: request.idempotencyKey,
+            workspaceRoot: workspaceRoot
+        )
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let temporary = url.deletingLastPathComponent().appending(
+            path: ".receipt-\(UUID().uuidString).tmp"
+        )
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        try encoder.encode(receipt).write(to: temporary, options: .atomic)
+        try FileManager.default.linkItem(at: temporary, to: url)
+    }
+
+    private static func receiptURL(
+        idempotencyKey: String,
+        workspaceRoot: URL
+    ) -> URL {
+        let keyDigest = SHA256.hash(
+            data: Data(idempotencyKey.utf8)
+        ).hexString
+        return workspaceRoot.standardizedFileURL
+            .appending(
+                path: "closed-cam-receipts",
+                directoryHint: .isDirectory
+            )
+            .appending(path: "\(keyDigest).json")
+    }
+
+    private static func preflightFailure(
+        request: CAMClosedToolRequest,
+        pin: CAMVerifiedRuntimePin,
+        workspaceRoot: URL,
+        code: String,
+        startedAt: Date
+    ) -> CAMClosedToolExecutionResult {
+        CAMClosedToolExecutionResult(
+            receipt: receipt(
+                request: request,
+                pin: pin,
+                status: .failed,
+                failureCode: code,
+                attemptCount: 0,
+                processExitCode: nil,
+                statistics: nil,
+                surfaceEvidence: [],
+                copyBefore: nil,
+                copyAfter: nil,
+                output: Data(),
+                standardError: Data(),
+                sandboxed: false,
+                runRoot: workspaceRoot.standardizedFileURL,
+                workspaceRetained: false,
+                startedAt: startedAt
+            ),
+            replayed: false
+        )
+    }
+
     private static func map(
         _ error: Error
     ) -> (status: CAMClosedToolStatus, code: String) {
@@ -545,6 +800,8 @@ public struct CAMClosedToolExecutor: Sendable {
             return (.failed, "workspace_cleanup_failed")
         case .workspaceUnavailable:
             return (.failed, "workspace_unavailable")
+        case .receiptPersistenceFailed:
+            return (.failed, "receipt_persistence_failed")
         }
     }
 
@@ -628,6 +885,20 @@ private struct CAMClosedProcessResult {
     let stderr: Data
 }
 
+private struct CAMClosedProcessFailure: Error {
+    let error: CAMClosedExecutionError
+    let status: Int32
+    let stdout: Data
+    let stderr: Data
+}
+
+private enum CAMClosedReceiptLookup {
+    case missing
+    case replay(CAMClosedToolReceipt)
+    case conflict
+    case invalid
+}
+
 private enum CAMClosedExecutionError: Error {
     case runtimeDrift
     case workspaceUnavailable
@@ -641,6 +912,7 @@ private enum CAMClosedExecutionError: Error {
     case databasePathMismatch
     case statisticsMismatch
     case workspaceCleanupFailed
+    case receiptPersistenceFailed
 }
 
 private struct CAMClosedToolRequestDigestMaterial: Codable {

@@ -393,6 +393,190 @@ func camClosedToolRejectsRuntimeDriftBeforeLaunch() async throws {
     #expect(receipt.attemptCount == 0)
 }
 
+@Test("closed CAM tool timeout kills the child and records bounded facts")
+func camClosedToolTimeoutTerminatesChild() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .ignoresTermination)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-timeout",
+        timeoutSeconds: 0.05,
+        maximumOutputBytes: 16_384
+    )
+
+    let started = ContinuousClock.now
+    let receipt = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    ).receipt
+
+    #expect(receipt.status == .timedOut)
+    #expect(receipt.failureCode == "process_timed_out")
+    #expect(receipt.processExitCode != nil)
+    #expect(started.duration(to: .now) < .seconds(2))
+    #expect(!receipt.workspaceRetained)
+}
+
+@Test("closed CAM tool cancellation wins and records child termination")
+func camClosedToolCancellationTerminatesChild() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .ignoresTermination)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-cancel",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+    let task = Task {
+        await CAMClosedToolExecutor().attempt(
+            request: request,
+            pin: pin,
+            workspaceRoot: fixture.workspaceURL
+        )
+    }
+    try await Task.sleep(for: .milliseconds(30))
+    task.cancel()
+
+    let receipt = await task.value.receipt
+
+    #expect(receipt.status == .cancelled)
+    #expect(receipt.failureCode == "process_cancelled")
+    #expect(receipt.processExitCode != nil)
+    #expect(!receipt.workspaceRetained)
+}
+
+@Test("closed CAM tool output limit records counts without retaining bytes")
+func camClosedToolOutputLimitRecordsBoundedFacts() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .oversizedStderr)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-output-limit",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 1_024
+    )
+
+    let receipt = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    ).receipt
+
+    #expect(receipt.status == .outputLimited)
+    #expect(receipt.failureCode == "output_too_large")
+    #expect(receipt.stderrByteCount > request.maximumOutputBytes)
+    #expect(receipt.stderrSHA256 != nil)
+    #expect(!receipt.workspaceRetained)
+}
+
+@Test("closed CAM tool retries only a retryable failure on a fresh attempt")
+func camClosedToolRetriesRetryableFailure() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(
+        behavior: .liveStatsFailsFirstAttempt
+    )
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-retry",
+        maximumAttempts: 2,
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+
+    let receipt = await CAMClosedToolExecutor().attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    ).receipt
+
+    #expect(receipt.status == .verified)
+    #expect(receipt.failureCode == nil)
+    #expect(receipt.attemptCount == 2)
+    #expect(receipt.statistics?.methodologyCount == 12)
+    #expect(!receipt.workspaceRetained)
+}
+
+@Test("closed CAM tool replays one identical terminal idempotency receipt")
+func camClosedToolReplaysIdenticalTerminalReceipt() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .liveStatsSuccess)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-idempotent",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+    let executor = CAMClosedToolExecutor()
+
+    let first = await executor.attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    )
+    try Data("# drift after terminal receipt\n".utf8)
+        .append(to: fixture.packageCLIURL)
+    let replay = await executor.attempt(
+        request: request,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    )
+
+    #expect(first.receipt.status == .verified)
+    #expect(!first.replayed)
+    #expect(replay.replayed)
+    #expect(replay.receipt == first.receipt)
+}
+
+@Test("closed CAM tool refuses an idempotency key bound to another request")
+func camClosedToolRefusesConflictingIdempotencyRequest() async throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .liveStatsSuccess)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let original = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-conflict",
+        timeoutSeconds: 5,
+        maximumOutputBytes: 16_384
+    )
+    let conflict = try CAMClosedToolRequest(
+        toolID: .statistics,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        idempotencyKey: "live-stats-conflict",
+        timeoutSeconds: 6,
+        maximumOutputBytes: 16_384
+    )
+    let executor = CAMClosedToolExecutor()
+    let first = await executor.attempt(
+        request: original,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    )
+
+    let refused = await executor.attempt(
+        request: conflict,
+        pin: pin,
+        workspaceRoot: fixture.workspaceURL
+    )
+
+    #expect(first.receipt.status == .verified)
+    #expect(refused.receipt.status == .failed)
+    #expect(refused.receipt.failureCode == "idempotency_conflict")
+    #expect(refused.receipt.attemptCount == 0)
+    #expect(!refused.replayed)
+}
+
 @Test("closed CAM statistics probe reads only a disposable snapshot and returns typed evidence")
 func closedCAMStatisticsProbeReadsOnlyDisposableSnapshot() async throws {
     let fixture = try CAMInstalledRuntimeFixture()
@@ -924,6 +1108,7 @@ private enum CAMInstalledRuntimeBehavior {
     case liveStatsSuccess
     case liveStatsExternalWrite
     case liveStatsWrongDatabase
+    case liveStatsFailsFirstAttempt
 }
 
 private struct CAMInstalledRuntimeFixture {
@@ -1038,6 +1223,15 @@ private struct CAMInstalledRuntimeFixture {
             script = CAMInstalledRuntimeFixture.liveStatsScript(
                 databasePath: "/tmp/not-the-disposable-database"
             )
+        case .liveStatsFailsFirstAttempt:
+            script = """
+            if [ "$CAM_ASSISTANT_ATTEMPT" = "1" ]; then
+              exit 75
+            fi
+            \(CAMInstalledRuntimeFixture.liveStatsScript(
+                databasePath: "$CLAW_DB_PATH"
+            ))
+            """
         }
         try Data(
             """
