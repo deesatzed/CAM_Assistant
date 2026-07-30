@@ -333,7 +333,7 @@
       "docs/evidence/task-16-native-cam-runtime-snapshot.md",
       "docs/evidence/task-16-closed-cam-executor.md"
     ],
-    "limitation": "A one-tool typed registry now confines the pinned `stats --json` process to a sandboxed disposable copy with a current-session native control, typed output, retry, idempotency, cancellation, donor postconditions, cleanup, durable status-only receipts, and a fail-closed interrupted-run journal. Native restart recovery presentation and mining postconditions remain absent; arbitrary commands, mining, providers, MCP, network, and personal-corpus execution remain unavailable."
+    "limitation": "A one-tool typed registry now confines the pinned `stats --json` process to a sandboxed disposable copy with a current-session native control, typed output, retry, idempotency, cancellation, donor postconditions, cleanup, durable status-only receipts, a fail-closed interrupted-run journal, and restart-visible status without a resume or cleanup action. Mining postconditions remain absent; arbitrary commands, mining, providers, MCP, network, and personal-corpus execution remain unavailable."
     },
     {
       "id": "cam.mining-plan",
@@ -367,7 +367,7 @@
       "docs/evidence/task-16-live-cam-codex-gap-audit.md",
       "docs/evidence/task-16-closed-cam-executor.md"
     ],
-    "limitation": "Closed-executor timeout, cancellation, output-limit, drift, invalid-output, external-write, idempotency-conflict, failed-process, and durable interrupted-run tests return non-verified typed receipts; a real installed-runtime run is verified only after typed output, independent copied-state statistics, donor revalidation, and cleanup. Mining terminal states and native restart recovery presentation remain unproven."
+    "limitation": "Closed-executor timeout, cancellation, output-limit, drift, invalid-output, external-write, idempotency-conflict, failed-process, and durable interrupted-run tests return non-verified typed receipts; a real installed-runtime run is verified only after typed output, independent copied-state statistics, donor revalidation, and cleanup. Mining terminal states and mutation checkpoint/rollback remain unproven."
     },
     {
       "id": "cam.advanced-disabled",

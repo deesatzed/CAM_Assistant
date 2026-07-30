@@ -118,7 +118,7 @@ case "$suite" in
     "$SCRIPT_DIR/verify-portability.sh"
     "$SCRIPT_DIR/verify.sh" goal-map
     "$REPOSITORY_ROOT/Tests/ReleaseProofTests/aggregate-test-scheduling-tests.sh"
-    swift test --disable-sandbox --scratch-path .swift-build
+    SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH=1 swift test --disable-sandbox --scratch-path .swift-build
     swift build --disable-sandbox --scratch-path .swift-build -c release
     "$SCRIPT_DIR/verify.sh" package-reproducibility
     "$SCRIPT_DIR/verify.sh" release-privacy

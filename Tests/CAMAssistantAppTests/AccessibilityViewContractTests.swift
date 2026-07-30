@@ -248,6 +248,11 @@ func camViewExposesClosedStatisticsExecutor() throws {
         "CAMClosedToolExecutor().attempt(",
         "liveOperation.accepts(generation)",
         "Section(\"Closed statistics receipt\")",
+        "interruptedClosedRuns",
+        "loadInterruptedClosedRuns()",
+        "CAMClosedToolExecutor.interruptedRuns(",
+        "Section(\"Interrupted closed CAM runs\")",
+        "This does not resume or clean up the earlier process.",
         "Mining, provider calls, MCP serving, and personal-corpus mutation remain disabled.",
     ]
 

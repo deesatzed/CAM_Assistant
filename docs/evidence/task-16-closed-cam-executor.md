@@ -43,6 +43,12 @@ delete, or clean up an unknown previous process/workspace. A terminal receipt
 is saved before the executor removes its own journal, so stale journals cannot
 override a canonical terminal receipt.
 
+The native closed-tool workspace is app-owned Application Support state, not a
+purgeable cache. On restart, the CAM screen reads and validates every journal
+before showing its tool, start time, and shortened runtime identity. Invalid
+state is visible as unavailable. The UI intentionally has no resume, retry,
+kill, cleanup, delete, mining, or corpus action for these records.
+
 The CLI entry point is:
 
 ```text
@@ -74,6 +80,9 @@ durable interrupted-run refusal without a new launch, and the CLI round trip.
 A process failure, timeout, cancellation, output cap, drift, invalid output,
 interrupted prior run, or postcondition mismatch produces a non-verified typed
 receipt.
+
+The native accessibility/source contract requires the restart-visible
+interruption section and its explicit no-resume/no-cleanup explanation.
 
 ## Installed-runtime proof
 
@@ -114,9 +123,10 @@ is not promoted as success.
 The aggregate verifier retains the strict sub-second wall-clock assertion for
 the bounded-hash timeout test. A first 326-test aggregate run exposed
 test-runner scheduling contention rather than a missed internal deadline. The
-repository aggregate command uses SwiftPM's default non-parallel test mode,
-which keeps that timing proof reproducible without relaxing its assertion. A
-release-proof guard rejects reintroducing parallel scheduling.
+repository aggregate command pins Swift Testing's maximum parallelization width
+to one, which keeps that timing proof reproducible without relaxing its
+assertion. A release-proof guard rejects missing this control or reintroducing
+SwiftPM parallel scheduling.
 
 A temporary non-local clone of exact checkpoint
 `acefa12531094cab49fdf46a81e9deaa2cead2c3` then passed repository
@@ -130,7 +140,7 @@ scan, and offline smoke.
 
 This does not authorize arbitrary CAM commands, mining, providers, MCP,
 network access, source-repository reads, or a personal/live corpus action. It
-does not auto-resume, terminate, inspect, or clean up an interrupted process,
-and it has no native restart-visible recovery control yet. Exact-approved
-mining, mining postconditions, trajectory proof, and a transaction/rollback
-checkpoint for corpus mutation remain later CAM-016 slices.
+does not auto-resume, terminate, inspect, or clean up an interrupted process.
+Exact-approved mining, mining postconditions, trajectory proof, and a
+transaction/rollback checkpoint for corpus mutation remain later CAM-016
+slices.

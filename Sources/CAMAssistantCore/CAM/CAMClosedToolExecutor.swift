@@ -131,10 +131,83 @@ public struct CAMClosedToolExecutionResult: Equatable, Sendable {
     public let replayed: Bool
 }
 
+public struct CAMClosedToolInterruptedRun: Equatable, Sendable {
+    public let toolID: CAMClosedToolID
+    public let requestSHA256: String
+    public let runtimeIdentitySHA256: String
+    public let idempotencyKey: String
+    public let startedAt: Date
+}
+
+public enum CAMClosedToolRecoveryError: Error, Equatable {
+    case invalidWorkspace
+    case invalidJournal
+}
+
 public actor CAMClosedToolExecutor {
     private var inFlightKeys: Set<String> = []
 
     public init() {}
+
+    public static func interruptedRuns(
+        workspaceRoot: URL
+    ) throws -> [CAMClosedToolInterruptedRun] {
+        guard workspaceRoot.isFileURL,
+              workspaceRoot.path.hasPrefix("/") else {
+            throw CAMClosedToolRecoveryError.invalidWorkspace
+        }
+        let directory = inFlightJournalDirectoryURL(
+            workspaceRoot: workspaceRoot
+        )
+        guard FileManager.default.fileExists(atPath: directory.path) else {
+            return []
+        }
+        let files: [URL]
+        do {
+            files = try FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )
+        } catch {
+            throw CAMClosedToolRecoveryError.invalidWorkspace
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let runs = try files
+            .filter { $0.pathExtension == "json" }
+            .map { url -> CAMClosedToolInterruptedRun in
+                let journal: CAMClosedInFlightJournal
+                do {
+                    journal = try decoder.decode(
+                        CAMClosedInFlightJournal.self,
+                        from: Data(contentsOf: url)
+                    )
+                } catch {
+                    throw CAMClosedToolRecoveryError.invalidJournal
+                }
+                guard journal.isValid,
+                      url.deletingPathExtension().lastPathComponent
+                        == SHA256.hash(
+                            data: Data(journal.idempotencyKey.utf8)
+                        ).hexString else {
+                    throw CAMClosedToolRecoveryError.invalidJournal
+                }
+                return CAMClosedToolInterruptedRun(
+                    toolID: journal.toolID,
+                    requestSHA256: journal.requestSHA256,
+                    runtimeIdentitySHA256: journal.runtimeIdentitySHA256,
+                    idempotencyKey: journal.idempotencyKey,
+                    startedAt: journal.startedAt
+                )
+            }
+        return runs.sorted {
+            if $0.startedAt != $1.startedAt {
+                return $0.startedAt > $1.startedAt
+            }
+            return $0.idempotencyKey < $1.idempotencyKey
+        }
+    }
 
     public func attempt(
         request: CAMClosedToolRequest,
@@ -876,12 +949,17 @@ public actor CAMClosedToolExecutor {
         let keyDigest = SHA256.hash(
             data: Data(idempotencyKey.utf8)
         ).hexString
-        return workspaceRoot.standardizedFileURL
-            .appending(
-                path: "closed-cam-inflight",
-                directoryHint: .isDirectory
-            )
+        return inFlightJournalDirectoryURL(workspaceRoot: workspaceRoot)
             .appending(path: "\(keyDigest).json")
+    }
+
+    private static func inFlightJournalDirectoryURL(
+        workspaceRoot: URL
+    ) -> URL {
+        workspaceRoot.standardizedFileURL.appending(
+            path: "closed-cam-inflight",
+            directoryHint: .isDirectory
+        )
     }
 
     private static func preflightFailure(
@@ -1052,6 +1130,30 @@ private struct CAMClosedInFlightJournal: Codable {
         runtimeIdentitySHA256 = request.runtimeIdentitySHA256
         idempotencyKey = request.idempotencyKey
         self.startedAt = startedAt
+    }
+
+    var isValid: Bool {
+        schemaVersion == 1
+            && requestSHA256.count == 64
+            && requestSHA256.unicodeScalars.allSatisfy {
+                (48...57).contains($0.value)
+                    || (97...102).contains($0.value)
+            }
+            && runtimeIdentitySHA256.count == 64
+            && runtimeIdentitySHA256.unicodeScalars.allSatisfy {
+                (48...57).contains($0.value)
+                    || (97...102).contains($0.value)
+            }
+            && (1...128).contains(idempotencyKey.utf8.count)
+            && idempotencyKey.unicodeScalars.allSatisfy {
+                (48...57).contains($0.value)
+                    || (65...90).contains($0.value)
+                    || (97...122).contains($0.value)
+                    || $0 == "-"
+                    || $0 == "_"
+                    || $0 == "."
+                    || $0 == ":"
+            }
     }
 }
 

@@ -13,6 +13,8 @@ struct CAMStatusView: View {
     @State private var receipt: CAMRuntimeProbeReceipt?
     @State private var closedToolReceipt: CAMClosedToolReceipt?
     @State private var closedToolReplayed = false
+    @State private var interruptedClosedRuns: [CAMClosedToolInterruptedRun] = []
+    @State private var closedToolRecoveryUnavailable = false
     @State private var message: String?
     @State private var didLoadRestartState = false
     @State private var selectsExecutable = false
@@ -145,6 +147,36 @@ struct CAMStatusView: View {
                 }
             }
 
+            if !interruptedClosedRuns.isEmpty || closedToolRecoveryUnavailable {
+                Section("Interrupted closed CAM runs") {
+                    if closedToolRecoveryUnavailable {
+                        Text(
+                            "Saved closed-run recovery state is invalid or unavailable. No prior run can be resumed."
+                        )
+                        .foregroundStyle(.orange)
+                    }
+                    ForEach(
+                        interruptedClosedRuns,
+                        id: \.idempotencyKey
+                    ) { run in
+                        LabeledContent("Tool", value: run.toolID.rawValue)
+                        LabeledContent(
+                            "Started",
+                            value: run.startedAt.formatted()
+                        )
+                        LabeledContent(
+                            "Runtime identity",
+                            value: String(run.runtimeIdentitySHA256.prefix(12))
+                        )
+                    }
+                    Text(
+                        "This does not resume or clean up the earlier process."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Authority boundary") {
                 Text(
                     "Mining, provider calls, MCP serving, and personal-corpus mutation remain disabled."
@@ -218,6 +250,7 @@ struct CAMStatusView: View {
         )
         .task {
             restoreHistoricalRuntimeState()
+            loadInterruptedClosedRuns()
         }
         .onDisappear {
             pinOperation.invalidate()
@@ -507,15 +540,7 @@ struct CAMStatusView: View {
                 CAMRuntimeProbeViewFailure
             >
             do {
-                guard let caches = FileManager.default.urls(
-                    for: .cachesDirectory,
-                    in: .userDomainMask
-                ).first else {
-                    throw CAMStatusViewError.cacheUnavailable
-                }
-                let workspace = caches
-                    .appending(path: "CAMAssistant", directoryHint: .isDirectory)
-                    .appending(path: "CAMClosedToolRuns", directoryHint: .isDirectory)
+                let workspace = try closedToolWorkspaceURL()
                 let request = try CAMClosedToolRequest(
                     toolID: .statistics,
                     runtimeIdentitySHA256: pin.identitySHA256,
@@ -541,6 +566,7 @@ struct CAMStatusView: View {
             case let .success(result):
                 closedToolReceipt = result.receipt
                 closedToolReplayed = result.replayed
+                loadInterruptedClosedRuns()
                 if result.receipt.status == .verified {
                     message = "Closed copied-state CAM statistics verified."
                 } else {
@@ -607,6 +633,25 @@ struct CAMStatusView: View {
                 "Saved runtime evidence is invalid or unavailable and "
                 + "was ignored."
         }
+    }
+
+    private func loadInterruptedClosedRuns() {
+        do {
+            interruptedClosedRuns = try CAMClosedToolExecutor.interruptedRuns(
+                workspaceRoot: try closedToolWorkspaceURL()
+            )
+            closedToolRecoveryUnavailable = false
+        } catch {
+            interruptedClosedRuns = []
+            closedToolRecoveryUnavailable = true
+        }
+    }
+
+    private func closedToolWorkspaceURL() throws -> URL {
+        try LocalVaultPaths.rootURL().appending(
+            path: "closed-cam-tool-runs",
+            directoryHint: .isDirectory
+        )
     }
 
     private func runtimeRestartStateStore() throws

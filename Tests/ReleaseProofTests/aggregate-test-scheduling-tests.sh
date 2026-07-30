@@ -12,5 +12,7 @@ fi
 
 /usr/bin/grep -F -q \
   'swift test --disable-sandbox --scratch-path .swift-build' "$VERIFY"
+/usr/bin/grep -F -q \
+  'SWT_EXPERIMENTAL_MAXIMUM_PARALLELIZATION_WIDTH=1 swift test' "$VERIFY"
 
 print "CAM_ASSISTANT_AGGREGATE_TEST_SCHEDULING status=pass mode=nonparallel"

@@ -607,6 +607,19 @@ func camClosedToolRecoversInterruptedDurableRunWithoutLaunchingAgain() async thr
     """
     try Data(journal.utf8).write(to: journalURL, options: .atomic)
 
+    let interrupted = try CAMClosedToolExecutor.interruptedRuns(
+        workspaceRoot: fixture.workspaceURL
+    )
+    let expectedStartedAt = try #require(
+        ISO8601DateFormatter().date(from: "2026-07-30T00:00:00Z")
+    )
+
+    #expect(interrupted.count == 1)
+    #expect(interrupted[0].toolID == .statistics)
+    #expect(interrupted[0].requestSHA256 == request.requestSHA256)
+    #expect(interrupted[0].runtimeIdentitySHA256 == pin.identitySHA256)
+    #expect(interrupted[0].startedAt == expectedStartedAt)
+
     let result = await CAMClosedToolExecutor().attempt(
         request: request,
         pin: pin,

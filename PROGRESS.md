@@ -69,9 +69,9 @@ disabled until their individual proof gates are met.
 
 ## Next Actions
 
-1. Expose the closed-executor durable interrupted-run state after restart, then
-   design an operation-local rollback checkpoint before any exact-approved
-   mining action is made executable.
+1. Design an operation-local rollback checkpoint before any exact-approved
+   mining action is made executable; it must never auto-resume or overwrite a
+   live corpus.
 2. Run the unchanged V3 contract against a different named loopback model;
    preserve every failure and do not change its claim catalog, roles,
    distractors, labels, or thresholds.
@@ -109,8 +109,8 @@ disabled until their individual proof gates are met.
   presentation, and its no-mining authority boundary. The app suite passed 26
   tests including its expected-red/green source contract.
 - Aggregate verification preserves the strict bounded-hash deadline assertion
-  while using SwiftPM's default non-parallel test mode to avoid aggregate
-  scheduler contention. A clean temporary clone of `acefa12531094cab49fdf46a81e9deaa2cead2c3`
+  while pinning Swift Testing's maximum parallelization width to one to avoid
+  aggregate scheduler contention. A clean temporary clone of `acefa12531094cab49fdf46a81e9deaa2cead2c3`
   passed the 48-gate map, all `326` tests, release builds, deterministic
   package manifest `b9087a47ded2d6920a45621b892357808edc8f80bc26c290bce71ee192ffe1f3`,
   package identity with `dirty=false`, 57-file zero-finding credential scan,
@@ -136,6 +136,21 @@ disabled until their individual proof gates are met.
   read-only disposable statistics tool. It does not auto-resume, clean up, or
   terminate a prior process; native restart presentation, exact-approved mining,
   mutation checkpoints, and rollback remain unimplemented.
+
+### Native closed CAM interruption status — 2026-07-30
+
+- Expected red: the CAM screen had no interrupted-journal state, listing call,
+  or restart-visible status section.
+- Green: the closed-tool journal directory is now app-owned Application Support
+  state rather than a purgeable cache location. The native CAM screen reloads
+  validated interruption records after restart and displays only tool, start
+  time, and shortened runtime identity. Corrupt recovery state is visibly
+  unavailable and no prior run can be resumed.
+- Boundary: the screen exposes no Resume, Retry, Kill, Delete, Cleanup, mining,
+  or corpus control. A new closed statistics run remains separately pinned with
+  a fresh idempotency key; it cannot adopt the unknown previous process.
+- Verification: focused native accessibility/source contracts (`10` tests) and
+  all `38` CAM adapter/runtime tests pass.
 
 ### Live CAM runtime identity and disposable preflight — 2026-07-29
 
