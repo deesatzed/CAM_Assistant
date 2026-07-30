@@ -2241,6 +2241,21 @@ None.
   clone-cleanliness checks. The product's macOS sandbox remained enabled; only
   the automation harness boundary changed.
 
+### Reproduced local-model negative evidence — 2026-07-30
+
+- A newly started loopback-only Ollama service exposed only the already-local
+  `llama3.2:1b` and `ornith:9b` models; no model download, provider request,
+  frozen-fixture edit, threshold change, or repository source change occurred.
+- The unchanged generated-answer v1 protocol ran `llama3.2:1b` with one warmup
+  and three measured requests per each of its seven cases. Retrieval remained
+  Recall@10 `1.0` and MRR `1.0`, but cited-claim support was `0.0`, abstention
+  accuracy `0.0`, and warm p95 `638.287416 ms` against the `<500 ms` gate.
+  Every case failed the complete frozen verdict.
+- The valid negative receipt is preserved at
+  `docs/evidence/task-13-generated-answer-llama3.2-1b-rerun-20260730-report.json`.
+  The evaluated model was unloaded afterward. CAM-013 remains partial; this is
+  evidence against this candidate, not a changed model-quality claim.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

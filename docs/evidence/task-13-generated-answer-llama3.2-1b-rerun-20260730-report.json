@@ -1,0 +1,157 @@
+{
+  "abstentionAccuracy" : 0,
+  "abstentionCaseCount" : 1,
+  "answerCaseCount" : 6,
+  "caseCount" : 7,
+  "caseResults" : [
+    {
+      "abstained" : false,
+      "caseID" : "generated-front-door",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "answer",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "native-outcome#front-door",
+        "repository-boundary#idea",
+        "native-outcome#offline"
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "generated-offline",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "answer",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "native-outcome#offline",
+        "retention-boundary#keep",
+        "local-trust#vault",
+        "native-outcome#front-door"
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "generated-vault",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "answer",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "local-trust#vault",
+        "native-outcome#front-door"
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "generated-routing",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "answer",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "local-trust#routing",
+        "unknown-hardware#selection"
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "generated-idea",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "answer",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "repository-boundary#idea"
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "generated-retention",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "answer",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "retention-boundary#keep"
+      ]
+    },
+    {
+      "abstained" : false,
+      "caseID" : "generated-hardware-abstention",
+      "claimSupport" : 0,
+      "errorCode" : "httpStatus(500)",
+      "expectedOutcome" : "abstain",
+      "generatedPassageIDs" : [
+
+      ],
+      "passed" : false,
+      "retrievedPassageIDs" : [
+        "unknown-hardware#selection",
+        "local-trust#vault",
+        "local-trust#routing",
+        "native-outcome#front-door"
+      ]
+    }
+  ],
+  "citedClaimSupport" : 0,
+  "corpusPassageCount" : 7,
+  "endpointIdentity" : "http:\/\/127.0.0.1:11434\/v1",
+  "evaluatorVersion" : "generated-answer-evaluator-v1",
+  "failedCaseIDs" : [
+    "generated-front-door",
+    "generated-hardware-abstention",
+    "generated-idea",
+    "generated-offline",
+    "generated-retention",
+    "generated-routing",
+    "generated-vault"
+  ],
+  "indexFingerprint" : "edec9a91d5b633ac577bd67c6e1e1b7b39a31791c85a9ee9c214ef626503e452",
+  "latencyDistribution" : {
+    "maximumMilliseconds" : 650.759583,
+    "medianMilliseconds" : 635.335167,
+    "minimumMilliseconds" : 631.847334,
+    "p95Milliseconds" : 638.287416,
+    "sampleCount" : 21
+  },
+  "manifestHash" : "5eff382987e236994bc755c9107c169fda1896c99cbb4c353dad64ad1e8006ae",
+  "meanReciprocalRank" : 1,
+  "measuredRunsPerCase" : 3,
+  "meetsFrozenThresholds" : false,
+  "modelID" : "llama3.2:1b",
+  "operation" : "retrieve+context+selected-local-model+claim-citation-check",
+  "recallAt10" : 1,
+  "runtimeIdentity" : "Version 27.0 (Build 26A5388g); 14 logical CPUs",
+  "thresholds" : {
+    "abstentionAccuracy" : 1,
+    "citedClaimSupport" : 0.95,
+    "meanReciprocalRank" : 0.7,
+    "recallAt10" : 0.85,
+    "warmEndToEndP95Milliseconds" : 500
+  },
+  "unansweredCaseIDs" : [
+
+  ],
+  "warmEndToEndP95Milliseconds" : 638.287416,
+  "warmupRunsPerCase" : 1
+}

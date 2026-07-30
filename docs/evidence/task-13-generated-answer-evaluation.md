@@ -38,6 +38,7 @@ donor-repository content was used.
 | Ollama `llama3.2:1b`, baseline structured prompt | 1.00 | 1.00 | 0.00 | 0.00 | 612.40 | Fail |
 | Ollama `llama3.2:1b`, JSON Schema | 1.00 | 1.00 | 0.3333 | 0.00 | 667.96 | Fail |
 | Ollama `llama3.2:1b`, JSON Schema plus exact passage-ID enum | 1.00 | 1.00 | 0.3333 | 0.00 | 619.73 | Fail |
+| Ollama `llama3.2:1b`, exact-ID rerun (2026-07-30) | 1.00 | 1.00 | 0.00 | 0.00 | 638.29 | Fail |
 | Ollama `ornith:9b`, baseline structured prompt | 1.00 | 1.00 | 0.00 | 1.00 | 60,614.74 | Fail |
 | LM Studio MLX `vibethinker-3b-optiq-5bpw-mlx`, exact-ID schema | 1.00 | 1.00 | 0.1667 | 1.00 | 1,393.37 | Fail |
 | LM Studio `gemma-4-12b-it-optiq`, exact-ID schema | 1.00 | 1.00 | 1.00 | 1.00 | 2,010.38 | Fail: latency |
