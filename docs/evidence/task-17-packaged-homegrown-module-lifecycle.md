@@ -44,6 +44,16 @@ The real packaged UI exposed the following states in order:
 | `swift test --filter CAMAssistantAppTests.modulesWorkspaceExposesExplicitLifecycle` | PASS after the expected red: native UI exposes the full explicit lifecycle and no-authority boundary. |
 | `swift test --filter CAMAssistantAppTests.appModelRunsPackagedModuleLifecycle` | PASS: isolated app-model lifecycle preserves a Layer 1 core-memory marker through install, grant, use, disable, remove, and reload. |
 | `/bin/zsh scripts/verify.sh package` | PASS: release package rebuild and `Info.plist` validation. |
+| `/bin/zsh scripts/verify.sh fresh-clone` | PASS: exact clean clone of `0301edbc942856745be3ada26c7c1fc9c7977b45`; portability, 48-gate map, all 336 Swift tests, release builds, reproducible package, privacy scan, offline smoke, and clone-cleanliness checks. |
+
+## Aggregate-verification note
+
+The first aggregate run was executed inside the managed Codex sandbox. macOS
+correctly denied that outer sandbox from nesting the app's deliberate
+`/usr/bin/sandbox-exec` confinement, producing exit 71 before CAM test fixtures
+started. The same exact clean-clone verifier passed at normal macOS process
+privilege. This is a test-harness constraint, not a relaxation of the product
+sandbox or a module defect.
 
 ## Boundaries
 

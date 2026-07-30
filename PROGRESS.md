@@ -2227,15 +2227,19 @@ None.
   permission-change receipts are not claimed.
 - Saved receipt:
   `docs/evidence/task-17-packaged-homegrown-module-lifecycle.md`.
-- Aggregate limitation: the first fresh-clone aggregate after the packaged GUI
-  inspection was contaminated by stale interrupted test-helper processes. After
-  terminating only those stale helpers, a clean fresh-clone rerun still exposed
-  26 pre-existing integration failures: closed CAM fixture subprocesses exited
-  `71`, and one FSEvents watcher startup failed. The same focused CAM suite
-  passes in the main checkout. This module slice therefore has focused and
-  packaged proof, but does **not** create a new portable aggregate checkpoint
-  until the fresh-clone subprocess/test-order condition is reproduced and
-  resolved without weakening the suite.
+- Root-cause correction: the initial red fresh-clone run was from inside the
+  managed Codex sandbox, which macOS correctly prevents from nesting the
+  product's deliberate `/usr/bin/sandbox-exec` confinement. That outer harness
+  denial produced exit `71` before the CAM fixture started; it was not an app
+  subprocess or test-order defect. A clean clone run at normal macOS process
+  privilege passed all 47 CAM/restart tests, including the external-write
+  denial and typed process controls.
+- Green exact-commit proof: `/bin/zsh scripts/verify.sh fresh-clone` passed
+  from a new temporary clone of `0301edbc942856745be3ada26c7c1fc9c7977b45`:
+  portability and the 48-gate map, all `336` Swift tests, release builds,
+  deterministic package checks, credential/privacy scan, offline smoke, and
+  clone-cleanliness checks. The product's macOS sandbox remained enabled; only
+  the automation harness boundary changed.
 
 ## Questions for User
 
