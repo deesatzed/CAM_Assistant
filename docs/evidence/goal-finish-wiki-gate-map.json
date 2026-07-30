@@ -333,7 +333,7 @@
       "docs/evidence/task-16-native-cam-runtime-snapshot.md",
       "docs/evidence/task-16-closed-cam-executor.md"
     ],
-    "limitation": "A one-tool typed registry now confines the pinned `stats --json` process to a sandboxed disposable copy with a current-session native control, typed output, retry, idempotency, cancellation, donor postconditions, cleanup, durable status-only receipts, a fail-closed interrupted-run journal, and restart-visible status without a resume or cleanup action. Mining postconditions remain absent; arbitrary commands, mining, providers, MCP, network, and personal-corpus execution remain unavailable."
+    "limitation": "A one-tool typed registry now confines the pinned `stats --json` process to a sandboxed disposable copy with a current-session native control, typed output, retry, idempotency, cancellation, donor postconditions, cleanup, durable status-only receipts, a fail-closed interrupted-run journal, and restart-visible status without a resume or cleanup action. Real CAM mining postconditions remain absent; arbitrary commands, mining, providers, MCP, network, and personal-corpus execution remain unavailable."
     },
     {
       "id": "cam.mining-plan",
@@ -341,9 +341,10 @@
       "title": "Exact-approved CAM mining plan",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-09-cam-adapter.md"
+        "docs/evidence/task-09-cam-adapter.md",
+        "docs/evidence/task-16-isolated-cam-mining-checkpoint.md"
       ],
-      "limitation": "A digest-bound proposal and approval contract exists, but it is not bound to a live executor and disposable runtime."
+      "limitation": "A digest-bound proposal and approval contract now also drives a structured synthetic corpus checkpoint/mutation/disposal proof. It is not bound to a real CAM executable, disposable runtime/config/database, selected repository, idempotency registry, or promotion path."
     },
     {
       "id": "cam.disposable-integration",
@@ -353,9 +354,10 @@
       "evidence": [
       "docs/evidence/task-16-live-cam-codex-gap-audit.md",
       "docs/evidence/task-16-native-cam-runtime-snapshot.md",
-      "docs/evidence/task-16-closed-cam-executor.md"
+      "docs/evidence/task-16-closed-cam-executor.md",
+      "docs/evidence/task-16-isolated-cam-mining-checkpoint.md"
     ],
-    "limitation": "The app and CLI stable-copy config plus the SQLite main/WAL family, read fixed native statistics, prove seven donor identities unchanged, and auto-clean. The pinned CAM `stats --json` process has now executed only against that sandboxed disposable state; no mining or personal-corpus action has executed."
+    "limitation": "The app and CLI stable-copy config plus the SQLite main/WAL family read fixed native statistics, prove seven donor identities unchanged, and auto-clean. Separately, structured synthetic mutation validates a pre-mutation checkpoint, bounded write set, cancellation, postcondition failure, receipt, and private-copy disposal. No real CAM mining, repository, or personal-corpus action has executed."
     },
     {
       "id": "cam.failure-never-success",
@@ -365,9 +367,10 @@
       "evidence": [
       "docs/evidence/task-09-cam-adapter.md",
       "docs/evidence/task-16-live-cam-codex-gap-audit.md",
-      "docs/evidence/task-16-closed-cam-executor.md"
+      "docs/evidence/task-16-closed-cam-executor.md",
+      "docs/evidence/task-16-isolated-cam-mining-checkpoint.md"
     ],
-    "limitation": "Closed-executor timeout, cancellation, output-limit, drift, invalid-output, external-write, idempotency-conflict, failed-process, and durable interrupted-run tests return non-verified typed receipts; a real installed-runtime run is verified only after typed output, independent copied-state statistics, donor revalidation, and cleanup. Mining terminal states and mutation checkpoint/rollback remain unproven."
+    "limitation": "Closed-executor timeout, cancellation, output-limit, drift, invalid-output, external-write, idempotency-conflict, failed-process, and durable interrupted-run tests return non-verified typed receipts; a real installed-runtime run is verified only after typed output, independent copied-state statistics, donor revalidation, and cleanup. Synthetic mining cancellation, adapter failure, and postcondition mismatch are non-verified and discard the private copy. Real CAM mining terminal states and rollback remain unproven."
     },
     {
       "id": "cam.advanced-disabled",

@@ -64,7 +64,8 @@ command text, repository root, approval token, or mutation target.
 
 ## Test evidence
 
-Expected-red tests preceded implementation. The focused CAM suite passed:
+Expected-red tests preceded implementation. At the initial closed-statistics
+checkpoint, the focused CAM suite passed:
 
 - `./scripts/verify.sh cam`: 37 runtime/executor tests plus 5 restart-state
   tests; and
@@ -141,6 +142,7 @@ scan, and offline smoke.
 This does not authorize arbitrary CAM commands, mining, providers, MCP,
 network access, source-repository reads, or a personal/live corpus action. It
 does not auto-resume, terminate, inspect, or clean up an interrupted process.
-Exact-approved mining, mining postconditions, trajectory proof, and a
-transaction/rollback checkpoint for corpus mutation remain later CAM-016
-slices.
+Real external CAM mining, real CAM mining postconditions, trajectory proof,
+and a transaction/rollback checkpoint for a real corpus mutation remain later
+CAM-016 slices. The separate structured synthetic checkpoint proof is recorded
+in `task-16-isolated-cam-mining-checkpoint.md`.

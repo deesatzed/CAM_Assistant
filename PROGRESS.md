@@ -69,9 +69,10 @@ disabled until their individual proof gates are met.
 
 ## Next Actions
 
-1. Design an operation-local rollback checkpoint before any exact-approved
-   mining action is made executable; it must never auto-resume or overwrite a
-   live corpus.
+1. Attach one separately enumerated external mining command only to an
+   isolated disposable CAM config/database/repository fixture. It must
+   revalidate the pin after exact approval, enforce idempotency and limits, and
+   verify the real post-run write set before any personal/live corpus action.
 2. Run the unchanged V3 contract against a different named loopback model;
    preserve every failure and do not change its claim catalog, roles,
    distractors, labels, or thresholds.
@@ -151,6 +152,25 @@ disabled until their individual proof gates are met.
   a fresh idempotency key; it cannot adopt the unknown previous process.
 - Verification: focused native accessibility/source contracts (`10` tests) and
   all `38` CAM adapter/runtime tests pass.
+
+### Isolated synthetic CAM mining checkpoint — 2026-07-30
+
+- Expected red: the mining lifecycle exposed only a proposal and unavailable
+  executor; it could not persist a checkpoint, exercise a mutation, validate a
+  write set, or dispose a private operation copy.
+- Green: a consumed exact approval can now bind a structured synthetic corpus,
+  expected write IDs, and a bounded write count. The executor writes a
+  status-only checkpoint before its synthetic adapter seam, validates the
+  returned writes, persists a terminal status-only receipt, and deletes only
+  its own operation directory on success, cancellation, adapter failure, or
+  failed postcondition. Successful synthetic state is discarded too; there is
+  no promotion path.
+- Verification: `swift test --disable-sandbox --scratch-path .swift-build
+  --filter CAMAdapterTests` passed all `41` focused CAM adapter/runtime tests.
+- Boundary: no `cam mine` executable, selected repository, configuration,
+  database, live/personal corpus, network, provider, source text, or
+  full-vault backup payload is accepted or opened. This is isolated synthetic
+  mutation/rollback proof, not real CAM mining authority.
 
 ### Live CAM runtime identity and disposable preflight — 2026-07-29
 

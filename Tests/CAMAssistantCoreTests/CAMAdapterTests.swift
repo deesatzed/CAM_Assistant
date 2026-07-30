@@ -217,6 +217,144 @@ func camMiningUnavailableExecutorReturnsFailureReceiptWithoutSuccess() throws {
     #expect(receipt.terminalReason.contains("No CAM runtime"))
 }
 
+@Test("isolated CAM mining input is synthetic bounded and digest-bound before mutation")
+func isolatedCAMMiningInputIsSyntheticBoundedAndDigestBoundBeforeMutation() throws {
+    let corpus = try CAMSyntheticMiningCorpus(
+        fixtureID: "cam-mining-fixture-v1",
+        repositoryIDs: ["fixture-repository"]
+    )
+    let request = try CAMIsolatedMiningRequest(
+        corpus: corpus,
+        expectedCorpusSHA256: corpus.sha256,
+        expectedWriteIDs: ["methodology:fixture-repository"],
+        maximumWriteCount: 1
+    )
+
+    #expect(request.corpus.fixtureID == "cam-mining-fixture-v1")
+    #expect(request.expectedCorpusSHA256 == corpus.sha256)
+    #expect(request.expectedWriteIDs == ["methodology:fixture-repository"])
+    #expect(throws: CAMIsolatedMiningRequestError.invalidExpectedCorpusDigest) {
+        _ = try CAMIsolatedMiningRequest(
+            corpus: corpus,
+            expectedCorpusSHA256: String(repeating: "g", count: 64),
+            expectedWriteIDs: ["methodology:fixture-repository"],
+            maximumWriteCount: 1
+        )
+    }
+    #expect(throws: CAMIsolatedMiningRequestError.invalidBounds) {
+        _ = try CAMIsolatedMiningRequest(
+            corpus: corpus,
+            expectedCorpusSHA256: corpus.sha256,
+            expectedWriteIDs: ["methodology:fixture-repository"],
+            maximumWriteCount: 0
+        )
+    }
+    let encoded = try JSONEncoder().encode(corpus)
+    let tampered = Data(
+        String(decoding: encoded, as: UTF8.self)
+            .replacingOccurrences(
+                of: "cam-mining-fixture-v1",
+                with: "cam-mining-forged-v1"
+            )
+            .utf8
+    )
+    #expect(throws: DecodingError.self) {
+        _ = try JSONDecoder().decode(CAMSyntheticMiningCorpus.self, from: tampered)
+    }
+}
+
+@Test("isolated CAM mining persists a bound checkpoint before synthetic mutation")
+func isolatedCAMMiningPersistsBoundCheckpointBeforeSyntheticMutation() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let active = try activeCAMMiningTestRun(root: root)
+    let corpus = try CAMSyntheticMiningCorpus(
+        fixtureID: "cam-mining-checkpoint-v1",
+        repositoryIDs: ["fixture-repository"]
+    )
+    let request = try CAMIsolatedMiningRequest(
+        corpus: corpus,
+        expectedCorpusSHA256: corpus.sha256,
+        expectedWriteIDs: ["methodology:fixture-repository"],
+        maximumWriteCount: 1
+    )
+    let adapter = CAMSyntheticMiningAdapter { operation in
+        let data = try Data(contentsOf: operation.checkpointURL)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let checkpoint = try decoder.decode(
+            CAMIsolatedMiningCheckpoint.self,
+            from: data
+        )
+        #expect(checkpoint.planDigest == active.plan.planDigest)
+        #expect(checkpoint.approvalID == active.approvalReceipt?.approvalID)
+        #expect(checkpoint.initialCorpusSHA256 == corpus.sha256)
+        return ["methodology:fixture-repository"]
+    }
+
+    let result = try CAMIsolatedMiningExecutor().attempt(
+        run: active,
+        request: request,
+        workspaceRoot: root,
+        adapter: adapter
+    )
+
+    #expect(result.receipt.status == .verified)
+    #expect(result.receipt.operationDiscarded)
+    #expect(result.receipt.initialCorpusSHA256 == corpus.sha256)
+}
+
+@Test("isolated CAM mining discards only its copy after cancellation or failed postcondition")
+func isolatedCAMMiningDiscardsOnlyItsCopyAfterCancellationOrFailedPostcondition() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let active = try activeCAMMiningTestRun(root: root)
+    let corpus = try CAMSyntheticMiningCorpus(
+        fixtureID: "cam-mining-rollback-v1",
+        repositoryIDs: ["fixture-repository"]
+    )
+    let originalCorpus = corpus
+    let request = try CAMIsolatedMiningRequest(
+        corpus: corpus,
+        expectedCorpusSHA256: corpus.sha256,
+        expectedWriteIDs: ["methodology:fixture-repository"],
+        maximumWriteCount: 1
+    )
+    let executor = CAMIsolatedMiningExecutor()
+    let cancelled = try executor.attempt(
+        run: active,
+        request: request,
+        workspaceRoot: root,
+        adapter: CAMSyntheticMiningAdapter { _ in
+            ["unexpected-write"]
+        },
+        isCancellationRequested: { true }
+    )
+    let postconditionFailure = try executor.attempt(
+        run: active,
+        request: request,
+        workspaceRoot: root,
+        adapter: CAMSyntheticMiningAdapter { _ in
+            ["unexpected-write"]
+        }
+    )
+
+    #expect(cancelled.receipt.status == .cancelled)
+    #expect(cancelled.receipt.failureCode == "cancelled_before_synthetic_mutation")
+    #expect(cancelled.receipt.operationDiscarded)
+    #expect(postconditionFailure.receipt.status == .postconditionFailed)
+    #expect(postconditionFailure.receipt.failureCode == "unexpected_write_set")
+    #expect(postconditionFailure.receipt.operationDiscarded)
+    #expect(postconditionFailure.receipt.finalCorpusSHA256 == nil)
+    #expect(corpus == originalCorpus)
+    for operationID in [cancelled.receipt.operationID, postconditionFailure.receipt.operationID] {
+        let operationURL = root
+            .appending(path: "isolated-cam-mining-operations", directoryHint: .isDirectory)
+            .appending(path: operationID.uuidString, directoryHint: .isDirectory)
+        #expect(!FileManager.default.fileExists(atPath: operationURL.path))
+    }
+}
+
 @Test("CAM runtime inspection pins executable config and database bytes without execution")
 func camRuntimeInspectionPinsSelectedBytesWithoutExecution() throws {
     let fixture = try CAMInstalledRuntimeFixture()
@@ -1180,6 +1318,23 @@ private func camMiningTestPlan() throws -> CAMMiningPlan {
         recoveryDescription: "Cancel the run and preserve the local receipt.",
         idempotencyKey: "mine-selected-repository-a",
         stateVersion: 7
+    )
+}
+
+private func activeCAMMiningTestRun(root: URL) throws -> CAMMiningRun {
+    let plan = try camMiningTestPlan()
+    let card = try plan.actionCard(expiresAt: Date(timeIntervalSince1970: 100))
+    let approvals = try ApprovalStore(stateURL: root.appending(path: "approvals.json"))
+    let approval = try approvals.approve(
+        card,
+        source: "user",
+        now: Date(timeIntervalSince1970: 10)
+    )
+    return try CAMMiningRun(plan: plan).start(
+        approvalID: approval.id,
+        approvalStore: approvals,
+        card: card,
+        now: Date(timeIntervalSince1970: 20)
     )
 }
 
