@@ -2250,7 +2250,10 @@ None.
   and three measured requests per each of its seven cases. Retrieval remained
   Recall@10 `1.0` and MRR `1.0`, but cited-claim support was `0.0`, abstention
   accuracy `0.0`, and warm p95 `638.287416 ms` against the `<500 ms` gate.
-  Every case failed the complete frozen verdict.
+  Every case failed the complete frozen verdict. The tool-launched Ollama
+  server reported CPU execution, so this latency is not Apple-GPU performance
+  evidence; the independent quality and abstention failures still reject this
+  candidate under the unchanged protocol.
 - The valid negative receipt is preserved at
   `docs/evidence/task-13-generated-answer-llama3.2-1b-rerun-20260730-report.json`.
   The evaluated model was unloaded afterward. CAM-013 remains partial; this is

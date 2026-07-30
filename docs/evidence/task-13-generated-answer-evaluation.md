@@ -56,6 +56,11 @@ the managed sandbox. Metal command-queue creation failed and every generation
 returned HTTP 500. It is retained as a separate invalid-environment receipt and
 is excluded from the model comparison above.
 
+The later exact-ID rerun preserved its status-only receipt because its quality
+and abstention failures reject the model independently. Its tool-launched
+Ollama server reported CPU execution, so the `638.29 ms` value is not used as
+Apple-GPU latency evidence.
+
 Archived report SHA-256 values:
 
 | Report suffix | SHA-256 |
