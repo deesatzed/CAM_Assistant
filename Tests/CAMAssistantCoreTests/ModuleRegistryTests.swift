@@ -46,6 +46,38 @@ func packagedTextSummaryManifestIsDigestTrustedBeforeInstallation() throws {
     #expect(!PackagedModuleTrust.isTrustedTextSummaryManifest(tampered))
 }
 
+@Test("trusted text summary module installs dispatches disables removes and stays absent after restart")
+func trustedTextSummaryModuleLifecycle() throws {
+    let root = try temporaryModuleDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let manifestRoot = root.appending(path: "installed-modules", directoryHint: .isDirectory)
+    let stateURL = root.appending(path: "module-state.json")
+    let installer = PackagedModuleInstaller(manifestDirectory: manifestRoot)
+
+    let receipt = try installer.installTextSummary()
+    #expect(receipt.moduleID == "cam.text-summary")
+    let registry = try ModuleRegistry(manifestDirectory: manifestRoot, stateURL: stateURL)
+    try registry.enable("cam.text-summary")
+    #expect(throws: PackagedModuleDispatchError.unavailable) {
+        _ = try PackagedTextSummaryModule().summarize("one two", registry: registry)
+    }
+    try registry.grant([.readLocal], to: "cam.text-summary")
+    #expect(try PackagedTextSummaryModule().summarize("one two two", registry: registry)
+        == PackagedTextSummary(wordCount: 3, characterCount: 11))
+
+    try registry.disable("cam.text-summary")
+    #expect(throws: PackagedModuleDispatchError.unavailable) {
+        _ = try PackagedTextSummaryModule().summarize("one", registry: registry)
+    }
+    try installer.removeTextSummary()
+    try registry.reload()
+    #expect(throws: ModuleRegistryError.moduleNotFound("cam.text-summary")) {
+        _ = try registry.isEnabled("cam.text-summary")
+    }
+    let restarted = try ModuleRegistry(manifestDirectory: manifestRoot, stateURL: stateURL)
+    #expect(restarted.manifests().isEmpty)
+}
+
 @Test("invalid versions and unknown permissions fail before registration")
 func invalidVersionsAndPermissionsFailBeforeRegistration() throws {
     let invalidVersion = manifestJSON(id: "cam.invalid-version", version: "1")

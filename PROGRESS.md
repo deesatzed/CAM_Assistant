@@ -2191,6 +2191,20 @@ None.
 - Boundary: this does not yet install, grant, dispatch, disable, remove, or
   present the module. Task 2 will add those separate authority transitions.
 
+### Home-grown module core lifecycle — 2026-07-30
+
+- `PackagedModuleInstaller` now stages and atomically installs only the exact
+  bundled `cam.text-summary` manifest into an app-owned manifest directory.
+  Removal verifies the same trust root and deletes only that installed manifest.
+- The closed `PackagedTextSummaryModule` exposes deterministic word and
+  character counts only when the registry currently advertises its
+  `text.summary` capability. Enablement alone is insufficient; the module
+  needs its declared `readLocal` grant, and disable withdraws dispatch.
+- Red/green lifecycle proof passed in an isolated root: install, enable with
+  zero authority, grant, dispatch, disable, remove, reload, and restart all
+  behave as required. This is core integration evidence, not yet a packaged
+  native UI or full-vault recovery journey.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below
