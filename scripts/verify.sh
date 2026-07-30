@@ -117,7 +117,7 @@ case "$suite" in
   all)
     "$SCRIPT_DIR/verify-portability.sh"
     "$SCRIPT_DIR/verify.sh" goal-map
-    swift test --disable-sandbox --scratch-path .swift-build
+    swift test --disable-sandbox --scratch-path .swift-build --parallel --num-workers 1
     swift build --disable-sandbox --scratch-path .swift-build -c release
     "$SCRIPT_DIR/verify.sh" package-reproducibility
     "$SCRIPT_DIR/verify.sh" release-privacy
