@@ -2153,6 +2153,21 @@ None.
 - Saved receipt:
   `docs/evidence/task-18-stable-checkpoint-2026-07-30.md`.
 
+### Real disposable CAM mining admission contract — 2026-07-30
+
+- The next CAM-016 slice now has an executable plan at
+  `docs/plans/2026-07-30-real-disposable-cam-mining.md`.
+- Red/green proof: `CAMDisposableMiningRequest` was first absent from the
+  focused CAM suite, then added as a typed fixture-root contract. It requires
+  the repository, secret-free config, and SQLite input to be existing
+  non-symlink descendants of one fixture root; it rejects outside paths,
+  malformed database digests, and unbounded output.
+- Focused green: `/bin/zsh scripts/verify.sh cam` passed all `42` CAM
+  adapter/runtime and restart-state tests.
+- Boundary: this adds no subprocess, CAM `mine` invocation, repository copy,
+  database mutation, promotion, live/personal corpus access, or UI authority.
+  Those remain the next test-first tasks in the disposable-only plan.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

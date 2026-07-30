@@ -262,6 +262,82 @@ public enum CAMMiningExecutorError: Error, Equatable {
     case approvalNotConsumed
 }
 
+/// A closed input contract for the first real external CAM mining proof. All
+/// source paths must be regular files or directories below one fixture root;
+/// the executor will later make its own disposable copy before launch.
+public struct CAMDisposableMiningRequest: Equatable, Sendable {
+    public let fixtureRoot: URL
+    public let repositoryURL: URL
+    public let configurationURL: URL
+    public let databaseURL: URL
+    public let runtimeIdentitySHA256: String
+    public let expectedDatabaseSHA256: String
+    public let maximumOutputBytes: Int
+
+    public init(
+        fixtureRoot: URL,
+        repositoryURL: URL,
+        configurationURL: URL,
+        databaseURL: URL,
+        runtimeIdentitySHA256: String,
+        expectedDatabaseSHA256: String,
+        maximumOutputBytes: Int
+    ) throws {
+        let normalizedRoot = fixtureRoot.standardizedFileURL
+        guard normalizedRoot.isFileURL,
+              FileManager.default.fileExists(atPath: normalizedRoot.path) else {
+            throw CAMDisposableMiningRequestError.invalidFixtureRoot
+        }
+        let normalizedRepository = repositoryURL.standardizedFileURL
+        let normalizedConfiguration = configurationURL.standardizedFileURL
+        let normalizedDatabase = databaseURL.standardizedFileURL
+        let inputs = [normalizedRepository, normalizedConfiguration, normalizedDatabase]
+        guard inputs.allSatisfy({ Self.isDescendant($0, of: normalizedRoot) }) else {
+            throw CAMDisposableMiningRequestError.pathOutsideFixture
+        }
+        guard inputs.allSatisfy({
+            !Self.isSymbolicLink($0)
+                && FileManager.default.fileExists(atPath: $0.path)
+        }) else {
+            throw CAMDisposableMiningRequestError.invalidFixtureInput
+        }
+        let normalizedRuntimeIdentity = runtimeIdentitySHA256.lowercased()
+        let normalizedDatabaseDigest = expectedDatabaseSHA256.lowercased()
+        guard CAMMiningPlan.isSHA256(normalizedRuntimeIdentity),
+              CAMMiningPlan.isSHA256(normalizedDatabaseDigest) else {
+            throw CAMDisposableMiningRequestError.invalidDatabaseDigest
+        }
+        guard (1...1_048_576).contains(maximumOutputBytes) else {
+            throw CAMDisposableMiningRequestError.invalidOutputLimit
+        }
+        self.fixtureRoot = normalizedRoot
+        self.repositoryURL = normalizedRepository
+        self.configurationURL = normalizedConfiguration
+        self.databaseURL = normalizedDatabase
+        self.runtimeIdentitySHA256 = normalizedRuntimeIdentity
+        self.expectedDatabaseSHA256 = normalizedDatabaseDigest
+        self.maximumOutputBytes = maximumOutputBytes
+    }
+
+    private static func isDescendant(_ candidate: URL, of root: URL) -> Bool {
+        let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        return candidate.path.hasPrefix(rootPath)
+    }
+
+    private static func isSymbolicLink(_ url: URL) -> Bool {
+        ((try? url.resourceValues(forKeys: [.isSymbolicLinkKey]))?
+            .isSymbolicLink) == true
+    }
+}
+
+public enum CAMDisposableMiningRequestError: Error, Equatable {
+    case invalidFixtureRoot
+    case pathOutsideFixture
+    case invalidFixtureInput
+    case invalidDatabaseDigest
+    case invalidOutputLimit
+}
+
 /// A deliberately tiny, structured corpus used exclusively by the isolated
 /// mining proof. It contains fixture identifiers only: callers cannot pass a
 /// path, configuration, database, source bytes, or an external CAM command.

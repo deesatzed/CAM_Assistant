@@ -263,6 +263,59 @@ func isolatedCAMMiningInputIsSyntheticBoundedAndDigestBoundBeforeMutation() thro
     }
 }
 
+@Test("disposable CAM mining request confines every input to one clean fixture root")
+func disposableCAMMiningRequestConfinesInputsToFixtureRoot() throws {
+    let fixture = try CAMInstalledRuntimeFixture(behavior: .liveStatsSuccess)
+    defer { fixture.remove() }
+    let pin = try fixture.inspect()
+    let request = try CAMDisposableMiningRequest(
+        fixtureRoot: fixture.root,
+        repositoryURL: fixture.packageRootURL.deletingLastPathComponent()
+            .deletingLastPathComponent(),
+        configurationURL: fixture.configurationURL,
+        databaseURL: fixture.databaseURL,
+        runtimeIdentitySHA256: pin.identitySHA256,
+        expectedDatabaseSHA256: pin.databaseSHA256,
+        maximumOutputBytes: 16_384
+    )
+
+    #expect(request.runtimeIdentitySHA256 == pin.identitySHA256)
+    #expect(request.expectedDatabaseSHA256 == pin.databaseSHA256)
+    #expect(throws: CAMDisposableMiningRequestError.pathOutsideFixture) {
+        _ = try CAMDisposableMiningRequest(
+            fixtureRoot: fixture.root,
+            repositoryURL: URL(filePath: "/tmp"),
+            configurationURL: fixture.configurationURL,
+            databaseURL: fixture.databaseURL,
+            runtimeIdentitySHA256: pin.identitySHA256,
+            expectedDatabaseSHA256: pin.databaseSHA256,
+            maximumOutputBytes: 16_384
+        )
+    }
+    #expect(throws: CAMDisposableMiningRequestError.invalidDatabaseDigest) {
+        _ = try CAMDisposableMiningRequest(
+            fixtureRoot: fixture.root,
+            repositoryURL: request.repositoryURL,
+            configurationURL: fixture.configurationURL,
+            databaseURL: fixture.databaseURL,
+            runtimeIdentitySHA256: pin.identitySHA256,
+            expectedDatabaseSHA256: String(repeating: "g", count: 64),
+            maximumOutputBytes: 16_384
+        )
+    }
+    #expect(throws: CAMDisposableMiningRequestError.invalidOutputLimit) {
+        _ = try CAMDisposableMiningRequest(
+            fixtureRoot: fixture.root,
+            repositoryURL: request.repositoryURL,
+            configurationURL: fixture.configurationURL,
+            databaseURL: fixture.databaseURL,
+            runtimeIdentitySHA256: pin.identitySHA256,
+            expectedDatabaseSHA256: pin.databaseSHA256,
+            maximumOutputBytes: 0
+        )
+    }
+}
+
 @Test("isolated CAM mining persists a bound checkpoint before synthetic mutation")
 func isolatedCAMMiningPersistsBoundCheckpointBeforeSyntheticMutation() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
