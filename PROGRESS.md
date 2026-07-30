@@ -2290,6 +2290,22 @@ None.
   pilot behavior. The direct receipt is
   `docs/evidence/add2cam-02-module-boundary.md`.
 
+### ADD2CAM explicit MeaningCore context adapter — 2026-07-30
+
+- Expected red: focused Meaning Preview tests could not compile because CAM had
+  no adapter types or MeaningCore projection boundary.
+- Green: `CAMMeaningContextAdapter` is a pure, one-way mapper from explicitly
+  supplied CAM-derived items into deterministic MeaningCore context and memory.
+  It retains source identifiers, observation time, uncertainty, and permitted
+  use as inspectable provenance while keeping the derived text transient.
+  Hidden, inactive, restricted, secret-like, stale, unsupported, missing, and
+  unpermitted inputs are excluded before MeaningCore is invoked. Empty or
+  wholly excluded selections create no invented memory. The mapper has no
+  storage, model, CAM, network, or action dependency.
+- `swift test --disable-sandbox --scratch-path .swift-build-meaning-preview
+  --filter MeaningPreviewTests` passed both deterministic mapping and
+  fail-closed exclusion tests.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below
