@@ -2205,6 +2205,38 @@ None.
   behave as required. This is core integration evidence, not yet a packaged
   native UI or full-vault recovery journey.
 
+### Packaged home-grown module native journey — 2026-07-30
+
+- Expected red: a direct enabled-module removal left its old `readLocal` grant
+  in durable registry state, so reinstall could revive authority after a new
+  enable. The corrected registry reload prunes grants for absent manifests and
+  persists that cleanup. The focused red/green regression now passes.
+- Green: the native Modules workspace presents the closed `cam.text-summary`
+  lifecycle—install, enable, explicit local-text grant, deterministic local
+  exercise, disable, remove, and reload. It states that no network, shell,
+  downloaded code, or vault browsing is available.
+- Packaged isolated-root inspection exercised the real unsigned app through
+  every state with `one two two` and exposed `3 words, 11 characters`; after
+  remove and relaunch against the same disposable root, only Install remained.
+- Green: the focused module suite passes all 10 tests, the AppModel isolated
+  lifecycle preserves a Layer 1 marker across removal/reload, the native
+  accessibility contract passes, and package creation validates.
+- Goal-map effect: `modules.homegrown-lifecycle` moves from `missing` to
+  `passed`. `modules.manifest-trust` and `modules.permissions-and-health`
+  remain partial because generic extension loading, executed health checks, and
+  permission-change receipts are not claimed.
+- Saved receipt:
+  `docs/evidence/task-17-packaged-homegrown-module-lifecycle.md`.
+- Aggregate limitation: the first fresh-clone aggregate after the packaged GUI
+  inspection was contaminated by stale interrupted test-helper processes. After
+  terminating only those stale helpers, a clean fresh-clone rerun still exposed
+  26 pre-existing integration failures: closed CAM fixture subprocesses exited
+  `71`, and one FSEvents watcher startup failed. The same focused CAM suite
+  passes in the main checkout. This module slice therefore has focused and
+  packaged proof, but does **not** create a new portable aggregate checkpoint
+  until the fresh-clone subprocess/test-order condition is reproduced and
+  resolved without weakening the suite.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

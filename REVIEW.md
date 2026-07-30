@@ -2,179 +2,67 @@
 
 ## Review Scope
 
-Commit-cited repository observation review, proposal-only idea-card flow,
-explicit Keep/Reject retention, local retained-idea history, and cited
-local-task promotion added to the native Repositories screen on 2026-07-26.
+Native packaged `cam.text-summary` workspace, durable module removal semantics,
+tests, evidence, and goal-map changes.
 
 ## Summary Judgment
 
-Proceed
+Proceed.
 
 ## Findings
 
 | Severity | Category | Finding | Why It Matters | Required Fix |
 |---|---|---|---|---|
-| Accepted boundary | Correctness | Observation scans use the existing committed-snapshot extractor, which rejects dirty snapshots. | The UI does not mislabel working-tree text as reproducible commit evidence. | None. |
-| Accepted boundary | Safety | The draft requires title, counterevidence, and validation experiment; confidence remains fixed at `0.5`. | The app does not fabricate certainty or counterevidence from source text. | None. |
-| Accepted boundary | Lifecycle | Explicit Keep and Reject both persist card evidence and decision after validating the clean recorded snapshot; Reject disables task promotion. | Negative evidence is retained rather than lost or converted into an action. | None. |
-| Accepted boundary | Authority | A displayed proposal is required before `Save as Local Task`; the resulting `TaskProposal` is fixed to `localRead` and persists only its cited task record. | It cannot execute code, invoke CAM, contact a network, or alter the donor repository. | None. |
-| Optional | UX | A failed observation scan reports a generic reproducibility error. | It is safe but does not distinguish dirty state from a disappeared commit/file. | Add typed user-facing failure details only after preserving the current no-content error boundary. |
+| Low | Test clarity | The lifecycle test name claimed absence after restart even though it reinstalled the module before the final restart assertion. | A misleading test name weakens evidence interpretation. | Renamed to state that reinstall needs a new grant. |
 
 ## Correctness
 
-The exact commit/file/line/symbol/statement projection is immutable. The task
-mapper rejects dirty snapshots, reuses idea-card stale-evidence validation, and
-emits deterministic citations for every reviewed observation.
+Removal now prunes durable grants for missing manifests; a reinstall cannot revive
+old authority. The app rechecks registry state after every transition.
 
 ## Security and Privacy
 
-The feature reads selected local repository Git data only. It sends no bytes,
-persists no repository text, invokes no CAM tool, and adds no code-copy or
-repository-write path. The new persistence is local only: a task record or a
-kept/rejected idea-card record holding citations and user-authored criteria or
-counterevidence.
+The new module is a digest-pinned bundled manifest with one fixed native text
+statistics dispatcher. The native workspace exposes no network, shell,
+downloaded-code, or vault-browsing path.
 
 ## Tests
 
-The local-task mapper and idea-retention store tests were observed red before
-their respective implementations. Focused repository verification passed 18
-tests, including restart persistence of tasks and Keep/Reject cards. Aggregate
-verification passed 144 tests with release app/CLI builds; `git diff --check`
-also passed.
+Focused core, app-model, native view-contract, real packaged accessibility,
+goal-map, and package checks cover the claimed slice. Broader aggregate and
+fresh-clone checks remain required before publishing.
 
 ## Maintainability
 
-The SwiftUI view consumes immutable Core projections; committed-Git extraction
-remains outside the app layer and runs off the SwiftUI actor.
+Module paths and registry construction are centralized in `AppModel`; the view
+contains only presentation and explicit action wiring.
 
 ## Performance
 
-Observation extraction runs in a detached task. Existing inspection behavior is
-outside the reviewed change.
+The operation is small local filesystem state plus deterministic in-memory text
+counting; no main-actor network or model work was added.
 
 ## UI/UX Impact
 
-The Repositories view now lets the user scan, inspect, select, and draft from
-cited evidence with explicit proposal-only language and accessibility labels.
-Only after a proposal appears can the user choose `Save as Local Task`. They
-can instead choose Keep or Reject; rejection visibly disables task save.
-Retained decisions remain available in a local history section after restart.
+The user sees separate install, enable, grant, summarize, disable, and remove
+states, including disabled controls when authority is absent.
 
 ## Regression Risk
 
-Low for the local read-only evidence/proposal/card/task flow after focused and
-aggregate verification. Live use against a real selected repository remains
-unproven.
+Low for Layer 1: the isolated lifecycle test preserves a core-memory marker,
+and removal touches only the app-owned manifest/state path.
 
 ## Scope Creep Check
 
-No semantic architecture inference, automatic idea generation, Codex-plan
-creation, CAM mining, network call, task execution, or repository modification
-was added. Explicit user-initiated persistence of local cards and a local-read
-task was added.
+No generic plugin loading, arbitrary executable, cloud route, CAM invocation,
+or Mac mutation was added.
 
 ## Required Fixes Before Done
 
-None for this bounded local evidence/proposal slice.
+None after the test-name correction.
 
 ## Optional Improvements
 
-- Add typed scan-failure presentation without exposing repository source text.
-- Add research-packet/Codex-plan promotion only after defining their lifecycle
-  and ownership.
-
----
-
-# Repository Semantic V3 Native Slice Review
-
-## Review Scope
-
-Adversarial review of the repository-semantic V3 runtime evidence builder,
-health-checked analyzer, AppModel state machine, native Repositories controls,
-evidence-complete idea conversion, tests, and preserved named-model report.
-
-## Summary Judgment
-
-Proceed. Required findings were corrected before this checkpoint. The slice is
-appropriate to publish as partial CAM-015 progress; it does not prove a passing
-named model or a packaged live-model journey.
-
-## Findings
-
-| Severity | Category | Finding | Why It Matters | Required Fix |
-|---|---|---|---|---|
-| Important | Usability/performance | The first builder rejected repositories with more than 64 observations and required every retained observation. | Ordinary repositories would fail before model use or create an impractical citation burden. | Fixed: deterministically retain at most eight observations while preserving one representative item for each observed closed claim. |
-| Important | Cancellation | Cancellation was checked only before and after the synchronous repository bundle build. | A large Git scan could continue after the user selected Cancel. | Fixed: inject and run cancellation checks before intake, after intake/extraction, during selection, and during evidence construction. |
-| Important | Honest errors | Insufficient deterministic evidence was reported as a selected-model failure. | The UI would imply a model request occurred when it had not. | Fixed: distinguish insufficient evidence and excerpt-bound failures and explicitly report that no model request occurred. |
-| Important | Authority wording | The first UI wording said only Keep retained output even though explicit task/research/Codex promotion also retains a derived proposal. | Misstating the authority transition would undermine the product contract. | Fixed: the UI now says retention occurs only through explicit Keep or a selected promotion action. |
-
-## Correctness
-
-- Clean snapshot, canonical path, current commit, physical line, exact excerpt,
-  role, claim ID, and deterministic evidence identity are revalidated.
-- Dirty snapshots and commit drift fail before model health or generation.
-- Health identity is checked before generation; generator and candidate
-  identities must agree.
-- Strict deterministic validation decides accepted versus abstained output.
-
-## Security and Privacy
-
-- Only explicitly selected loopback assignments are supported.
-- No authorization header, redirect, cloud fallback, web route, or CAM call is
-  introduced.
-- The selected repository is read through immutable commit-addressed Git
-  operations and is never written.
-- Output remains in memory until explicit Keep or promotion.
-
-## Tests
-
-- Repository tests cover frozen V3 claims, transport-label hiding, validation,
-  metrics, deterministic exact bundles, large-bundle selection, cancellation,
-  commit drift, health ordering, and evidence-complete card conversion.
-- App tests cover accepted, abstained, stale, unavailable, insufficient, and
-  cancelled states with status-only errors.
-- Accessibility-source tests require the analysis, cancellation, identity,
-  support, counterevidence, and explicit retention controls.
-
-## Maintainability
-
-V1 and V2 remain unchanged. V3 runtime types are isolated in
-`RepositorySemanticV3.swift`, and AppModel uses an injected sendable operation
-for deterministic tests.
-
-## Performance
-
-The model payload is limited to eight representative evidence items. The
-underlying observation extractor still launches commit-addressed Git reads
-across the snapshot and should later be profiled on large repositories before
-making latency claims.
-
-## UI/UX Impact
-
-The native Repositories workspace now distinguishes progress, cancellation,
-accepted output, abstention, evidence insufficiency, stale state, and model
-failure. It shows model/runtime identity and both evidence roles before any
-retention control.
-
-## Regression Risk
-
-Moderate but bounded. The new flow is additive, V1/V2 remain intact, and
-focused model/privacy/repository/app suites plus aggregate verification cover
-the touched boundaries.
-
-## Scope Creep Check
-
-No CAM execution, cloud/provider support, repository mutation, automatic
-retention, code adaptation, or generalized language-semantic claim is added.
-
-## Required Fixes Before Done
-
-None for this checkpoint.
-
-## Optional Improvements
-
-- Expand deterministic observation extraction beyond Swift declarations and
-  TODO/FIXME markers under a separately frozen multilingual contract.
-- Profile and batch immutable Git reads for large repositories.
-- Complete a packaged native journey against a named model that passes the
-  pre-registered V3 contract.
+- Add generic third-party module admission only after a separate trust and
+  health-check design.
+- Expand end-user accessibility coverage beyond the current focused lifecycle.

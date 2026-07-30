@@ -120,3 +120,63 @@ private func waitForVaultRecovery(_ model: AppModel) async {
     }
 }
 
+@MainActor
+@Test("app model keeps packaged module authority explicit across removal and reload")
+func appModelRunsPackagedModuleLifecycle() throws {
+    let root = FileManager.default.temporaryDirectory.appending(
+        path: "CAMAssistantAppModule-\(UUID().uuidString)",
+        directoryHint: .isDirectory
+    )
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let coreMarker = root.appending(path: "content/core-memory-marker.txt")
+    try FileManager.default.createDirectory(
+        at: coreMarker.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try Data("keep".utf8).write(to: coreMarker)
+    let model = AppModel(
+        repositorySourceService: nil,
+        repositoryJobStore: nil,
+        initializeFullWorkspace: false,
+        vaultRootProvider: { root }
+    )
+
+    model.reloadPackagedTextSummaryModule()
+    #expect(!model.packagedTextSummaryPresentation.isInstalled)
+    model.installPackagedTextSummaryModule()
+    #expect(model.packagedTextSummaryPresentation.isInstalled)
+    #expect(!model.packagedTextSummaryPresentation.isEnabled)
+    #expect(!model.packagedTextSummaryPresentation.hasLocalTextGrant)
+
+    model.enablePackagedTextSummaryModule()
+    #expect(model.packagedTextSummaryPresentation.isEnabled)
+    model.packagedTextSummaryInput = "one two two"
+    model.summarizeWithPackagedTextSummaryModule()
+    #expect(model.packagedTextSummaryResult == nil)
+
+    model.grantPackagedTextSummaryLocalRead()
+    #expect(model.packagedTextSummaryPresentation.hasLocalTextGrant)
+    model.summarizeWithPackagedTextSummaryModule()
+    #expect(
+        model.packagedTextSummaryResult
+            == PackagedTextSummary(wordCount: 3, characterCount: 11)
+    )
+
+    model.disablePackagedTextSummaryModule()
+    #expect(!model.packagedTextSummaryPresentation.isEnabled)
+    #expect(!model.packagedTextSummaryPresentation.hasLocalTextGrant)
+    model.removePackagedTextSummaryModule()
+    #expect(!model.packagedTextSummaryPresentation.isInstalled)
+    #expect(try Data(contentsOf: coreMarker) == Data("keep".utf8))
+
+    let reloaded = AppModel(
+        repositorySourceService: nil,
+        repositoryJobStore: nil,
+        initializeFullWorkspace: false,
+        vaultRootProvider: { root }
+    )
+    reloaded.reloadPackagedTextSummaryModule()
+    #expect(!reloaded.packagedTextSummaryPresentation.isInstalled)
+    #expect(!reloaded.packagedTextSummaryPresentation.hasLocalTextGrant)
+}

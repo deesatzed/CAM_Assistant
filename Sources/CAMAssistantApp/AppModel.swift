@@ -7,6 +7,7 @@ enum AssistantSection: String, CaseIterable, Identifiable {
     case library = "Library"
     case activity = "Activity"
     case tasks = "Tasks"
+    case modules = "Modules"
     case cam = "CAM"
     case research = "Research"
     case repositories = "Repositories"
@@ -25,6 +26,8 @@ enum AssistantSection: String, CaseIterable, Identifiable {
             "clock.arrow.circlepath"
         case .tasks:
             "checklist"
+        case .modules:
+            "puzzlepiece.extension"
         case .cam:
             "point.3.connected.trianglepath.dotted"
         case .research:
@@ -37,6 +40,20 @@ enum AssistantSection: String, CaseIterable, Identifiable {
             "gearshape"
         }
     }
+}
+
+struct PackagedTextSummaryPresentation: Equatable {
+    let isInstalled: Bool
+    let isEnabled: Bool
+    let hasLocalTextGrant: Bool
+    let statusLabel: String
+
+    static let notInstalled = PackagedTextSummaryPresentation(
+        isInstalled: false,
+        isEnabled: false,
+        hasLocalTextGrant: false,
+        statusLabel: "Not installed. Installing does not grant access."
+    )
 }
 
 struct VaultRecoveryOperations: Sendable {
@@ -286,6 +303,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var vaultRecoveryStatus: String?
     @Published private(set) var vaultRecoveryError: String?
     @Published private(set) var isVaultRecoveryRunning = false
+    @Published private(set) var packagedTextSummaryPresentation =
+        PackagedTextSummaryPresentation.notInstalled
+    @Published var packagedTextSummaryInput = ""
+    @Published private(set) var packagedTextSummaryResult:
+        PackagedTextSummary?
+    @Published private(set) var packagedTextSummaryError: String?
     private let hotkeyManager = HotkeyManager()
     private let foregroundActivation: AssistantForegroundActivation
     private lazy var watchedSourceCaptureRefresh = WatchedSourceCaptureRefresh(
@@ -373,6 +396,154 @@ final class AppModel: ObservableObject {
         reloadResearchAcquisitionState(recoverInterrupted: true)
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
+        reloadPackagedTextSummaryModule()
+    }
+
+    func reloadPackagedTextSummaryModule() {
+        do {
+            let root = try vaultRootProvider()
+            let manifestDirectory = Self.moduleManifestDirectory(vaultRoot: root)
+            guard FileManager.default.fileExists(atPath: manifestDirectory.path)
+            else {
+                packagedTextSummaryPresentation = .notInstalled
+                packagedTextSummaryResult = nil
+                packagedTextSummaryError = nil
+                return
+            }
+            let registry = try Self.moduleRegistry(vaultRoot: root)
+            guard registry.manifests().contains(where: { $0.id == "cam.text-summary" })
+            else {
+                packagedTextSummaryPresentation = .notInstalled
+                packagedTextSummaryResult = nil
+                packagedTextSummaryError = nil
+                return
+            }
+            let isEnabled = try registry.isEnabled("cam.text-summary")
+            let hasGrant = try registry.grantedPermissions(
+                for: "cam.text-summary"
+            ).contains(.readLocal)
+            let status: String
+            if !isEnabled {
+                status = "Installed but disabled. Enablement still grants no access."
+            } else if !hasGrant {
+                status = "Enabled with no local-text access. Grant is still required."
+            } else {
+                status = "Enabled with explicit local-text access."
+            }
+            packagedTextSummaryPresentation = PackagedTextSummaryPresentation(
+                isInstalled: true,
+                isEnabled: isEnabled,
+                hasLocalTextGrant: hasGrant,
+                statusLabel: status
+            )
+            packagedTextSummaryError = nil
+        } catch {
+            packagedTextSummaryPresentation = .notInstalled
+            packagedTextSummaryResult = nil
+            packagedTextSummaryError =
+                "The packaged module state could not be read. Core memory is unchanged."
+        }
+    }
+
+    func installPackagedTextSummaryModule() {
+        do {
+            let root = try vaultRootProvider()
+            _ = try PackagedModuleInstaller(
+                manifestDirectory: Self.moduleManifestDirectory(vaultRoot: root)
+            ).installTextSummary()
+            packagedTextSummaryResult = nil
+            reloadPackagedTextSummaryModule()
+        } catch PackagedModuleInstallerError.alreadyInstalled {
+            reloadPackagedTextSummaryModule()
+        } catch {
+            packagedTextSummaryError =
+                "The trusted packaged module could not be installed. Core memory is unchanged."
+        }
+    }
+
+    func enablePackagedTextSummaryModule() {
+        do {
+            let root = try vaultRootProvider()
+            try Self.moduleRegistry(vaultRoot: root).enable("cam.text-summary")
+            packagedTextSummaryResult = nil
+            reloadPackagedTextSummaryModule()
+        } catch {
+            packagedTextSummaryError =
+                "The packaged module could not be enabled. No permission was granted."
+        }
+    }
+
+    func grantPackagedTextSummaryLocalRead() {
+        do {
+            let root = try vaultRootProvider()
+            try Self.moduleRegistry(vaultRoot: root).grant(
+                [.readLocal], to: "cam.text-summary"
+            )
+            packagedTextSummaryResult = nil
+            reloadPackagedTextSummaryModule()
+        } catch {
+            packagedTextSummaryError =
+                "Local-text access could not be granted. No module action ran."
+        }
+    }
+
+    func summarizeWithPackagedTextSummaryModule() {
+        guard !packagedTextSummaryInput.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).isEmpty else {
+            packagedTextSummaryError = "Enter text to summarize locally."
+            return
+        }
+        do {
+            let root = try vaultRootProvider()
+            packagedTextSummaryResult = try PackagedTextSummaryModule().summarize(
+                packagedTextSummaryInput,
+                registry: Self.moduleRegistry(vaultRoot: root)
+            )
+            packagedTextSummaryError = nil
+        } catch {
+            packagedTextSummaryResult = nil
+            packagedTextSummaryError =
+                "The module is unavailable until it is enabled and granted local-text access."
+        }
+    }
+
+    func disablePackagedTextSummaryModule() {
+        do {
+            let root = try vaultRootProvider()
+            try Self.moduleRegistry(vaultRoot: root).disable("cam.text-summary")
+            packagedTextSummaryResult = nil
+            reloadPackagedTextSummaryModule()
+        } catch {
+            packagedTextSummaryError =
+                "The packaged module could not be disabled. Core memory is unchanged."
+        }
+    }
+
+    func removePackagedTextSummaryModule() {
+        do {
+            let root = try vaultRootProvider()
+            let manifestDirectory = Self.moduleManifestDirectory(vaultRoot: root)
+            try PackagedModuleInstaller(manifestDirectory: manifestDirectory)
+                .removeTextSummary()
+            try Self.moduleRegistry(vaultRoot: root).reload()
+            packagedTextSummaryResult = nil
+            reloadPackagedTextSummaryModule()
+        } catch {
+            packagedTextSummaryError =
+                "The packaged module could not be removed. Core memory is unchanged."
+        }
+    }
+
+    private static func moduleManifestDirectory(vaultRoot: URL) -> URL {
+        vaultRoot.appending(path: "modules", directoryHint: .isDirectory)
+    }
+
+    private static func moduleRegistry(vaultRoot: URL) throws -> ModuleRegistry {
+        try ModuleRegistry(
+            manifestDirectory: moduleManifestDirectory(vaultRoot: vaultRoot),
+            stateURL: LocalVaultPaths.stateURL(.moduleState, vaultRoot: vaultRoot)
+        )
     }
 
     func createVaultBackup(to packageURL: URL) {

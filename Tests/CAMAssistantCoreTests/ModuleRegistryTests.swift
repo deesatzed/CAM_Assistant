@@ -46,7 +46,7 @@ func packagedTextSummaryManifestIsDigestTrustedBeforeInstallation() throws {
     #expect(!PackagedModuleTrust.isTrustedTextSummaryManifest(tampered))
 }
 
-@Test("trusted text summary module installs dispatches disables removes and stays absent after restart")
+@Test("trusted text summary module lifecycle requires a new grant after reinstall")
 func trustedTextSummaryModuleLifecycle() throws {
     let root = try temporaryModuleDirectory()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -74,8 +74,41 @@ func trustedTextSummaryModuleLifecycle() throws {
     #expect(throws: ModuleRegistryError.moduleNotFound("cam.text-summary")) {
         _ = try registry.isEnabled("cam.text-summary")
     }
+
+    _ = try installer.installTextSummary()
+    try registry.reload()
+    try registry.enable("cam.text-summary")
+    #expect(throws: PackagedModuleDispatchError.unavailable) {
+        _ = try PackagedTextSummaryModule().summarize("one", registry: registry)
+    }
+
     let restarted = try ModuleRegistry(manifestDirectory: manifestRoot, stateURL: stateURL)
-    #expect(restarted.manifests().isEmpty)
+    #expect(try restarted.isEnabled("cam.text-summary"))
+    #expect(try restarted.grantedPermissions(for: "cam.text-summary").isEmpty)
+}
+
+@Test("removing an enabled packaged module revokes its grants before reinstall")
+func removingEnabledPackagedModuleRevokesGrantsBeforeReinstall() throws {
+    let root = try temporaryModuleDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let manifestRoot = root.appending(path: "installed-modules", directoryHint: .isDirectory)
+    let stateURL = root.appending(path: "module-state.json")
+    let installer = PackagedModuleInstaller(manifestDirectory: manifestRoot)
+
+    _ = try installer.installTextSummary()
+    let registry = try ModuleRegistry(manifestDirectory: manifestRoot, stateURL: stateURL)
+    try registry.enable("cam.text-summary")
+    try registry.grant([.readLocal], to: "cam.text-summary")
+    try installer.removeTextSummary()
+    try registry.reload()
+
+    _ = try installer.installTextSummary()
+    try registry.reload()
+    try registry.enable("cam.text-summary")
+    #expect(try registry.grantedPermissions(for: "cam.text-summary").isEmpty)
+    #expect(throws: PackagedModuleDispatchError.unavailable) {
+        _ = try PackagedTextSummaryModule().summarize("one", registry: registry)
+    }
 }
 
 @Test("invalid versions and unknown permissions fail before registration")

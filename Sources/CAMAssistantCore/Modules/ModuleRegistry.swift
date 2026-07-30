@@ -70,11 +70,18 @@ public final class ModuleRegistry {
             discovered[manifest.id] = manifest
         }
 
+        let previousState = state
         manifestsByID = discovered
         state.enabledModuleIDs.formUnion(
             discovered.values.filter(\.isCore).map(\.id)
         )
         state.enabledModuleIDs.formIntersection(discovered.keys)
+        state.permissionGrants = state.permissionGrants.filter {
+            discovered[$0.key] != nil
+        }
+        if state != previousState {
+            try state.save(to: stateURL)
+        }
     }
 
     public func enable(_ moduleID: String) throws {

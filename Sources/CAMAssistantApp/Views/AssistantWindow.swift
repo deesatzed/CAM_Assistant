@@ -43,6 +43,8 @@ struct AssistantWindow: View {
             ActivityView(model: model)
         case .tasks:
             TaskListView(presentation: model.taskPresentation, errorMessage: model.taskError, isRefreshing: model.isRefreshingWorkspace, reload: model.reloadTasks, complete: model.completeTask)
+        case .modules:
+            ModulesView(model: model)
         case .cam:
             CAMStatusView(status: model.camStatus)
         case .research:

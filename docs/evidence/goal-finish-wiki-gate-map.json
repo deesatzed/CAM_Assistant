@@ -5,9 +5,9 @@
   "overallStatus": "incomplete",
   "summary": {
     "total": 48,
-    "passed": 16,
+    "passed": 17,
     "partial": 28,
-    "missing": 4,
+    "missing": 3,
     "deferred": 0
   },
   "gates": [
@@ -428,9 +428,10 @@
       "title": "Versioned trusted module manifests",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md",
+        "docs/evidence/task-17-packaged-homegrown-module-lifecycle.md"
       ],
-      "limitation": "Versioned manifests declare core metadata, but signing or local-trust policy, uninstall behavior, and packaged resources are incomplete."
+      "limitation": "The first packaged native module uses a pinned local-trust digest and closed uninstall path; generic third-party module admission and broader health-check semantics remain unimplemented."
     },
     {
       "id": "modules.no-grant-on-enable",
@@ -450,7 +451,8 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/task-04-module-registry.md",
-        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
+        "docs/evidence/task-17-module-lifecycle-gap-audit.md",
+        "docs/evidence/task-17-packaged-homegrown-module-lifecycle.md"
       ],
       "limitation": "Health isolation and registry-side grant enforcement are tested; permission-change receipts, expected-state revisions, real manifest health execution, and native review remain incomplete."
     },
@@ -458,11 +460,10 @@
       "id": "modules.homegrown-lifecycle",
       "sourceLine": 228,
       "title": "Packaged home-grown module lifecycle",
-      "status": "missing",
+      "status": "passed",
       "evidence": [
-        "docs/evidence/task-17-module-lifecycle-gap-audit.md"
-      ],
-      "limitation": "No module is packaged, installed, granted, exercised, disabled, removed, and restart-verified end to end."
+        "docs/evidence/task-17-packaged-homegrown-module-lifecycle.md"
+      ]
     },
     {
       "id": "ux.workspace-set",
@@ -470,9 +471,10 @@
       "title": "Complete compact and expandable workspace",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-18-ux-release-gap-audit.md"
+        "docs/evidence/task-18-ux-release-gap-audit.md",
+        "docs/evidence/task-17-packaged-homegrown-module-lifecycle.md"
       ],
-      "limitation": "The native shell is real, but Modules and Approvals workspaces are absent and CAM remains status-only."
+      "limitation": "The native shell includes a real Modules workspace, but the Approvals workspace is absent and CAM remains status-only."
     },
     {
       "id": "ux.accessibility-and-states",

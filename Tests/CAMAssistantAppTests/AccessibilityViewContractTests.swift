@@ -69,6 +69,32 @@ func workspaceAccessibilityContractRejectsUnrelatedContainment() {
     #expect(!contract.isSatisfied(by: unrelatedContainment))
 }
 
+@Test("modules workspace exposes an explicit no-authority lifecycle")
+func modulesWorkspaceExposesExplicitLifecycle() throws {
+    let root = accessibilityRepositoryRoot()
+    let viewURL = root
+        .appending(path: "Sources/CAMAssistantApp/Views/ModulesView.swift")
+    #expect(
+        FileManager.default.fileExists(atPath: viewURL.path),
+        "The native app must contain a Modules workspace."
+    )
+    guard FileManager.default.fileExists(atPath: viewURL.path) else { return }
+    let source = try String(contentsOf: viewURL, encoding: .utf8)
+    let requiredContracts = [
+        "Text(\"Packaged text summary\")",
+        "Button(\"Install Packaged Module\"",
+        "Button(\"Enable Module\"",
+        "Button(\"Grant Local Text Access\"",
+        "Button(\"Summarize Locally\"",
+        "Button(\"Disable Module\"",
+        "Button(\"Remove Module\"",
+        "No network, shell command, downloaded code, or vault browsing",
+        ".accessibilityElement(children: .contain)",
+        "\"Modules. Trusted native module lifecycle",
+    ]
+    #expect(requiredContracts.allSatisfy(source.contains))
+}
+
 @Test("repository view exposes durable local job lifecycle without deletion authority")
 func repositoryViewExposesDurableJobLifecycle() throws {
     let source = try String(
