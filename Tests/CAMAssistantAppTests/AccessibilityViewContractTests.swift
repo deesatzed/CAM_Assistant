@@ -233,6 +233,30 @@ func camViewExposesRuntimePinningAndDisposableProbe() throws {
     )
 }
 
+@Test("CAM view exposes the closed statistics executor with cancellation and no mining control")
+func camViewExposesClosedStatisticsExecutor() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(
+                path: "Sources/CAMAssistantApp/Views/CAMStatusView.swift"
+            ),
+        encoding: .utf8
+    )
+    let requiredContracts = [
+        "Button(\"Run Closed CAM Statistics Tool\"",
+        "Button(\"Cancel Closed CAM Statistics Tool\"",
+        "CAMClosedToolExecutor().attempt(",
+        "liveOperation.accepts(generation)",
+        "Section(\"Closed statistics receipt\")",
+        "Mining, provider calls, MCP serving, and personal-corpus mutation remain disabled.",
+    ]
+
+    #expect(
+        requiredContracts.allSatisfy(source.contains),
+        "CAMStatusView must expose the one closed disposable tool, its cancellation state, and no mining authority"
+    )
+}
+
 @Test("CAM operation lifecycle rejects stale completion and resets on disappearance")
 func camOperationLifecycleRejectsStaleCompletionAndResets() {
     var lifecycle = CAMOperationLifecycleState()

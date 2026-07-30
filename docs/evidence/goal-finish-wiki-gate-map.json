@@ -6,8 +6,8 @@
   "summary": {
     "total": 48,
     "passed": 16,
-    "partial": 27,
-    "missing": 5,
+    "partial": 28,
+    "missing": 4,
     "deferred": 0
   },
   "gates": [
@@ -306,11 +306,12 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/task-16-live-cam-codex-gap-audit.md",
-        "docs/evidence/task-16-live-cam-runtime-preflight.md",
-        "docs/evidence/task-16-native-cam-runtime-snapshot.md",
-        "docs/evidence/task-16-cam-runtime-restart-state.md"
-      ],
-      "limitation": "Native and CLI controls derive and drift-check the installed runtime and WAL-family corpus, return real disposable statistics without launching CAM, and a packaged quit/relaunch journey restores a revalidated pin/receipt as historical evidence with probing disabled until current-session re-pin. Capability discovery and durable live-run state remain."
+      "docs/evidence/task-16-live-cam-runtime-preflight.md",
+      "docs/evidence/task-16-native-cam-runtime-snapshot.md",
+      "docs/evidence/task-16-cam-runtime-restart-state.md",
+      "docs/evidence/task-16-closed-cam-executor.md"
+    ],
+    "limitation": "Native and CLI controls derive and drift-check the installed runtime and WAL-family corpus; a current-session native control and the CLI run the pinned CAM process only against a sandboxed disposable copy and revalidate donor surfaces. A packaged quit/relaunch journey restores a revalidated pin/receipt as historical evidence with probing disabled until current-session re-pin. Capability discovery and durable interrupted-run recovery remain."
     },
     {
       "id": "cam.bounded-loop",
@@ -326,12 +327,13 @@
       "id": "cam.closed-executor",
       "sourceLine": 185,
       "title": "Closed typed CAM executor",
-      "status": "missing",
+    "status": "partial",
       "evidence": [
-        "docs/evidence/task-16-live-cam-codex-gap-audit.md",
-        "docs/evidence/task-16-native-cam-runtime-snapshot.md"
-      ],
-      "limitation": "A closed typed native snapshot verifier and failure receipts exist, but it deliberately does not launch CAM; no confined live CAM tool registry with retry, idempotency, mining postconditions, and recovery exists."
+      "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+      "docs/evidence/task-16-native-cam-runtime-snapshot.md",
+      "docs/evidence/task-16-closed-cam-executor.md"
+    ],
+    "limitation": "A one-tool typed registry now confines the pinned `stats --json` process to a sandboxed disposable copy with a current-session native control, typed output, retry, idempotency, cancellation, donor postconditions, cleanup, and durable status-only receipts. Live-run recovery and mining postconditions remain absent; arbitrary commands, mining, providers, MCP, network, and personal-corpus execution remain unavailable."
     },
     {
       "id": "cam.mining-plan",
@@ -349,10 +351,11 @@
       "title": "Disposable CAM integration proof",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-16-live-cam-codex-gap-audit.md",
-        "docs/evidence/task-16-native-cam-runtime-snapshot.md"
-      ],
-      "limitation": "The app and CLI stable-copy config plus the SQLite main/WAL family, read fixed native statistics, prove seven donor identities unchanged, and auto-clean; no CAM process or mining action has executed against disposable state."
+      "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+      "docs/evidence/task-16-native-cam-runtime-snapshot.md",
+      "docs/evidence/task-16-closed-cam-executor.md"
+    ],
+    "limitation": "The app and CLI stable-copy config plus the SQLite main/WAL family, read fixed native statistics, prove seven donor identities unchanged, and auto-clean. The pinned CAM `stats --json` process has now executed only against that sandboxed disposable state; no mining or personal-corpus action has executed."
     },
     {
       "id": "cam.failure-never-success",
@@ -360,10 +363,11 @@
       "title": "Failure cannot become verified success",
       "status": "partial",
       "evidence": [
-        "docs/evidence/task-09-cam-adapter.md",
-        "docs/evidence/task-16-live-cam-codex-gap-audit.md"
-      ],
-      "limitation": "Reducer and unavailable-executor tests fail closed, but the invariant is not yet proven against a live closed executor."
+      "docs/evidence/task-09-cam-adapter.md",
+      "docs/evidence/task-16-live-cam-codex-gap-audit.md",
+      "docs/evidence/task-16-closed-cam-executor.md"
+    ],
+    "limitation": "Closed-executor timeout, cancellation, output-limit, drift, invalid-output, external-write, idempotency-conflict, and failed-process tests return non-verified typed receipts; a real installed-runtime run is verified only after typed output, independent copied-state statistics, donor revalidation, and cleanup. Durable interrupted-live-run recovery and mining terminal states remain unproven."
     },
     {
       "id": "cam.advanced-disabled",

@@ -59,25 +59,57 @@ These states are evidence, not cleanup authorization.
 
 ## Current Milestone
 
-Find a named local model that passes the now-frozen V3 repository contract and
-complete its packaged native clean-repository journey, while preserving the
-verified durable repository-job lifecycle and full-vault fresh-root recovery
-gate. CAM-013 remains in progress because the frozen generated-answer quality
-checks pass but its latency gate does not. Cloud-context loading, live catalog
-lookup, provider testing, web, embedding promotion, CAM mining, and mutating
-workflows remain disabled until their individual proof gates are met.
+Complete CAM-016's native closed-executor controls and then an exact-approved,
+recoverable single-repository mining path without weakening the no-network,
+no-arbitrary-command, and no-live-corpus-default boundaries. CAM-013 remains
+in progress because the frozen generated-answer quality checks pass but its
+latency gate does not. Cloud-context loading, live catalog lookup, provider
+testing, web, embedding promotion, CAM mining, and mutating workflows remain
+disabled until their individual proof gates are met.
 
 ## Next Actions
 
-1. Run the unchanged V3 contract against a different named loopback model;
+1. Add durable interrupted-live-run recovery and an operation-local rollback
+   checkpoint before any exact-approved mining action is made executable.
+2. Run the unchanged V3 contract against a different named loopback model;
    preserve every failure and do not change its claim catalog, roles,
    distractors, labels, or thresholds.
-2. If a named model passes, complete the packaged native journey with a
+3. If a named model passes, complete the packaged native journey with a
    disposable clean repository, saved pre/post byte and Git-status proof, and
    one explicit disposition or promotion.
-3. Preserve generated-answer v1 as the fixed baseline while separately
+4. Preserve generated-answer v1 as the fixed baseline while separately
    designing its versioned latency contract, then extend packaged accessibility
    proof through VoiceOver speech, contrast, text scale, and large-data states.
+
+### Closed CAM statistics executor and installed-runtime proof — 2026-07-29
+
+- Added the one-tool `cam.stats.live-disposable.v1` registry. It compiles only
+  `cam stats --json` against a copied secret-screened configuration and
+  WAL-consistent database snapshot, inside macOS sandbox confinement with
+  network denied and writes limited to the disposable run root.
+- Requests bind the revalidated runtime identity, bounded timeout/output/attempt
+  limits, and an idempotency key. Typed receipts contain status, digests, byte
+  counts, exit code, donor evidence, and fixed statistics; raw output,
+  configuration bytes, and credentials are not retained.
+- Expected-red/green coverage now includes request validation, selected-runtime
+  drift, external-write denial, wrong database output, timeout, cancellation,
+  output cap, fresh-copy retry, durable replay, key conflict, and a CLI
+  round-trip. `./scripts/verify.sh cam` passed all 42 focused CAM tests.
+- A real installed-runtime execution returned `2,557` methodologies and `199`
+  source repositories with exit `0`, `sandboxed=true`, `workspaceRetained=false`,
+  and all seven donor surfaces unchanged. The same request replayed its
+  byte-identical terminal receipt with no second process launch.
+- The first host-harness attempt failed safely because Codex's sandbox did not
+  permit nesting macOS `sandbox-exec`; it retained only a failed status-only
+  receipt. The scoped normal macOS execution supplied the valid proof. This is
+  an environment permission constraint, not a weakened product sandbox.
+- The native CAM view now exposes a current-session-only `Run Closed CAM
+  Statistics Tool` action, explicit cancellation, bounded typed receipt
+  presentation, and its no-mining authority boundary. The app suite passed 26
+  tests including its expected-red/green source contract.
+- Saved evidence: `docs/evidence/task-16-closed-cam-executor.md`.
+- Goal-map effect: `cam.closed-executor` moves from `missing` to `partial`.
+  Totals are now `16 passed`, `28 partial`, and `4 missing`, overall incomplete.
 
 ### Live CAM runtime identity and disposable preflight — 2026-07-29
 
