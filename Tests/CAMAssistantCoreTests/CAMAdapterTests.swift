@@ -624,6 +624,7 @@ func camClosedToolCancellationTerminatesChild() async throws {
         timeoutSeconds: 5,
         maximumOutputBytes: 16_384
     )
+    let started = ContinuousClock.now
     let task = Task {
         await CAMClosedToolExecutor().attempt(
             request: request,
@@ -640,6 +641,7 @@ func camClosedToolCancellationTerminatesChild() async throws {
     #expect(receipt.failureCode == "process_cancelled")
     #expect(receipt.processExitCode != nil)
     #expect(!receipt.workspaceRetained)
+    #expect(started.duration(to: .now) < .seconds(2))
 }
 
 @Test("closed CAM tool output limit records counts without retaining bytes")

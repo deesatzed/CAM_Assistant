@@ -2172,6 +2172,12 @@ None.
   command but denied the copied-database write, so the runner was removed
   rather than weakened or relabelled as a success. A paired inside-write /
   outside-denial platform probe is now required before resuming that executor.
+- Lifecycle fix: the repeated clean-clone test hang was traced to
+  `CAMClosedToolExecutor.terminate` calling unbounded `waitUntilExit()` after
+  SIGTERM/SIGKILL. The executor now returns after a bounded reap window; its
+  existing cancellation test gained a strict two-second upper bound and passed
+  in 0.150 seconds. This corrects cancellation/recovery reliability but does
+  not add mining authority.
 
 ## Questions for User
 

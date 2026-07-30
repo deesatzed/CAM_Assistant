@@ -688,7 +688,13 @@ public actor CAMClosedToolExecutor {
         if process.isRunning {
             Darwin.kill(process.processIdentifier, SIGKILL)
         }
-        process.waitUntilExit()
+        // `waitUntilExit()` has no deadline and can hang when a sandboxed
+        // launcher leaves an ignored-signal descendant behind. The caller has
+        // already issued SIGTERM then SIGKILL; return after a bounded reap
+        // window so cancellation itself remains bounded.
+        for _ in 0..<20 where process.isRunning {
+            Thread.sleep(forTimeInterval: 0.01)
+        }
     }
 
     private static func fileSize(_ url: URL) throws -> Int {
