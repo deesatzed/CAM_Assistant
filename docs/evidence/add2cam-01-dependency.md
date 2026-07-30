@@ -33,16 +33,20 @@ cloned MeaningCore verifier passed: 104 tests, release build, 40 deterministic
 scenario replays, forbidden-public-surface scan, and host-neutral-boundary
 scan.
 
-## Licensing Stop
+## Licensing Status
 
 No `LICENSE`, `COPYING`, or equivalent license grant exists in the pinned
 MeaningCore checkout. This is recorded as **unlicensed / distribution rights
-unknown**, not as an implied open-source license. Consequently, the package is
-technically compatible for local development, but a packaged or distributed
-Meaning Preview pilot cannot satisfy GOAL_ADD2CAM Gate 1 until the MeaningCore
-owner supplies and records an explicit compatible license or distribution
-grant. No further Meaning Preview implementation is authorized under the
-goal's legal-uncertainty stop condition.
+unknown**, not as an implied open-source license.
+
+On 2026-07-30, the owner explicitly granted CAM Assistant permission to use,
+adapt through its public library API, package, and distribute the pinned
+MeaningCore dependency for the complete isolated `GOAL_ADD2CAM.md` Meaning
+Preview pilot. The grant is scoped to this CAM Assistant project and pilot; it
+does not alter MeaningCore source, transfer ownership, grant unrelated third
+parties a license, or authorize a default CAM integration. This removes the
+project-specific distribution stop while preserving the repository's own
+unlicensed status for every other use.
 
 ## Runtime Boundary
 

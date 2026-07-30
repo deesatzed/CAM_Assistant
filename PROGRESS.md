@@ -2270,13 +2270,25 @@ None.
   104 tests, release build, 40 scenario replays, forbidden-surface scan, and
   host-neutral-boundary scan. Neither the canonical MeaningCore checkout nor
   any donor source was modified.
-- Stop condition: the pinned MeaningCore checkout has no explicit license or
-  distribution grant. Its status is unlicensed / distribution rights unknown,
-  not an inferred open-source license. This blocks intended packaged human
-  pilot distribution under GOAL_ADD2CAM Gate 1. No Meaning Preview module,
-  storage, adapter, UI, model lane, or human pilot has been implemented or
-  enabled. The direct receipt is
-  `docs/evidence/add2cam-01-dependency.md`.
+- Licensing resolution: the owner explicitly granted this CAM Assistant
+  project permission to use, package, and distribute the pinned MeaningCore
+  library for the complete isolated GOAL_ADD2CAM pilot. This is a scoped grant,
+  not an inferred open-source license or a change to MeaningCore ownership;
+  the direct receipt is `docs/evidence/add2cam-01-dependency.md`.
+
+### ADD2CAM opt-in Meaning Preview module boundary — 2026-07-30
+
+- Expected red: the module registry could not find `cam.meaning-preview`, and
+  the complete initial-manifest expectation failed.
+- Green: the native, non-core Meaning Preview manifest is local-only and
+  declares no web, cloud, model role, spend, notification, shell, or external
+  action capability. Its only capability stays absent at discovery and after
+  enablement until every separately declared local permission is explicitly
+  granted. `/bin/zsh scripts/verify.sh modules` passed all 11 focused tests.
+- This establishes only the module/authority boundary. It does not yet expose
+  a workspace, context adapter, persistence, practical result, model lane, or
+  pilot behavior. The direct receipt is
+  `docs/evidence/add2cam-02-module-boundary.md`.
 
 ## Questions for User
 

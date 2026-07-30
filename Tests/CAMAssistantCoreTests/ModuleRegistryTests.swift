@@ -22,11 +22,39 @@ func allInitialManifestsSatisfySchema() throws {
         "cam.privacy",
         "cam.research",
         "cam.mac-care",
+        "cam.meaning-preview",
         "cam.repositories",
         "cam.prompt-library",
     ])
     #expect(manifests.filter(\.isCore).map(\.id) == ["cam.memory"])
     #expect(manifests.allSatisfy { !$0.permissions.isEmpty })
+}
+
+@Test("Meaning Preview discovery and enablement grant no authority")
+func meaningPreviewDiscoveryAndEnablementGrantNoAuthority() throws {
+    let root = repositoryRoot()
+    let manifestDirectory = root.appending(path: "Modules/Core", directoryHint: .isDirectory)
+    let manifest = try #require(
+        ModuleManifest.loadAll(from: manifestDirectory)
+            .first { $0.id == "cam.meaning-preview" }
+    )
+
+    #expect(!manifest.isCore)
+    #expect(manifest.transport == .native)
+    #expect(manifest.requirements.web == false)
+    #expect(manifest.requirements.cloud == false)
+    #expect(manifest.requirements.modelRoles.isEmpty)
+    #expect(manifest.capabilities == ["meaning.preview.request"])
+
+    let stateURL = try temporaryModuleDirectory().appending(path: "meaning-preview-state.json")
+    defer { try? FileManager.default.removeItem(at: stateURL.deletingLastPathComponent()) }
+    let registry = try ModuleRegistry(manifestDirectory: manifestDirectory, stateURL: stateURL)
+
+    #expect(try registry.grantedPermissions(for: manifest.id).isEmpty)
+    #expect(!(try registry.capabilities()).contains { $0.moduleID == manifest.id })
+    try registry.enable(manifest.id)
+    #expect(try registry.grantedPermissions(for: manifest.id).isEmpty)
+    #expect(!(try registry.capabilities()).contains { $0.moduleID == manifest.id })
 }
 
 @Test("packaged text summary manifest is digest trusted before installation")

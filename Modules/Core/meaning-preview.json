@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "cam.meaning-preview",
+  "version": "0.1.0",
+  "owner": "CAM Assistant",
+  "purpose": "Explicit user-pull practical Meaning Preview from selected permitted local context.",
+  "isCore": false,
+  "entryPoint": "native:meaning-preview",
+  "transport": "native",
+  "permissions": [
+    "readLocal",
+    "writeLocal"
+  ],
+  "acceptedDataClasses": [
+    "selectedDerivedContext"
+  ],
+  "emittedDataClasses": [
+    "meaningPreviewRecord",
+    "statusOnlyReceipt"
+  ],
+  "requirements": {
+    "local": true,
+    "web": false,
+    "cloud": false,
+    "modelRoles": [],
+    "capabilities": []
+  },
+  "cost": {
+    "canSpend": false,
+    "currency": null
+  },
+  "approvalClass": "confirm",
+  "healthCheck": {
+    "kind": "native",
+    "target": "meaning-preview-coordinator",
+    "timeoutSeconds": 2
+  },
+  "supportsCancellation": true,
+  "degradedMode": "Return silence or a local unavailable state without affecting ordinary CAM.",
+  "auditReceiptSchema": "cam.meaning-preview.audit.v1",
+  "rollback": "Disable the module and archive or reinitialize only its separate pilot state.",
+  "license": "Scoped owner grant recorded in docs/evidence/add2cam-01-dependency.md",
+  "provenance": "Native CAM adapter to MeaningCore 23db68044ebdc410edf3b7f436e433ffba6e94b8; MeaningCore remains independently owned.",
+  "capabilities": [
+    "meaning.preview.request"
+  ]
+}
