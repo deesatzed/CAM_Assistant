@@ -2259,6 +2259,25 @@ None.
   The evaluated model was unloaded afterward. CAM-013 remains partial; this is
   evidence against this candidate, not a changed model-quality claim.
 
+### ADD2CAM MeaningCore dependency provenance and legal stop — 2026-07-30
+
+- Expected red: the new direct contract test could not compile because CAM had
+  no `MeaningCore` module dependency.
+- Green technical compatibility: CAM now pins only the `MeaningCore` library
+  product at `23db68044ebdc410edf3b7f436e433ffba6e94b8`. Resolution, the
+  focused API contract test, and a clean isolated release build passed. A
+  disposable clone of MeaningCore passed its independent aggregate verifier:
+  104 tests, release build, 40 scenario replays, forbidden-surface scan, and
+  host-neutral-boundary scan. Neither the canonical MeaningCore checkout nor
+  any donor source was modified.
+- Stop condition: the pinned MeaningCore checkout has no explicit license or
+  distribution grant. Its status is unlicensed / distribution rights unknown,
+  not an inferred open-source license. This blocks intended packaged human
+  pilot distribution under GOAL_ADD2CAM Gate 1. No Meaning Preview module,
+  storage, adapter, UI, model lane, or human pilot has been implemented or
+  enabled. The direct receipt is
+  `docs/evidence/add2cam-01-dependency.md`.
+
 ## Questions for User
 
 1. Choose whether generated-answer v2 should retain full generation below

@@ -10,9 +10,18 @@ let package = Package(
         .executable(name: "CAMAssistant", targets: ["CAMAssistantApp"]),
         .executable(name: "cam-assistant", targets: ["CAMAssistantCLI"]),
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/deesatzed/meaningcore.git",
+            revision: "23db68044ebdc410edf3b7f436e433ffba6e94b8"
+        ),
+    ],
     targets: [
         .target(
             name: "CAMAssistantCore",
+            dependencies: [
+                .product(name: "MeaningCore", package: "meaningcore"),
+            ],
             resources: [.process("Resources")],
             linkerSettings: [
                 .linkedLibrary("sqlite3"),
@@ -28,7 +37,10 @@ let package = Package(
         ),
         .testTarget(
             name: "CAMAssistantCoreTests",
-            dependencies: ["CAMAssistantCore"]
+            dependencies: [
+                "CAMAssistantCore",
+                .product(name: "MeaningCore", package: "meaningcore"),
+            ]
         ),
         .testTarget(
             name: "CAMAssistantAppTests",

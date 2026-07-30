@@ -1,0 +1,14 @@
+{
+  "originHash" : "04df7c15c6f73acaa29f0715ea469e67af58f4fe4ddcc54809177e898eb1ea03",
+  "pins" : [
+    {
+      "identity" : "meaningcore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/deesatzed/meaningcore.git",
+      "state" : {
+        "revision" : "23db68044ebdc410edf3b7f436e433ffba6e94b8"
+      }
+    }
+  ],
+  "version" : 3
+}
