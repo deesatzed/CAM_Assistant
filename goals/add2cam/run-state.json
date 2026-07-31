@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-31",
+  "integrationBranch": "agent/add2cam-integration-20260731",
+  "acceptedCommit": "7e4bc1de9378206a102f3334bb292aa21ff2b9a6",
+  "terminalTarget": "READY_FOR_HUMAN_PILOT",
+  "goals": [
+    {
+      "id": "ADD2CAM-00",
+      "status": "in_progress",
+      "dependencies": [],
+      "prerequisiteCommit": "7e4bc1de9378206a102f3334bb292aa21ff2b9a6",
+      "branch": "agent/add2cam-integration-20260731",
+      "worktree": "/Volumes/WS4TB/waswiki/CAM_Assistant",
+      "attempts": 1,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/README.md",
+      "evidence": ["docs/plans/2026-07-31-add2cam-parallel-agent-orchestration-design.md", "docs/plans/2026-07-31-add2cam-parallel-agent-orchestration.md"],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-10",
+      "status": "ready",
+      "dependencies": [],
+      "prerequisiteCommit": "7e4bc1de9378206a102f3334bb292aa21ff2b9a6",
+      "branch": "agent/add2cam-10-core-practical",
+      "worktree": "/private/tmp/cam-add2cam-20260731/core-practical",
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/10_CORE_PRACTICAL.md",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-20",
+      "status": "pending",
+      "dependencies": ["ADD2CAM-10"],
+      "prerequisiteCommit": null,
+      "branch": "agent/add2cam-20-native-ux",
+      "worktree": "/private/tmp/cam-add2cam-20260731/native-ux",
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/20_NATIVE_UX.md",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-21",
+      "status": "pending",
+      "dependencies": ["ADD2CAM-10"],
+      "prerequisiteCommit": null,
+      "branch": "agent/add2cam-21-feedback-audit",
+      "worktree": "/private/tmp/cam-add2cam-20260731/feedback-audit",
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/21_FEEDBACK_AUDIT.md",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-30",
+      "status": "pending",
+      "dependencies": ["ADD2CAM-10"],
+      "prerequisiteCommit": null,
+      "branch": "agent/add2cam-30-reflective-evaluation",
+      "worktree": "/private/tmp/cam-add2cam-20260731/reflective-evaluation",
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/30_REFLECTIVE_EVALUATION.md",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-40",
+      "status": "pending",
+      "dependencies": ["ADD2CAM-20", "ADD2CAM-21", "ADD2CAM-30"],
+      "prerequisiteCommit": null,
+      "branch": "agent/add2cam-40-reflective-lane",
+      "worktree": "/private/tmp/cam-add2cam-20260731/reflective-lane",
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/40_REFLECTIVE_LANE.md",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-50",
+      "status": "pending",
+      "dependencies": ["ADD2CAM-40"],
+      "prerequisiteCommit": null,
+      "branch": "agent/add2cam-50-packaged-pilot",
+      "worktree": "/private/tmp/cam-add2cam-20260731/packaged-pilot",
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/handoffs/add2cam/20260731/50_PACKAGED_PILOT.md",
+      "evidence": [],
+      "blockers": []
+    },
+    {
+      "id": "ADD2CAM-60",
+      "status": "pending",
+      "dependencies": ["ADD2CAM-50"],
+      "prerequisiteCommit": null,
+      "branch": null,
+      "worktree": null,
+      "attempts": 0,
+      "terminalCommit": null,
+      "handoff": "docs/pilots/meaning-preview-v1-report.md",
+      "evidence": [],
+      "blockers": ["approved protocol", "consented human participants", "lived-use evidence"]
+    }
+  ]
+}

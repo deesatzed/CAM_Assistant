@@ -2329,3 +2329,12 @@ None.
 
 This decision does not block independent local proof work. No overall project
 blocker is asserted.
+
+## 2026-07-31 - ADD2CAM Autonomous Build Bootstrap
+
+- Recovered the clean synchronized CAM Assistant baseline and confirmed that the MeaningCore dependency/grant, opt-in module boundary, context adapter, and isolated SQLite store are implemented; the deterministic coordinator and later UI/evaluation/package work remain pending.
+- Implementation-plan Task 1 is complete. Tasks 2-4 are implemented and focused proof passes, but their product gates remain partial: Gate 2 still needs disabled native-workspace/default-effect proof, Gate 3 still needs integrated coordinator lifecycle/version and packaged recovery proof, and Gate 4 still needs typed commitment mapping plus the complete coordinator invocation boundary.
+- Approved and committed the parallel-agent orchestration design and execution plan on `agent/add2cam-integration-20260731`.
+- Added durable goal contracts and a machine-readable run queue for one integration owner and bounded worktree workers. Goal 10 is ready; Goals 20/21/30 wait for its accepted integration; Goals 40/50 follow in dependency order.
+- Recorded the autonomous ceiling as `READY_FOR_HUMAN_PILOT`. Goal 60 remains blocked on protocol approval, consented participants, and authentic lived-use evidence; no automated or synthetic proof may satisfy it.
+- Safe assumption: pending workers receive their exact prerequisite SHA only at dispatch, after dependency integration is green. MeaningCore, donor repositories, personal vaults, and live CAM corpora remain read-only.
