@@ -24,7 +24,11 @@ struct AssistantWindow: View {
 
     var body: some View {
         NavigationSplitView {
-            Sidebar(selection: $model.selection, health: model.health)
+            Sidebar(
+                selection: $model.selection,
+                health: model.health,
+                meaningPreviewVisible: model.isMeaningPreviewVisible
+            )
         } detail: {
             detail
                 .navigationTitle(model.selection.rawValue)
@@ -53,6 +57,8 @@ struct AssistantWindow: View {
             RepositoryView(model: model)
         case .macCare:
             MacCareView(presentation: model.macCarePresentation, errorMessage: model.macCareError, isAssessing: model.isMacCareAssessing, assess: model.assessMacCareReadOnly)
+        case .meaningPreview:
+            MeaningPreviewView(model: model)
         case .settings:
             SettingsWorkspace(model: model)
         }
@@ -62,15 +68,24 @@ struct AssistantWindow: View {
 private struct SettingsWorkspace: View {
     @ObservedObject var model: AppModel
     @State private var selectedPane = SettingsPane.models
+    @State private var isMeaningPreviewSettingsPresented = false
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Settings pane", selection: $selectedPane) {
-                ForEach(SettingsPane.allCases) { pane in
-                    Text(pane.title).tag(pane)
+            HStack {
+                Picker("Settings pane", selection: $selectedPane) {
+                    ForEach(SettingsPane.allCases) { pane in
+                        Text(pane.title).tag(pane)
+                    }
                 }
+                .pickerStyle(.segmented)
+
+                Button("Meaning Preview…") {
+                    isMeaningPreviewSettingsPresented = true
+                }
+                .accessibilityIdentifier("meaning-preview-settings-open")
+                .accessibilityHint("Opens the optional Meaning Preview lifecycle and permission settings even while the Preview is disabled.")
             }
-            .pickerStyle(.segmented)
             .padding()
 
             switch selectedPane {
@@ -93,6 +108,10 @@ private struct SettingsWorkspace: View {
             }
         }
         .accessibilityLabel("Assistant settings")
+        .sheet(isPresented: $isMeaningPreviewSettingsPresented) {
+            MeaningPreviewSettingsView(model: model)
+                .frame(minWidth: 560, minHeight: 480)
+        }
     }
 }
 

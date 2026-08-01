@@ -4,11 +4,23 @@ import SwiftUI
 struct Sidebar: View {
     @Binding var selection: AssistantSection
     let health: AppHealth
+    let meaningPreviewVisible: Bool
+
+    private var visibleSections: [AssistantSection] {
+        AssistantSection.allCases.filter {
+            meaningPreviewVisible || $0 != .meaningPreview
+        }
+    }
 
     var body: some View {
-        List(AssistantSection.allCases, selection: $selection) { section in
+        List(visibleSections, selection: $selection) { section in
             Label(section.rawValue, systemImage: section.systemImage)
                 .tag(section)
+                .accessibilityIdentifier(
+                    section == .meaningPreview
+                        ? "meaning-preview-sidebar"
+                        : "assistant-section-\(section.id.rawValue)"
+                )
         }
         .safeAreaInset(edge: .bottom) {
             Label(health.statusMessage, systemImage: statusSymbol)
