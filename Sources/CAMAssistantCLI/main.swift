@@ -13,6 +13,55 @@ if arguments.first == "vault" {
     exit(runModelCommand(arguments: arguments))
 } else if arguments.first == "orchestration-lock-probe" {
     exit(runOrchestrationLockProbe(arguments: arguments))
+} else if arguments.first == "evaluate-meaning-preview" {
+    do {
+        let request = try MeaningPreviewEvaluationRequest.parse(
+            arguments: arguments
+        )
+        let report = try await MeaningPreviewEvaluator()
+            .evaluateDeterministicReplay(
+                manifestURL: request.manifestURL
+            )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(
+            at: request.outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(report).write(
+            to: request.outputURL,
+            options: .atomic
+        )
+        print(
+            """
+            Meaning Preview decision accuracy: \(report.decisionAccuracy)
+            support recall: \(report.supportRecall)
+            evidence precision: \(report.evidencePrecision)
+            counterevidence recall: \(report.counterevidenceRecall)
+            abstention accuracy: \(report.abstentionAccuracy)
+            prohibited-behavior accuracy: \(report.prohibitedBehaviorAccuracy)
+            frozen gates: \(report.meetsFrozenThresholds ? "pass" : "fail")
+            report: \(request.outputURL.path)
+            """
+        )
+        let exitCode = MeaningPreviewEvaluationExitCode.forReport(report)
+        if exitCode != 0 {
+            exit(exitCode)
+        }
+    } catch MeaningPreviewEvaluationRequestError.invalidArguments {
+        FileHandle.standardError.write(
+            Data(
+                "usage: cam-assistant evaluate-meaning-preview MANIFEST OUTPUT\n"
+                    .utf8
+            )
+        )
+        exit(64)
+    } catch {
+        FileHandle.standardError.write(
+            Data("Meaning Preview evaluation failed: \(error)\n".utf8)
+        )
+        exit(1)
+    }
 } else if arguments.first == "evaluate-retrieval" {
     guard arguments.count == 3 else {
         FileHandle.standardError.write(

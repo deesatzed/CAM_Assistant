@@ -83,6 +83,16 @@ case "$suite" in
     swift test --disable-sandbox --scratch-path .swift-build \
       --filter ConversationTests
     ;;
+  meaning-preview)
+    swift test --disable-sandbox --scratch-path .swift-build \
+      --filter MeaningPreviewEvaluationTests
+    meaning_preview_output="$(mktemp -t cam-meaning-preview-report).json"
+    trap 'rm -f "$meaning_preview_output"' EXIT
+    swift run --disable-sandbox --scratch-path .swift-build cam-assistant \
+      evaluate-meaning-preview \
+      Tests/Fixtures/MeaningPreview/v1/manifest.json \
+      "$meaning_preview_output"
+    ;;
   retrieval-report)
     swift run --disable-sandbox --scratch-path .swift-build cam-assistant evaluate-retrieval \
       Tests/Fixtures/Retrieval/v2/manifest.json \
@@ -127,7 +137,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|meaning-preview|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
     exit 64
     ;;
 esac
