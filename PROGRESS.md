@@ -2409,3 +2409,10 @@ blocker is asserted.
 - Wave 2 is complete. Goal 40 is ready from exact accepted prerequisite
   `c0dbe01`. Goal 50 remains dependency-blocked on Goal 40, and Goal 60 remains
   human-only.
+- Goal 40 was dispatched in the isolated branch/worktree
+  `agent/add2cam-40-reflective-lane` at exact product prerequisite `c0dbe01`.
+  A bounded implementation worker owns only the reflective supplier,
+  coordinator, CLI, AppModel/view seams, focused tests, named-model receipt,
+  and handoff; a parallel read-only reviewer is mapping the existing strict
+  loopback transport and fail-closed test surface. No model or network has been
+  invoked by the orchestrator dispatch.
