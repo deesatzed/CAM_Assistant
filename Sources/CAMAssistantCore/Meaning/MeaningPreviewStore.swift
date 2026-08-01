@@ -7,7 +7,9 @@ public enum MeaningPreviewStoreError: Error, Equatable {
 
 /// Separate, CAM-owned SQLite namespace for the opt-in pilot. It has no
 /// foreign keys, migrations, or writes against CAM's primary vault database.
-public final class MeaningPreviewStore {
+/// The preview coordinator is the sole owner of an instance and serializes all
+/// calls. SQLiteStore access must not be shared outside that actor boundary.
+public final class MeaningPreviewStore: MeaningPreviewStateStoring, @unchecked Sendable {
     private let database: SQLiteStore
 
     public init(databaseURL: URL) throws {

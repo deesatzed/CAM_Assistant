@@ -1,0 +1,20 @@
+{
+  "now": 1750000000,
+  "domain": "work",
+  "capacity": "adequate",
+  "items": [
+    {
+      "id": "secondary",
+      "text": "Read an unrelated note.",
+      "kind": "factual",
+      "dueAt": null
+    },
+    {
+      "id": "primary",
+      "text": "Prepare the work outline.",
+      "kind": "factual",
+      "dueAt": null
+    }
+  ],
+  "expectedSemanticResult": "Prepare the work outline.|factual|It is active and relevant to the current context."
+}

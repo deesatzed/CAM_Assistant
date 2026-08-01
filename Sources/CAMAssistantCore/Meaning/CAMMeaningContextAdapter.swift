@@ -15,6 +15,7 @@ public struct CAMMeaningContextAdapter: Sendable {
         var exclusions: [String: MeaningContextExclusion] = [:]
         var memory: [MemoryItem] = []
         var provenance: [MeaningContextProvenance] = []
+        var identifierOwners: [UUID: String] = [:]
 
         for item in selection.selectedItems.sorted(by: { $0.id < $1.id }) {
             if !item.isVisible {
@@ -35,17 +36,28 @@ public struct CAMMeaningContextAdapter: Sendable {
                 exclusions[item.id] = .missing
             } else if !item.permittedUses.contains(.meaningPreview) {
                 exclusions[item.id] = .notPermitted
+            } else if item.kind == .commitment && item.dueAt == nil {
+                exclusions[item.id] = .invalidCommitment
             } else {
                 let identifier = stableIdentifier(for: item.id)
+                if let previousOwner = identifierOwners[identifier] {
+                    exclusions[previousOwner] = .identifierCollision
+                    exclusions[item.id] = .identifierCollision
+                    memory.removeAll { $0.id == identifier }
+                    provenance.removeAll { $0.itemID == previousOwner || $0.itemID == item.id }
+                    continue
+                }
+                identifierOwners[identifier] = item.id
                 memory.append(
                     MemoryItem(
                         id: identifier,
-                        kind: .factual,
+                        kind: item.kind == .commitment ? .commitment : .factual,
                         text: item.derivedText,
                         source: .hostImport,
                         observedAt: item.observedAt,
                         createdAt: now,
                         confidence: item.uncertainty == .supported ? .supported : .tentative,
+                        expiresAt: item.kind == .commitment ? item.dueAt : nil,
                         sensitivity: item.sensitivity.rawValue,
                         permittedUses: ["utility"],
                         contextTags: [selection.domain]
@@ -71,7 +83,10 @@ public struct CAMMeaningContextAdapter: Sendable {
             ),
             memory: memory,
             exclusions: exclusions,
-            provenance: provenance
+            provenance: provenance,
+            identifierOwners: Dictionary(
+                uniqueKeysWithValues: identifierOwners.map { ($0.key.uuidString, $0.value) }
+            )
         )
     }
 
