@@ -2338,3 +2338,12 @@ blocker is asserted.
 - Added durable goal contracts and a machine-readable run queue for one integration owner and bounded worktree workers. Goal 10 is ready; Goals 20/21/30 wait for its accepted integration; Goals 40/50 follow in dependency order.
 - Recorded the autonomous ceiling as `READY_FOR_HUMAN_PILOT`. Goal 60 remains blocked on protocol approval, consented participants, and authentic lived-use evidence; no automated or synthetic proof may satisfy it.
 - Safe assumption: pending workers receive their exact prerequisite SHA only at dispatch, after dependency integration is green. MeaningCore, donor repositories, personal vaults, and live CAM corpora remain read-only.
+
+## 2026-08-01 - ADD2CAM Goal 10 Integrated
+
+- Integrated the deterministic practical coordinator at `e5c4b21` after a spec review and an independent code-quality/boundary review. The worktree handoff is `docs/handoffs/add2cam/20260731/10_CORE_PRACTICAL.md`.
+- The final coordinator suite passes 14 tests covering authorization before context reads, silence/one item, both sides of the depleted-capacity 24-hour commitment boundary, typed `Now`/`Later`/`Release`, no implicit helpfulness, restart, rejection, expiry, repeated correction, stale writes, save rollback, actor serialization, identifier collision refusal, explicit-selection isolation, backward snapshot decoding, and semantic fixture replay.
+- Post-integration proof passed: 14 coordinator tests and 3 existing Meaning Preview tests. The worker worktree also passed all 8 storage regressions and `git diff --check`.
+- Review corrections were accepted: persisted identifier ownership now rejects collisions across requests; unrelated stored conflict records cannot bypass current explicit selection; correction lineage remains valid across repeated corrections.
+- Goals 20, 21, and 30 are now ready from the accepted Goal 10 integration commit. Native UX, feedback/audit, and frozen reflective evaluation remain unimplemented.
+- Two delegated implementation attempts stalled without file output; bounded local recovery completed the slice. The stalls changed no repository files and did not weaken tests or safety gates.
