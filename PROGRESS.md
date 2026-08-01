@@ -2363,3 +2363,11 @@ blocker is asserted.
 - It found two ownership gaps before dispatch: Goal 40 needs the CLI seam for a genuine named-model evaluator and the AppModel seam for an explicit native Reflect action. Both paths are now narrowly added to Goal 40 ownership.
 - Deterministic replay remains an offline contract check with model identity `none`; it may not be presented as named-model eligibility. The named loopback run receives its own command and immutable report.
 - Native reflection may extend selection to at most eight explicit permitted items because valid support and counterevidence must be nonempty, disjoint, and current. Single-item reflective requests abstain instead of reusing one identifier in both roles.
+
+## 2026-08-01 - ADD2CAM Goal 30 Integrated
+
+- Integrated the frozen reflective evaluation at `6021283` after two adversarial review cycles. The handoff is `docs/handoffs/add2cam/20260731/30_REFLECTIVE_EVALUATION.md` and the evidence receipt is `docs/evidence/add2cam-08-reflective-evaluation.md`.
+- The exact pre-model manifest digest is `62cfed6293462f94103752e1d3855158675f479b5ae6cf7926ed20e4726cabfd`: 22 synthetic cases, 7 surface, 15 silence, with all six thresholds fixed at `1.0`.
+- Thirteen tests prove strict nested schema, case-scoped exact/paraphrase prohibitions, meaningful field grounding, token-salad and polarity refusal, exact negative error codes, report secrecy, neutral label-free supplier input, and distinct deterministic/named-model eligibility.
+- The first review blocked vacuous prose and mislabeled replay. The second blocked a critical expected-label leak, a token-salad/negation bypass, and named ineligibility returning success. All findings were resolved before commit; final independent re-review passed.
+- Repository-owned `scripts/verify.sh meaning-preview` and post-integration focused tests pass. Deterministic replay scores `1.0` while remaining explicitly ineligible as named-model evidence. No model or network was invoked.

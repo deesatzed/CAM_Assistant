@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-31",
   "integrationBranch": "agent/add2cam-integration-20260731",
-  "acceptedCommit": "f95b826",
+  "acceptedCommit": "6021283",
   "terminalTarget": "READY_FOR_HUMAN_PILOT",
   "goals": [
     {
@@ -38,7 +38,7 @@
       "prerequisiteCommit": "e5c4b21",
       "branch": "agent/add2cam-20-native-ux",
       "worktree": "/private/tmp/cam-add2cam-20260731/native-ux",
-      "attempts": 0,
+      "attempts": 1,
       "terminalCommit": null,
       "handoff": "docs/handoffs/add2cam/20260731/20_NATIVE_UX.md",
       "evidence": [],
@@ -59,15 +59,15 @@
     },
     {
       "id": "ADD2CAM-30",
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": ["ADD2CAM-10"],
       "prerequisiteCommit": "e5c4b21",
       "branch": "agent/add2cam-30-reflective-evaluation",
       "worktree": "/private/tmp/cam-add2cam-20260731/reflective-evaluation",
-      "attempts": 0,
-      "terminalCommit": null,
+      "attempts": 3,
+      "terminalCommit": "6021283",
       "handoff": "docs/handoffs/add2cam/20260731/30_REFLECTIVE_EVALUATION.md",
-      "evidence": [],
+      "evidence": ["docs/evidence/add2cam-08-reflective-evaluation.md", "docs/handoffs/add2cam/20260731/30_REFLECTIVE_EVALUATION.md", "Tests/Fixtures/MeaningPreview/v1/manifest.json"],
       "blockers": []
     },
     {
