@@ -12,12 +12,15 @@ struct MeaningPreviewSettingsView: View {
 
                 lifecycleControls
 
-                Button("Recover Isolated State") {
-                    Task { await model.recoverMeaningPreview() }
+                if model.meaningPreviewLifecycle == .corruptedStore
+                    || model.meaningPreviewLifecycle == .incompatibleStore {
+                    Button("Archive & Reinitialize Isolated State") {
+                        Task { await model.recoverMeaningPreview() }
+                    }
+                    .disabled(model.isMeaningPreviewWorking)
+                    .accessibilityIdentifier("meaning-preview-recover")
+                    .accessibilityHint("Archives only the isolated Meaning Preview store and initializes an empty compatible store. Ordinary CAM data is unchanged.")
                 }
-                .disabled(model.isMeaningPreviewWorking)
-                .accessibilityIdentifier("meaning-preview-recover")
-                .accessibilityHint("Reloads only Meaning Preview lifecycle state. It does not read a source or run a Preview.")
 
                 if let status = model.meaningPreviewStatus {
                     Text(status)
@@ -63,6 +66,14 @@ struct MeaningPreviewSettingsView: View {
             Text("Access is ready. Choose an active derived source in the Meaning Preview workspace before requesting a Preview.")
                 .foregroundStyle(.secondary)
             disableButton
+        case .corruptedStore:
+            Text("The isolated Preview store is corrupted. Archive and reinitialize it before requesting another Preview.")
+                .foregroundStyle(.secondary)
+            disableButton
+        case .incompatibleStore:
+            Text("The isolated Preview store schema is incompatible. Archive and reinitialize it before requesting another Preview.")
+                .foregroundStyle(.secondary)
+            disableButton
         case .unavailable:
             Text("Meaning Preview is unavailable. Ordinary Assistant remains available.")
                 .foregroundStyle(.secondary)
@@ -73,7 +84,6 @@ struct MeaningPreviewSettingsView: View {
         Button("Disable Meaning Preview", role: .destructive) {
             Task { await model.disableMeaningPreview() }
         }
-        .disabled(model.isMeaningPreviewWorking)
         .accessibilityIdentifier("meaning-preview-settings-disable")
         .accessibilityHint("Stops Preview behavior, removes its workspace, and returns to ordinary Assistant without deleting CAM data.")
     }
@@ -83,6 +93,8 @@ struct MeaningPreviewSettingsView: View {
         case .disabled: "Disabled"
         case .enabledWithoutLocalRead: "Enabled; no local access"
         case .ready: "Enabled with explicit local access"
+        case .corruptedStore: "Corrupted isolated store"
+        case .incompatibleStore: "Incompatible isolated store"
         case .unavailable: "Unavailable"
         }
     }

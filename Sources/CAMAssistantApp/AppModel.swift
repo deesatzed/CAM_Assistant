@@ -63,6 +63,8 @@ enum MeaningPreviewLifecycle: String, Sendable, Equatable {
     case disabled
     case enabledWithoutLocalRead
     case ready
+    case corruptedStore
+    case incompatibleStore
     case unavailable
 }
 
@@ -179,6 +181,11 @@ struct MeaningPreviewAppPresentation: Sendable, Equatable {
     }
 }
 
+struct MeaningPreviewRecoveryReceipt: Sendable, Equatable {
+    let lifecycle: MeaningPreviewLifecycle
+    let archivedPreviousState: Bool
+}
+
 enum MeaningPreviewRuntimeError: Error, Equatable {
     case accessDenied
     case disabledDuringRequest
@@ -193,6 +200,7 @@ protocol MeaningPreviewRuntime: Sendable {
     func enable() async throws -> MeaningPreviewLifecycle
     func grantLocalAccess() async throws -> MeaningPreviewLifecycle
     func disable() async throws -> MeaningPreviewLifecycle
+    func recover() async throws -> MeaningPreviewRecoveryReceipt
     func request(
         reference: MeaningPreviewSourceReference,
         now: Date
@@ -358,7 +366,68 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
         generation = UUID()
         activePresentation = nil
         coordinator = nil
+        leaseStore = nil
         return .disabled
+    }
+
+    func recover() throws -> MeaningPreviewRecoveryReceipt {
+        let lifecycle = try currentLifecycle()
+        guard lifecycle == .corruptedStore
+            || lifecycle == .incompatibleStore else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        authorizationGate.invalidate()
+        generation = UUID()
+        activePresentation = nil
+        coordinator = nil
+        leaseStore = nil
+
+        let databaseURL = LocalVaultPaths.meaningPreviewDatabaseURL(
+            vaultRoot: root
+        )
+        let stateDirectory = databaseURL.deletingLastPathComponent()
+        let archiveRoot = root.appending(
+            path: "meaning-preview-archive",
+            directoryHint: .isDirectory
+        )
+        let archiveDirectory = archiveRoot.appending(
+            path: UUID().uuidString,
+            directoryHint: .isDirectory
+        )
+        let hadPreviousState = FileManager.default.fileExists(
+            atPath: stateDirectory.path
+        )
+
+        if hadPreviousState {
+            try FileManager.default.createDirectory(
+                at: archiveRoot,
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.moveItem(
+                at: stateDirectory,
+                to: archiveDirectory
+            )
+        }
+
+        do {
+            _ = try MeaningPreviewStore(databaseURL: databaseURL)
+        } catch {
+            if FileManager.default.fileExists(atPath: stateDirectory.path) {
+                try? FileManager.default.removeItem(at: stateDirectory)
+            }
+            if hadPreviousState {
+                try? FileManager.default.moveItem(
+                    at: archiveDirectory,
+                    to: stateDirectory
+                )
+            }
+            throw error
+        }
+
+        return MeaningPreviewRecoveryReceipt(
+            lifecycle: try currentLifecycle(),
+            archivedPreviousState: hadPreviousState
+        )
     }
 
     func request(
@@ -378,6 +447,7 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
             throw MeaningPreviewRuntimeError.disabledDuringRequest
         }
 
+        let scopedDomain = Self.scopedDomain(for: selected)
         let lease = authorizationGate.authorize()
         let activeCoordinator = try makeCoordinatorIfNeeded(lease: lease)
         let result = try await activeCoordinator.requestPractical(
@@ -385,7 +455,7 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
             selection: {
                 MeaningContextSelection(
                     purpose: "explicit practical preview",
-                    domain: selected.domain,
+                    domain: scopedDomain,
                     capacity: .adequate,
                     selectedItems: [
                         MeaningContextItem(
@@ -412,11 +482,11 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
 
         let item = result.glance.item
         activePresentation = item.map {
-            (memoryID: $0.id, domain: selected.domain, version: result.version)
+            (memoryID: $0.id, domain: scopedDomain, version: result.version)
         }
         return MeaningPreviewAppPresentation(
             version: result.version,
-            domain: item == nil ? nil : selected.domain,
+            domain: item == nil ? nil : scopedDomain,
             card: item.map {
                 MeaningPreviewCardPresentation(id: $0.id, text: $0.text)
             },
@@ -565,7 +635,9 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
                 )
             )
         )
-        guard manifest.id == "cam.meaning-preview", !manifest.isCore else {
+        guard manifest.id == "cam.meaning-preview",
+              !manifest.isCore,
+              Set(manifest.permissions) == [.readLocal, .writeLocal] else {
             return .unavailable
         }
         let stateURL = LocalVaultPaths.stateURL(.moduleState, vaultRoot: root)
@@ -580,8 +652,28 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
             return .disabled
         }
         let granted = state.permissionGrants[manifest.id] ?? []
-        return Set(manifest.permissions).isSubset(of: granted)
-            ? .ready : .enabledWithoutLocalRead
+        guard Set(manifest.permissions).isSubset(of: granted) else {
+            return .enabledWithoutLocalRead
+        }
+        let databaseURL = LocalVaultPaths.meaningPreviewDatabaseURL(
+            vaultRoot: root
+        )
+        guard FileManager.default.fileExists(atPath: databaseURL.path) else {
+            return .ready
+        }
+        do {
+            _ = try MeaningPreviewStore(databaseURL: databaseURL).load()
+            return .ready
+        } catch MeaningPreviewStoreError.unsupportedSchema {
+            return .incompatibleStore
+        } catch MeaningPreviewStoreError.malformedState {
+            return .corruptedStore
+        } catch let error as SQLiteStoreError {
+            return Self.isConfirmedSQLiteCorruption(error)
+                ? .corruptedStore : .unavailable
+        } catch {
+            return .unavailable
+        }
     }
 
     private static func defaultManifestDirectory() -> URL {
@@ -617,6 +709,29 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
         default: "Unavailable"
         }
     }
+
+    private static func scopedDomain(
+        for context: MeaningPreviewResolvedContext
+    ) -> String {
+        let base = context.domain.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(base.isEmpty ? "selected local source" : base)|source:\(context.id)"
+    }
+
+    private static func isConfirmedSQLiteCorruption(
+        _ error: SQLiteStoreError
+    ) -> Bool {
+        let message: String = switch error {
+        case let .openFailed(value), let .prepareFailed(value),
+             let .bindFailed(value), let .stepFailed(value),
+             let .closeFailed(value), let .backupFailed(value):
+            value
+        case .closed:
+            ""
+        }
+        let normalized = message.lowercased()
+        return normalized.contains("file is not a database")
+            || normalized.contains("database disk image is malformed")
+    }
 }
 
 struct MeaningPreviewUnavailableRuntime: MeaningPreviewRuntime {
@@ -626,6 +741,9 @@ struct MeaningPreviewUnavailableRuntime: MeaningPreviewRuntime {
     func enable() async throws -> MeaningPreviewLifecycle { throw MeaningPreviewRuntimeError.accessDenied }
     func grantLocalAccess() async throws -> MeaningPreviewLifecycle { throw MeaningPreviewRuntimeError.accessDenied }
     func disable() async throws -> MeaningPreviewLifecycle { .disabled }
+    func recover() async throws -> MeaningPreviewRecoveryReceipt {
+        throw MeaningPreviewRuntimeError.accessDenied
+    }
     func request(
         reference: MeaningPreviewSourceReference,
         now: Date
@@ -1016,6 +1134,8 @@ final class AppModel: ObservableObject {
     var isMeaningPreviewVisible: Bool {
         meaningPreviewLifecycle == .enabledWithoutLocalRead
             || meaningPreviewLifecycle == .ready
+            || meaningPreviewLifecycle == .corruptedStore
+            || meaningPreviewLifecycle == .incompatibleStore
     }
 
     var canRequestMeaningPreview: Bool {
@@ -1047,15 +1167,25 @@ final class AppModel: ObservableObject {
 
     func recoverMeaningPreview() async {
         let operation = beginMeaningPreviewOperation()
-        let lifecycle = await meaningPreviewRuntime.loadLifecycle()
-        guard isCurrentMeaningPreviewOperation(operation) else { return }
-        meaningPreviewLifecycle = lifecycle
-        meaningPreviewError = meaningPreviewLifecycle == .unavailable
-            ? Self.meaningPreviewUnavailableMessage
-            : nil
-        meaningPreviewStatus = meaningPreviewLifecycle == .ready
-            ? "Meaning Preview isolated state is available."
-            : nil
+        do {
+            let receipt = try await meaningPreviewRuntime.recover()
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewLifecycle = receipt.lifecycle
+            meaningPreviewPresentation = nil
+            meaningPreviewSelectedSource = nil
+            meaningPreviewError = nil
+            if receipt.lifecycle == .disabled
+                || receipt.lifecycle == .unavailable {
+                selection = .assistant
+            }
+            meaningPreviewStatus = receipt.archivedPreviousState
+                ? "Meaning Preview isolated state was archived and reinitialized."
+                : "Meaning Preview isolated state was initialized."
+        } catch {
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewError = "Meaning Preview isolated recovery failed. Ordinary CAM is unchanged."
+            meaningPreviewStatus = nil
+        }
         finishMeaningPreviewOperation(operation)
     }
 
@@ -1079,6 +1209,7 @@ final class AppModel: ObservableObject {
     }
 
     func requestMeaningPreview() async {
+        guard !isMeaningPreviewWorking else { return }
         guard meaningPreviewLifecycle == .ready else {
             meaningPreviewError = "Grant local read and isolated write access before requesting a Preview."
             return
@@ -1114,6 +1245,7 @@ final class AppModel: ObservableObject {
     }
 
     func applyMeaningPreviewAction(_ action: MeaningPreviewCardAction) async {
+        guard !isMeaningPreviewWorking else { return }
         guard let presentation = meaningPreviewPresentation,
               let card = presentation.card else { return }
         let operation = beginMeaningPreviewOperation()
@@ -1141,6 +1273,7 @@ final class AppModel: ObservableObject {
     }
 
     func recordMeaningPreviewFeedback(_ feedback: MeaningPreviewFeedback) async {
+        guard !isMeaningPreviewWorking else { return }
         guard let presentation = meaningPreviewPresentation,
               let card = presentation.card,
               let domain = presentation.domain else { return }
@@ -1183,6 +1316,10 @@ final class AppModel: ObservableObject {
                 "Meaning Preview enabled. No local access has been granted."
             case .ready:
                 "Meaning Preview has explicit local read and isolated write access."
+            case .corruptedStore:
+                "Meaning Preview isolated state is corrupted and requires recovery."
+            case .incompatibleStore:
+                "Meaning Preview isolated state is incompatible and requires recovery."
             case .unavailable: nil
             }
         } catch {
@@ -1218,6 +1355,8 @@ final class AppModel: ObservableObject {
         case MeaningPreviewRuntimeError.accessDenied,
              MeaningPreviewRuntimeError.disabledDuringRequest:
             "Meaning Preview access changed before the selected context was used."
+        case MeaningPreviewRuntimeError.sourceUnavailable:
+            "The selected local source is no longer active or available. Choose another source."
         default:
             "Meaning Preview could not read its isolated state. Ordinary CAM is unchanged."
         }

@@ -19,14 +19,14 @@ struct MeaningInspectView: View {
 
             Divider()
             evidenceSection(
-                title: "Source evidence",
+                title: "Evidence record identifiers",
                 identifiers: presentation.evidenceIDs,
-                emptyText: "No supporting source identifiers were supplied."
+                emptyText: "No supporting evidence record identifiers were supplied."
             )
             evidenceSection(
-                title: "Counterevidence",
+                title: "Counterevidence record identifiers",
                 identifiers: presentation.counterevidenceIDs,
-                emptyText: "No counterevidence identifiers were supplied."
+                emptyText: "No counterevidence record identifiers were supplied."
             )
             LabeledContent("Provenance", value: presentation.provenanceLabel)
             LabeledContent("Uncertainty", value: presentation.uncertaintyLabel)
@@ -39,7 +39,7 @@ struct MeaningInspectView: View {
                 )
             }
 
-            Text("No private chain-of-thought is shown. Inspect reports bounded source identifiers, provenance, uncertainty, exclusions, and the policy reason for surfacing.")
+            Text("No private chain-of-thought is shown. Inspect reports bounded evidence-record identifiers, provenance, uncertainty, exclusions, and the policy reason for surfacing.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

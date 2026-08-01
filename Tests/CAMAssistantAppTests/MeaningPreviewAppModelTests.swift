@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import CAMAssistantCore
+@testable import CAMAssistantCore
 @testable import CAMAssistantApp
 
 @MainActor
@@ -145,16 +145,49 @@ func meaningPreviewAppModelSourceSelectionInvalidatesOldRequest() async {
     #expect(!model.isMeaningPreviewWorking)
 }
 
+@MainActor
+@Test("recovery clears the Preview session and restores Assistant when disabled")
+func meaningPreviewAppModelRecoveryNormalizesDisabledNavigation() async {
+    let runtime = MeaningPreviewRuntimeSpy(
+        initialLifecycle: .ready,
+        recoveryReceipt: .init(
+            lifecycle: .disabled,
+            archivedPreviousState: true
+        )
+    )
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    model.selection = .meaningPreview
+    model.selectMeaningPreviewSource(id: "source-1")
+    await model.requestMeaningPreview()
+    #expect(model.meaningPreviewPresentation != nil)
+
+    await model.recoverMeaningPreview()
+    #expect(model.meaningPreviewLifecycle == .disabled)
+    #expect(model.selection == .assistant)
+    #expect(model.meaningPreviewPresentation == nil)
+    #expect(model.meaningPreviewSelectedSource == nil)
+    #expect(model.meaningPreviewStatus
+        == "Meaning Preview isolated state was archived and reinitialized.")
+}
+
 private actor MeaningPreviewRuntimeSpy: MeaningPreviewRuntime {
     nonisolated let initialLifecycle: MeaningPreviewLifecycle
     private var lifecycle: MeaningPreviewLifecycle
     private(set) var requestCount = 0
     private(set) var disableCount = 0
     private var version: UInt64 = 0
+    private let recoveryReceipt: MeaningPreviewRecoveryReceipt?
 
-    init(initialLifecycle: MeaningPreviewLifecycle) {
+    init(
+        initialLifecycle: MeaningPreviewLifecycle,
+        recoveryReceipt: MeaningPreviewRecoveryReceipt? = nil
+    ) {
         self.initialLifecycle = initialLifecycle
         lifecycle = initialLifecycle
+        self.recoveryReceipt = recoveryReceipt
     }
 
     func loadLifecycle() -> MeaningPreviewLifecycle { lifecycle }
@@ -170,6 +203,10 @@ private actor MeaningPreviewRuntimeSpy: MeaningPreviewRuntime {
         disableCount += 1
         lifecycle = .disabled
         return lifecycle
+    }
+    func recover() -> MeaningPreviewRecoveryReceipt {
+        recoveryReceipt
+            ?? .init(lifecycle: lifecycle, archivedPreviousState: true)
     }
     func request(
         reference: MeaningPreviewSourceReference,
@@ -248,6 +285,9 @@ private actor GatedMeaningPreviewRuntime: MeaningPreviewRuntime {
     func disable() -> MeaningPreviewLifecycle {
         lifecycle = .disabled
         return lifecycle
+    }
+    func recover() -> MeaningPreviewRecoveryReceipt {
+        .init(lifecycle: lifecycle, archivedPreviousState: true)
     }
 
     func request(
@@ -502,13 +542,15 @@ func liveMeaningPreviewRuntimePersistsFeedbackAndAudit() async throws {
     _ = try await runtime.enable()
     #expect(try await runtime.grantLocalAccess() == .ready)
 
-    for suffix in ["one", "two"] {
+    var feedbackDomain: String?
+    for _ in 0..<2 {
         let presentation = try await runtime.request(
-            reference: .init(id: "helpful-\(suffix)"),
+            reference: .init(id: "helpful-source"),
             now: .fixtureNow
         )
         let card = try #require(presentation.card)
         let domain = try #require(presentation.domain)
+        feedbackDomain = domain
         _ = try await runtime.recordFeedback(
             .helpful,
             memoryID: card.id,
@@ -522,12 +564,46 @@ func liveMeaningPreviewRuntimePersistsFeedbackAndAudit() async throws {
             vaultRoot: fixture.root
         )
     ).load()
-    #expect(snapshot.coreState.familiarity.stage(for: "selected local source")
+    #expect(snapshot.coreState.familiarity.stage(for: try #require(feedbackDomain))
         == .familiarAssistant)
     let audit = try AuditStore(databaseURL: fixture.root.appending(path: "vault.sqlite"))
     let events = try audit.events()
     try audit.close()
     #expect(events.contains { $0.route == "helpful" })
+}
+
+@Test("feedback familiarity is scoped to the exact selected source")
+func liveMeaningPreviewRuntimeScopesFeedbackBySource() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver()
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    var domains: [String] = []
+    for sourceID in ["source-a", "source-b"] {
+        let presentation = try await runtime.request(
+            reference: .init(id: sourceID),
+            now: .fixtureNow
+        )
+        let card = try #require(presentation.card)
+        let domain = try #require(presentation.domain)
+        domains.append(domain)
+        _ = try await runtime.recordFeedback(
+            .helpful,
+            memoryID: card.id,
+            domain: domain,
+            expectedVersion: presentation.version
+        )
+    }
+    #expect(domains[0] != domains[1])
+    let snapshot = try fixture.loadSnapshot()
+    #expect(domains.allSatisfy {
+        snapshot.coreState.familiarity.stage(for: $0) == .usefulStranger
+    })
 }
 
 @Test("live runtime applies each action from a fresh request and refuses stale reuse")
@@ -771,6 +847,226 @@ func liveMeaningPreviewRuntimeClosesSaveAuthorizationRace() async throws {
     #expect(try fixture.auditEvents().isEmpty)
 }
 
+@Test("corrupted isolated store is typed then archived and reinitialized")
+func liveMeaningPreviewRuntimeRecoversCorruptedStore() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    try fixture.configureModuleReady()
+    let databaseURL = LocalVaultPaths.meaningPreviewDatabaseURL(
+        vaultRoot: fixture.root
+    )
+    try FileManager.default.createDirectory(
+        at: databaseURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let corrupted = Data("not-a-sqlite-database".utf8)
+    try corrupted.write(to: databaseURL)
+    let ordinarySentinel = fixture.root.appending(path: "ordinary-cam-sentinel")
+    let ordinaryBytes = Data("ordinary-cam-unchanged".utf8)
+    try ordinaryBytes.write(to: ordinarySentinel)
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver()
+    )
+
+    #expect(runtime.initialLifecycle == .corruptedStore)
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await runtime.request(
+            reference: .init(id: "selected"),
+            now: .fixtureNow
+        )
+    }
+    let receipt = try await runtime.recover()
+    #expect(receipt == .init(lifecycle: .ready, archivedPreviousState: true))
+    #expect(try fixture.loadSnapshot().revision == 0)
+    #expect(try Data(contentsOf: ordinarySentinel) == ordinaryBytes)
+
+    let archiveRoot = fixture.root.appending(path: "meaning-preview-archive")
+    let archivedDirectory = try #require(
+        FileManager.default.contentsOfDirectory(
+            at: archiveRoot,
+            includingPropertiesForKeys: nil
+        ).first
+    )
+    #expect(
+        try Data(contentsOf: archivedDirectory.appending(path: "MeaningPreview.sqlite"))
+            == corrupted
+    )
+    #expect(
+        try await runtime.request(
+            reference: .init(id: "selected"),
+            now: .fixtureNow
+        ).card != nil
+    )
+}
+
+@Test("recovery refuses disabled and enable-only states without filesystem mutation")
+func liveMeaningPreviewRuntimeRecoveryRequiresAuthorizedBrokenStore() async throws {
+    for shouldEnable in [false, true] {
+        let fixture = try LiveRuntimeFixture()
+        defer { fixture.remove() }
+        let runtime = MeaningPreviewLiveRuntime(
+            root: fixture.root,
+            manifestDirectory: fixture.manifests,
+            sourceResolver: MeaningPreviewStaticSourceResolver()
+        )
+        if shouldEnable { _ = try await runtime.enable() }
+        let expected: MeaningPreviewLifecycle = shouldEnable
+            ? .enabledWithoutLocalRead : .disabled
+        #expect(await runtime.loadLifecycle() == expected)
+        await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+            _ = try await runtime.recover()
+        }
+        #expect(await runtime.loadLifecycle() == expected)
+        #expect(!fixture.previewDatabaseExists)
+        #expect(!FileManager.default.fileExists(
+            atPath: fixture.root.appending(path: "meaning-preview-archive").path
+        ))
+    }
+}
+
+@Test("non-corruption SQLite open failure is unavailable and cannot archive")
+func liveMeaningPreviewRuntimeDoesNotMislabelIOFailureAsCorruption() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    try fixture.configureModuleReady()
+    let databaseURL = LocalVaultPaths.meaningPreviewDatabaseURL(
+        vaultRoot: fixture.root
+    )
+    try FileManager.default.createDirectory(
+        at: databaseURL,
+        withIntermediateDirectories: true
+    )
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver()
+    )
+    #expect(runtime.initialLifecycle == .unavailable)
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await runtime.recover()
+    }
+    var isDirectory: ObjCBool = false
+    #expect(FileManager.default.fileExists(
+        atPath: databaseURL.path,
+        isDirectory: &isDirectory
+    ))
+    #expect(isDirectory.boolValue)
+    #expect(!FileManager.default.fileExists(
+        atPath: fixture.root.appending(path: "meaning-preview-archive").path
+    ))
+}
+
+@Test("unsupported isolated schema is typed as incompatible")
+func liveMeaningPreviewRuntimeDetectsIncompatibleStore() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    try fixture.configureModuleReady()
+    let databaseURL = LocalVaultPaths.meaningPreviewDatabaseURL(
+        vaultRoot: fixture.root
+    )
+    _ = try MeaningPreviewStore(databaseURL: databaseURL)
+    let database = try SQLiteStore(databaseURL: databaseURL, migrations: [])
+    let incompatible = Data("{\"schemaVersion\":999}".utf8).base64EncodedString()
+    try database.execute(
+        "INSERT INTO meaning_preview_state(singleton, snapshot_json) VALUES (1, ?)",
+        bindings: [incompatible]
+    )
+    try database.close()
+
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver()
+    )
+    #expect(runtime.initialLifecycle == .incompatibleStore)
+    #expect(await runtime.loadLifecycle() == .incompatibleStore)
+}
+
+@Test("manifest permission drift fails unavailable before source access")
+func liveMeaningPreviewRuntimeRejectsManifestPermissionDrift() async throws {
+    for permissions in [
+        [Permission](),
+        [.readLocal],
+        [.writeLocal],
+        [.readLocal, .writeLocal, .network],
+    ] {
+        let fixture = try LiveRuntimeFixture()
+        defer { fixture.remove() }
+        let manifests = try fixture.driftedManifestDirectory(
+            permissions: permissions
+        )
+        let reads = ReadCounter()
+        let runtime = MeaningPreviewLiveRuntime(
+            root: fixture.root,
+            manifestDirectory: manifests,
+            sourceResolver: reads
+        )
+        #expect(runtime.initialLifecycle == .unavailable)
+        await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+            _ = try await runtime.request(
+                reference: .init(id: "selected"),
+                now: .fixtureNow
+            )
+        }
+        #expect(await reads.count == 0)
+    }
+}
+
+@Test("Disable before real action or feedback save prevents mutation persistence")
+func liveMeaningPreviewRuntimeClosesMutationSaveRaces() async throws {
+    for mutation in MeaningPreviewGatedOperation.allCases where mutation != .request {
+        let fixture = try LiveRuntimeFixture()
+        defer { fixture.remove() }
+        let barrier = SynchronousSaveBarrier(targetSave: 2)
+        let runtime = MeaningPreviewLiveRuntime(
+            root: fixture.root,
+            manifestDirectory: fixture.manifests,
+            sourceResolver: MeaningPreviewStaticSourceResolver(),
+            beforePreviewSave: { barrier.blockBeforeSave() }
+        )
+        _ = try await runtime.enable()
+        _ = try await runtime.grantLocalAccess()
+        let presentation = try await runtime.request(
+            reference: .init(id: "selected"),
+            now: .fixtureNow
+        )
+        let card = try #require(presentation.card)
+        let domain = try #require(presentation.domain)
+        let operation = Task {
+            switch mutation {
+            case .action:
+                return try await runtime.applyAction(
+                    .later,
+                    memoryID: card.id,
+                    expectedVersion: presentation.version,
+                    at: .fixtureNow
+                )
+            case .feedback:
+                return try await runtime.recordFeedback(
+                    .helpful,
+                    memoryID: card.id,
+                    domain: domain,
+                    expectedVersion: presentation.version
+                )
+            case .request:
+                return 0
+            }
+        }
+        await barrier.waitUntilBlocked()
+        #expect(try await runtime.disable() == .disabled)
+        barrier.release()
+        await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+            _ = try await operation.value
+        }
+        #expect(try fixture.loadSnapshot().revision == presentation.version)
+        let routes = try fixture.auditEvents().compactMap(\.route)
+        #expect(!routes.contains("later"))
+        #expect(!routes.contains("helpful"))
+    }
+}
+
 @Test("permission revocation during lazy selection refuses before Preview storage")
 func liveMeaningPreviewRuntimeClosesRevocationRace() async throws {
     let fixture = try LiveRuntimeFixture()
@@ -904,6 +1200,42 @@ private struct LiveRuntimeFixture {
         return events
     }
 
+    func configureModuleReady() throws {
+        let registry = try ModuleRegistry(
+            manifestDirectory: manifests,
+            stateURL: LocalVaultPaths.stateURL(.moduleState, vaultRoot: root)
+        )
+        try registry.enable("cam.meaning-preview")
+        try registry.grant(
+            [.readLocal, .writeLocal],
+            to: "cam.meaning-preview"
+        )
+    }
+
+    func driftedManifestDirectory(
+        permissions: [Permission]
+    ) throws -> URL {
+        let directory = root.appending(
+            path: "drifted-manifests-\(UUID().uuidString)",
+            directoryHint: .isDirectory
+        )
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+        let source = manifests.appending(path: "meaning-preview.json")
+        var object = try #require(
+            JSONSerialization.jsonObject(with: Data(contentsOf: source))
+                as? [String: Any]
+        )
+        object["permissions"] = permissions.map(\.rawValue)
+        try JSONSerialization.data(
+            withJSONObject: object,
+            options: [.prettyPrinted, .sortedKeys]
+        ).write(to: directory.appending(path: "meaning-preview.json"))
+        return directory
+    }
+
     func remove() { try? FileManager.default.removeItem(at: root) }
 }
 
@@ -944,8 +1276,20 @@ private struct DerivedOnlyResolver: MeaningPreviewSourceResolving {
 private final class SynchronousSaveBarrier: @unchecked Sendable {
     private let signal = SaveBarrierSignal()
     private let released = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private let targetSave: Int
+    private var saveCount = 0
+
+    init(targetSave: Int = 1) {
+        self.targetSave = targetSave
+    }
 
     func blockBeforeSave() {
+        lock.lock()
+        saveCount += 1
+        let shouldBlock = saveCount == targetSave
+        lock.unlock()
+        guard shouldBlock else { return }
         Task { await signal.markEntered() }
         released.wait()
     }

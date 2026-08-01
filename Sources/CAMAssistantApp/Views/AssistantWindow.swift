@@ -58,7 +58,11 @@ struct AssistantWindow: View {
         case .macCare:
             MacCareView(presentation: model.macCarePresentation, errorMessage: model.macCareError, isAssessing: model.isMacCareAssessing, assess: model.assessMacCareReadOnly)
         case .meaningPreview:
-            MeaningPreviewView(model: model)
+            if model.isMeaningPreviewVisible {
+                MeaningPreviewView(model: model)
+            } else {
+                ConversationView(model: model)
+            }
         case .settings:
             SettingsWorkspace(model: model)
         }

@@ -29,7 +29,6 @@ struct MeaningPreviewView: View {
                 Button("Disable") {
                     Task { await model.disableMeaningPreview() }
                 }
-                .disabled(model.isMeaningPreviewWorking)
                 .accessibilityIdentifier("meaning-preview-disable")
                 .accessibilityHint("Stops Preview behavior and returns to ordinary Assistant.")
             }
@@ -83,7 +82,10 @@ struct MeaningPreviewView: View {
                     Picker("Selected source", selection: selectedSourceID) {
                         Text("Choose one active source").tag("")
                         ForEach(model.libraryPresentation.rows) { row in
-                            Text("\(row.modalityLabel) · \(row.id)")
+                            Text(
+                                row.captures.first?.sourceName
+                                    ?? "\(row.modalityLabel) · \(String(row.preview.prefix(80)))"
+                            )
                                 .tag(row.id)
                         }
                     }
@@ -109,46 +111,50 @@ struct MeaningPreviewView: View {
         if model.isMeaningPreviewWorking {
             ProgressView("Checking selected local context")
                 .accessibilityIdentifier("meaning-preview-loading")
-        } else if let presentation = model.meaningPreviewPresentation,
-                  let card = presentation.card {
-            GroupBox("Practical Preview") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(card.text)
-                        .font(.title3)
-                        .textSelection(.enabled)
-                    Text("This is a bounded possibility, not a judgment, diagnosis, instruction, or completed action.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    HStack {
-                        Button("Inspect") { isInspectPresented = true }
-                            .accessibilityIdentifier("meaning-preview-inspect")
-                        Spacer()
-                        actionButton("Now", action: .now, identifier: "meaning-preview-now")
-                        actionButton("Later", action: .later, identifier: "meaning-preview-later")
-                        actionButton("Release", action: .release, identifier: "meaning-preview-release")
-                    }
-                    HStack {
-                        Text("Optional feedback")
+        } else if let presentation = model.meaningPreviewPresentation {
+            if let card = presentation.card {
+                GroupBox("Practical Preview") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(card.text)
+                            .font(.title3)
+                            .textSelection(.enabled)
+                        Text("This is a bounded possibility, not a judgment, diagnosis, instruction, or completed action.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        feedbackButton("Helpful", feedback: .helpful, identifier: "meaning-preview-helpful")
-                        feedbackButton("Not Helpful", feedback: .notHelpful, identifier: "meaning-preview-not-helpful")
+
+                        HStack {
+                            Button("Inspect") { isInspectPresented = true }
+                                .accessibilityIdentifier("meaning-preview-inspect")
+                            Spacer()
+                            actionButton("Now", action: .now, identifier: "meaning-preview-now")
+                            actionButton("Later", action: .later, identifier: "meaning-preview-later")
+                            actionButton("Release", action: .release, identifier: "meaning-preview-release")
+                        }
+                        HStack {
+                            Text("Optional feedback")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            feedbackButton("Helpful", feedback: .helpful, identifier: "meaning-preview-helpful")
+                            feedbackButton("Not Helpful", feedback: .notHelpful, identifier: "meaning-preview-not-helpful")
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("One practical Meaning Preview")
+                .accessibilityIdentifier("meaning-preview-card")
+            } else {
+                ContentUnavailableView {
+                    Label("Nothing practical surfaced", systemImage: "circle.dashed")
+                } description: {
+                    Text("Silence is a valid result. No automatic retry, notification, or escalation will occur.")
+                } actions: {
+                    Button("Inspect exclusions") { isInspectPresented = true }
+                        .accessibilityIdentifier("meaning-preview-inspect")
+                }
+                .accessibilityIdentifier("meaning-preview-silence")
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("One practical Meaning Preview")
-            .accessibilityIdentifier("meaning-preview-card")
-        } else if model.meaningPreviewStatus?.contains("Nothing practical surfaced") == true {
-            ContentUnavailableView(
-                "Nothing practical surfaced",
-                systemImage: "circle.dashed",
-                description: Text("Silence is a valid result. No automatic retry, notification, or escalation will occur.")
-            )
-            .accessibilityIdentifier("meaning-preview-silence")
         } else {
             ContentUnavailableView(
                 "No Preview requested",
@@ -161,17 +167,30 @@ struct MeaningPreviewView: View {
 
     private var unavailableState: some View {
         ContentUnavailableView {
-            Label("Meaning Preview is unavailable", systemImage: "exclamationmark.triangle")
+            Label(recoveryTitle, systemImage: "exclamationmark.triangle")
         } description: {
-            Text("Recover the isolated Preview state from Settings or disable it. Ordinary Assistant remains unchanged.")
+            Text(recoveryDescription)
         } actions: {
-            Button("Recover Isolated State") {
+            Button("Archive & Reinitialize Isolated State") {
                 Task { await model.recoverMeaningPreview() }
             }
             .disabled(model.isMeaningPreviewWorking)
             .accessibilityIdentifier("meaning-preview-recover")
+            .accessibilityHint("Archives only the isolated Meaning Preview store and initializes an empty compatible store.")
         }
         .accessibilityIdentifier("meaning-preview-recovery-state")
+    }
+
+    private var recoveryTitle: String {
+        switch model.meaningPreviewLifecycle {
+        case .corruptedStore: "Meaning Preview store is corrupted"
+        case .incompatibleStore: "Meaning Preview store is incompatible"
+        default: "Meaning Preview is unavailable"
+        }
+    }
+
+    private var recoveryDescription: String {
+        "Archive and reinitialize the isolated Preview state, or disable it. Ordinary Assistant remains unchanged."
     }
 
     @ViewBuilder
