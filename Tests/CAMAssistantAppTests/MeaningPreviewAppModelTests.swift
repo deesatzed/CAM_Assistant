@@ -1,0 +1,1004 @@
+import Foundation
+import Testing
+import CAMAssistantCore
+@testable import CAMAssistantApp
+
+@MainActor
+@Test("AppModel hides disabled Preview and enablement grants no local access")
+func meaningPreviewAppModelOptInIsSeparateFromGrant() async {
+    let runtime = MeaningPreviewRuntimeSpy(initialLifecycle: .disabled)
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+
+    #expect(!model.isMeaningPreviewVisible)
+    #expect(await runtime.requestCount == 0)
+    await model.enableMeaningPreview()
+    #expect(model.isMeaningPreviewVisible)
+    #expect(model.meaningPreviewLifecycle == .enabledWithoutLocalRead)
+    #expect(!model.canRequestMeaningPreview)
+    #expect(await runtime.requestCount == 0)
+}
+
+@MainActor
+@Test("AppModel requires grant and explicit source before requesting one card")
+func meaningPreviewAppModelRequiresGrantAndSelection() async {
+    let runtime = MeaningPreviewRuntimeSpy(initialLifecycle: .disabled)
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    await model.enableMeaningPreview()
+    await model.requestMeaningPreview()
+    #expect(model.meaningPreviewError == "Grant local read and isolated write access before requesting a Preview.")
+    await model.grantMeaningPreviewLocalRead()
+    await model.requestMeaningPreview()
+    #expect(model.meaningPreviewError == "Select one active local source for this Preview.")
+
+    model.selectMeaningPreviewSource(
+        id: "source-1"
+    )
+    await model.requestMeaningPreview()
+    #expect(model.meaningPreviewPresentation?.card?.text == "Prepare the bounded outline.")
+    #expect(model.meaningPreviewPresentation?.inspect.provenanceLabel
+        == "Selected CAM-derived local context")
+    #expect(model.meaningPreviewPresentation?.inspect.uncertaintyLabel == "Supported")
+    #expect(await runtime.requestCount == 1)
+}
+
+@MainActor
+@Test("AppModel clears terminal card state and Disable restores Assistant")
+func meaningPreviewAppModelTerminalActionsAndDisable() async {
+    let runtime = MeaningPreviewRuntimeSpy(initialLifecycle: .ready)
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    model.selectMeaningPreviewSource(
+        id: "source-1"
+    )
+    await model.requestMeaningPreview()
+    await model.applyMeaningPreviewAction(.later)
+    #expect(model.meaningPreviewPresentation == nil)
+    #expect(model.meaningPreviewStatus?.hasPrefix("Later recorded") == true)
+
+    await model.requestMeaningPreview()
+    await model.recordMeaningPreviewFeedback(.helpful)
+    #expect(model.meaningPreviewPresentation == nil)
+    #expect(model.meaningPreviewStatus?.hasPrefix("Helpful recorded") == true)
+
+    await model.disableMeaningPreview()
+    #expect(model.selection == .assistant)
+    #expect(!model.isMeaningPreviewVisible)
+    #expect(model.meaningPreviewSelectedSource == nil)
+    #expect(await runtime.disableCount == 1)
+}
+
+@MainActor
+@Test("Disable wins over in-flight request, action, and feedback completions")
+func meaningPreviewAppModelDisableInvalidatesAllInFlightOperations() async {
+    for gatedOperation in MeaningPreviewGatedOperation.allCases {
+        let gate = AsyncMeaningPreviewGate()
+        let runtime = GatedMeaningPreviewRuntime(
+            gatedOperation: gatedOperation,
+            gate: gate
+        )
+        let model = AppModel(
+            initializeFullWorkspace: false,
+            meaningPreviewRuntime: runtime
+        )
+        model.selectMeaningPreviewSource(id: "source-1")
+        if gatedOperation != .request {
+            await model.requestMeaningPreview()
+            #expect(model.meaningPreviewPresentation?.card != nil)
+        }
+
+        let operation = Task { @MainActor in
+            switch gatedOperation {
+            case .request:
+                await model.requestMeaningPreview()
+            case .action:
+                await model.applyMeaningPreviewAction(.later)
+            case .feedback:
+                await model.recordMeaningPreviewFeedback(.helpful)
+            }
+        }
+        await gate.waitUntilEntered()
+        await model.disableMeaningPreview()
+        await gate.release()
+        await operation.value
+
+        #expect(model.meaningPreviewLifecycle == .disabled)
+        #expect(model.meaningPreviewPresentation == nil)
+        #expect(model.meaningPreviewSelectedSource == nil)
+        #expect(model.meaningPreviewStatus
+            == "Meaning Preview disabled. Ordinary Assistant is unchanged.")
+        #expect(model.meaningPreviewError == nil)
+        #expect(!model.isMeaningPreviewWorking)
+    }
+}
+
+@MainActor
+@Test("selecting a new source invalidates an old in-flight request")
+func meaningPreviewAppModelSourceSelectionInvalidatesOldRequest() async {
+    let gate = AsyncMeaningPreviewGate()
+    let runtime = GatedMeaningPreviewRuntime(
+        gatedOperation: .request,
+        gate: gate
+    )
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    model.selectMeaningPreviewSource(id: "old-source")
+    let request = Task { @MainActor in await model.requestMeaningPreview() }
+    await gate.waitUntilEntered()
+    model.selectMeaningPreviewSource(id: "new-source")
+    await gate.release()
+    await request.value
+
+    #expect(model.meaningPreviewSelectedSource == .init(id: "new-source"))
+    #expect(model.meaningPreviewPresentation == nil)
+    #expect(model.meaningPreviewStatus
+        == "Selected one active CAM-derived local source.")
+    #expect(!model.isMeaningPreviewWorking)
+}
+
+private actor MeaningPreviewRuntimeSpy: MeaningPreviewRuntime {
+    nonisolated let initialLifecycle: MeaningPreviewLifecycle
+    private var lifecycle: MeaningPreviewLifecycle
+    private(set) var requestCount = 0
+    private(set) var disableCount = 0
+    private var version: UInt64 = 0
+
+    init(initialLifecycle: MeaningPreviewLifecycle) {
+        self.initialLifecycle = initialLifecycle
+        lifecycle = initialLifecycle
+    }
+
+    func loadLifecycle() -> MeaningPreviewLifecycle { lifecycle }
+    func enable() -> MeaningPreviewLifecycle {
+        lifecycle = .enabledWithoutLocalRead
+        return lifecycle
+    }
+    func grantLocalAccess() -> MeaningPreviewLifecycle {
+        lifecycle = .ready
+        return lifecycle
+    }
+    func disable() -> MeaningPreviewLifecycle {
+        disableCount += 1
+        lifecycle = .disabled
+        return lifecycle
+    }
+    func request(
+        reference: MeaningPreviewSourceReference,
+        now: Date
+    ) async throws -> MeaningPreviewAppPresentation {
+        requestCount += 1
+        version += 1
+        return .appFixture(
+            version: version,
+            text: "Prepare the bounded outline."
+        )
+    }
+    func applyAction(
+        _ action: MeaningPreviewCardAction,
+        memoryID: UUID,
+        expectedVersion: UInt64,
+        at: Date
+    ) -> UInt64 {
+        version += 1
+        return version
+    }
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback,
+        memoryID: UUID,
+        domain: String,
+        expectedVersion: UInt64
+    ) -> UInt64 {
+        version += 1
+        return version
+    }
+}
+
+private enum MeaningPreviewGatedOperation: CaseIterable, Sendable {
+    case request
+    case action
+    case feedback
+}
+
+private actor AsyncMeaningPreviewGate {
+    private var entered = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func enter() async {
+        entered = true
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func waitUntilEntered() async {
+        while !entered { await Task.yield() }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private actor GatedMeaningPreviewRuntime: MeaningPreviewRuntime {
+    nonisolated let initialLifecycle: MeaningPreviewLifecycle = .ready
+    private var lifecycle: MeaningPreviewLifecycle = .ready
+    private let gatedOperation: MeaningPreviewGatedOperation
+    private let gate: AsyncMeaningPreviewGate
+    private var version: UInt64 = 0
+
+    init(
+        gatedOperation: MeaningPreviewGatedOperation,
+        gate: AsyncMeaningPreviewGate
+    ) {
+        self.gatedOperation = gatedOperation
+        self.gate = gate
+    }
+
+    func loadLifecycle() -> MeaningPreviewLifecycle { lifecycle }
+    func enable() -> MeaningPreviewLifecycle { lifecycle }
+    func grantLocalAccess() -> MeaningPreviewLifecycle { lifecycle }
+    func disable() -> MeaningPreviewLifecycle {
+        lifecycle = .disabled
+        return lifecycle
+    }
+
+    func request(
+        reference: MeaningPreviewSourceReference,
+        now: Date
+    ) async throws -> MeaningPreviewAppPresentation {
+        if gatedOperation == .request { await gate.enter() }
+        version += 1
+        return .appFixture(version: version, text: "Old source result")
+    }
+
+    func applyAction(
+        _ action: MeaningPreviewCardAction,
+        memoryID: UUID,
+        expectedVersion: UInt64,
+        at: Date
+    ) async throws -> UInt64 {
+        if gatedOperation == .action { await gate.enter() }
+        version += 1
+        return version
+    }
+
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback,
+        memoryID: UUID,
+        domain: String,
+        expectedVersion: UInt64
+    ) async throws -> UInt64 {
+        if gatedOperation == .feedback { await gate.enter() }
+        version += 1
+        return version
+    }
+}
+
+private extension MeaningPreviewAppPresentation {
+    static func appFixture(version: UInt64, text: String) -> Self {
+        .init(
+            version: version,
+            domain: "selected local source",
+            card: .init(
+                id: UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF")!,
+                text: text
+            ),
+            inspect: .init(
+                summary: "Bounded practical Preview.",
+                evidenceIDs: ["evidence-1"],
+                counterevidenceIDs: [],
+                provenanceLabel: "Selected CAM-derived local context",
+                uncertaintyLabel: "Supported",
+                whySurfaced: "Active and relevant to the selected context."
+            )
+        )
+    }
+}
+
+@Test("live runtime refuses disabled and ungranted requests before reading context")
+func liveMeaningPreviewRuntimeRefusesBeforeRead() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let reads = ReadCounter()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: reads
+    )
+
+    #expect(runtime.initialLifecycle == .disabled)
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await runtime.request(
+            reference: .init(id: "selected"),
+            now: .fixtureNow
+        )
+    }
+    #expect(await reads.count == 0)
+    #expect(!fixture.previewDatabaseExists)
+
+    #expect(try await runtime.enable() == .enabledWithoutLocalRead)
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await runtime.request(
+            reference: .init(id: "selected"),
+            now: .fixtureNow
+        )
+    }
+    #expect(await reads.count == 0)
+    #expect(!fixture.previewDatabaseExists)
+}
+
+@Test("live source resolver selects the exact active ID and bounds derived context")
+func meaningPreviewLiveSourceResolverUsesExactBoundedDerivedDocument() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let queue = try IngestQueue(
+        databaseURL: fixture.root.appending(path: "vault.sqlite"),
+        contentStore: try ContentStore(
+            rootDirectory: fixture.root.appending(path: "content")
+        ),
+        extractors: .localDefaults
+    )
+    let decoy = try queue.enqueue(
+        CaptureEnvelope(
+            sourceName: "decoy.txt",
+            contentType: "text/plain",
+            data: Data("DECOY-CONTEXT-MUST-NOT-APPEAR".utf8),
+            origin: .clipboard
+        )
+    )
+    let selectedText = "Selected bounded context. "
+        + String(repeating: "x", count: 5_000)
+    let selected = try queue.enqueue(
+        CaptureEnvelope(
+            sourceName: "selected.txt",
+            contentType: "text/plain",
+            data: Data(selectedText.utf8),
+            origin: .clipboard
+        )
+    )
+    _ = try queue.process(sourceID: decoy.sourceID)
+    _ = try queue.process(sourceID: selected.sourceID)
+    try queue.close()
+
+    let resolved = try await MeaningPreviewLiveSourceResolver(root: fixture.root)
+        .resolve(.init(id: selected.sourceID.rawValue))
+    #expect(resolved.id == selected.sourceID.rawValue)
+    #expect(resolved.derivedText.hasPrefix("Selected bounded context."))
+    #expect(!resolved.derivedText.contains("DECOY-CONTEXT-MUST-NOT-APPEAR"))
+    #expect(resolved.derivedText.count
+        == MeaningPreviewLiveSourceResolver.maximumDerivedContextCharacters)
+}
+
+@Test("runtime rejects a resolver result for any ID other than the selected reference")
+func liveMeaningPreviewRuntimeRejectsResolverIdentitySubstitution() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver(
+            context: .fixture(id: "different-source")
+        )
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+
+    await #expect(throws: MeaningPreviewRuntimeError.sourceUnavailable) {
+        _ = try await runtime.request(
+            reference: .init(id: "selected-source"),
+            now: .fixtureNow
+        )
+    }
+    #expect(!fixture.previewDatabaseExists)
+}
+
+@Test("disabled lifecycle reads create or rewrite no module state")
+func liveMeaningPreviewRuntimeLifecycleReadIsSideEffectFree() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let stateURL = LocalVaultPaths.stateURL(.moduleState, vaultRoot: fixture.root)
+
+    _ = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: ReadCounter()
+    )
+    #expect(!FileManager.default.fileExists(atPath: stateURL.path))
+
+    let registry = try ModuleRegistry(
+        manifestDirectory: fixture.manifests,
+        stateURL: stateURL
+    )
+    try registry.disable("cam.meaning-preview")
+    let before = try Data(contentsOf: stateURL)
+    let beforeDate = try #require(
+        FileManager.default.attributesOfItem(atPath: stateURL.path)[.modificationDate]
+            as? Date
+    )
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: ReadCounter()
+    )
+    #expect(runtime.initialLifecycle == .disabled)
+    #expect(await runtime.loadLifecycle() == .disabled)
+    #expect(try Data(contentsOf: stateURL) == before)
+    #expect(
+        try FileManager.default.attributesOfItem(atPath: stateURL.path)[.modificationDate]
+            as? Date == beforeDate
+    )
+}
+
+@Test("malformed module state is unavailable and remains byte-for-byte unchanged")
+func liveMeaningPreviewRuntimeMalformedStateIsReadOnlyUnavailable() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let stateURL = LocalVaultPaths.stateURL(.moduleState, vaultRoot: fixture.root)
+    try FileManager.default.createDirectory(
+        at: stateURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let malformed = Data("{not-json".utf8)
+    try malformed.write(to: stateURL)
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: ReadCounter()
+    )
+
+    #expect(runtime.initialLifecycle == .unavailable)
+    #expect(await runtime.loadLifecycle() == .unavailable)
+    #expect(try Data(contentsOf: stateURL) == malformed)
+}
+
+@Test("read-only or write-only grants never authorize source resolution")
+func liveMeaningPreviewRuntimeRequiresBothManifestPermissions() async throws {
+    for permission in [Permission.readLocal, .writeLocal] {
+        let fixture = try LiveRuntimeFixture()
+        defer { fixture.remove() }
+        let stateURL = LocalVaultPaths.stateURL(.moduleState, vaultRoot: fixture.root)
+        let registry = try ModuleRegistry(
+            manifestDirectory: fixture.manifests,
+            stateURL: stateURL
+        )
+        try registry.enable("cam.meaning-preview")
+        try registry.grant([permission], to: "cam.meaning-preview")
+        let reads = ReadCounter()
+        let runtime = MeaningPreviewLiveRuntime(
+            root: fixture.root,
+            manifestDirectory: fixture.manifests,
+            sourceResolver: reads
+        )
+
+        #expect(runtime.initialLifecycle == .enabledWithoutLocalRead)
+        await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+            _ = try await runtime.request(
+                reference: .init(id: "selected"),
+                now: .fixtureNow
+            )
+        }
+        #expect(await reads.count == 0)
+        #expect(!fixture.previewDatabaseExists)
+    }
+}
+
+@Test("live runtime keeps one coordinator from request through explicit feedback")
+func liveMeaningPreviewRuntimePersistsFeedbackAndAudit() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver()
+    )
+    _ = try await runtime.enable()
+    #expect(try await runtime.grantLocalAccess() == .ready)
+
+    for suffix in ["one", "two"] {
+        let presentation = try await runtime.request(
+            reference: .init(id: "helpful-\(suffix)"),
+            now: .fixtureNow
+        )
+        let card = try #require(presentation.card)
+        let domain = try #require(presentation.domain)
+        _ = try await runtime.recordFeedback(
+            .helpful,
+            memoryID: card.id,
+            domain: domain,
+            expectedVersion: presentation.version
+        )
+    }
+
+    let snapshot = try MeaningPreviewStore(
+        databaseURL: LocalVaultPaths.meaningPreviewDatabaseURL(
+            vaultRoot: fixture.root
+        )
+    ).load()
+    #expect(snapshot.coreState.familiarity.stage(for: "selected local source")
+        == .familiarAssistant)
+    let audit = try AuditStore(databaseURL: fixture.root.appending(path: "vault.sqlite"))
+    let events = try audit.events()
+    try audit.close()
+    #expect(events.contains { $0.route == "helpful" })
+}
+
+@Test("live runtime applies each action from a fresh request and refuses stale reuse")
+func liveMeaningPreviewRuntimeActionsAreOneShot() async throws {
+    for action in MeaningPreviewCardAction.allCases {
+        let fixture = try LiveRuntimeFixture()
+        defer { fixture.remove() }
+        let runtime = MeaningPreviewLiveRuntime(
+            root: fixture.root,
+            manifestDirectory: fixture.manifests,
+            sourceResolver: MeaningPreviewStaticSourceResolver()
+        )
+        _ = try await runtime.enable()
+        _ = try await runtime.grantLocalAccess()
+        let presentation = try await runtime.request(
+            reference: .init(id: action.rawValue),
+            now: .fixtureNow
+        )
+        let card = try #require(presentation.card)
+
+        await #expect(throws: MeaningPreviewRuntimeError.stalePresentation) {
+            _ = try await runtime.applyAction(
+                action,
+                memoryID: card.id,
+                expectedVersion: presentation.version + 1,
+                at: .fixtureNow
+            )
+        }
+        #expect(
+            try await runtime.applyAction(
+                action,
+                memoryID: card.id,
+                expectedVersion: presentation.version,
+                at: .fixtureNow
+            ) == presentation.version + 1
+        )
+        await #expect(throws: MeaningPreviewRuntimeError.noActivePresentation) {
+            _ = try await runtime.applyAction(
+                action,
+                memoryID: card.id,
+                expectedVersion: presentation.version + 1,
+                at: .fixtureNow
+            )
+        }
+    }
+}
+
+@Test("live runtime records Not helpful without advancing familiarity")
+func liveMeaningPreviewRuntimePersistsNotHelpful() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver()
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    let presentation = try await runtime.request(
+        reference: .init(id: "not-helpful"),
+        now: .fixtureNow
+    )
+    let card = try #require(presentation.card)
+    let domain = try #require(presentation.domain)
+    _ = try await runtime.recordFeedback(
+        .notHelpful,
+        memoryID: card.id,
+        domain: domain,
+        expectedVersion: presentation.version
+    )
+
+    let snapshot = try fixture.loadSnapshot()
+    #expect(snapshot.coreState.familiarity.stage(for: domain) == .usefulStranger)
+    let events = try fixture.auditEvents()
+    #expect(events.contains { $0.route == "not-helpful" })
+}
+
+@Test("restricted selected context produces silence and status-only exclusion")
+func liveMeaningPreviewRuntimeExcludesRestrictedContext() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let secret = "api_key=synthetic-credential-0000"
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver(
+            context: .fixture(
+                id: "restricted",
+                derivedText: secret,
+                sensitivity: .restricted
+            )
+        )
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    let presentation = try await runtime.request(
+        reference: .init(id: "restricted"),
+        now: .fixtureNow
+    )
+
+    #expect(presentation.card == nil)
+    #expect(presentation.inspect.exclusionLabels == ["restricted"])
+    let snapshotJSON = String(
+        decoding: try JSONEncoder().encode(fixture.loadSnapshot()),
+        as: UTF8.self
+    )
+    #expect(try fixture.loadSnapshot().coreState.memory.isEmpty)
+    #expect(try fixture.loadSnapshot().provenance.isEmpty)
+    #expect(!snapshotJSON.contains(secret))
+    #expect(try fixture.auditEvents().allSatisfy { ($0.outboundByteCount ?? 0) == 0 })
+}
+
+@Test("trusted metadata exclusions remain silent and status-only")
+func liveMeaningPreviewRuntimeHonorsResolvedMetadata() async throws {
+    let cases: [(MeaningPreviewResolvedContext, MeaningContextExclusion)] = [
+        (.fixture(id: "restricted", sensitivity: .restricted), .restricted),
+        (.fixture(id: "secret", derivedText: "api_key=synthetic-only"), .secretLike),
+        (.fixture(id: "inactive", isActive: false), .inactive),
+        (.fixture(id: "hidden", isVisible: false), .hidden),
+        (.fixture(id: "unsupported", isSupported: false), .unsupported),
+        (
+            .fixture(
+                id: "stale",
+                observedAt: .fixtureNow.addingTimeInterval(
+                    -CAMMeaningContextAdapter.maximumAge - 1
+                )
+            ),
+            .stale
+        ),
+        (.fixture(id: "not-permitted", permittedUses: []), .notPermitted),
+        (.fixture(id: "missing", derivedText: ""), .missing),
+    ]
+
+    for (context, expected) in cases {
+        let fixture = try LiveRuntimeFixture()
+        defer { fixture.remove() }
+        let runtime = MeaningPreviewLiveRuntime(
+            root: fixture.root,
+            manifestDirectory: fixture.manifests,
+            sourceResolver: MeaningPreviewStaticSourceResolver(context: context)
+        )
+        _ = try await runtime.enable()
+        _ = try await runtime.grantLocalAccess()
+        let presentation = try await runtime.request(
+            reference: .init(id: context.id),
+            now: .fixtureNow
+        )
+        #expect(presentation.card == nil)
+        #expect(presentation.inspect.exclusionLabels == [expected.rawValue])
+        #expect(try fixture.auditEvents().allSatisfy {
+            ($0.outboundByteCount ?? 0) == 0 && $0.payloadSHA256 == nil
+        })
+    }
+}
+
+@Test("eligible context persists exact bounded provenance metadata")
+func liveMeaningPreviewRuntimePersistsResolvedProvenance() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let observedAt = Date.fixtureNow.addingTimeInterval(-120)
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver(
+            context: .fixture(
+                id: "provenance-source",
+                observedAt: observedAt,
+                uncertainty: .tentative
+            )
+        )
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    _ = try await runtime.request(
+        reference: .init(id: "provenance-source"),
+        now: .fixtureNow
+    )
+
+    let provenance = try #require(fixture.loadSnapshot().provenance.first)
+    #expect(provenance.itemID == "provenance-source")
+    #expect(provenance.sourceID == "provenance-source")
+    #expect(provenance.observedAt == observedAt)
+    #expect(provenance.uncertainty == .tentative)
+    #expect(provenance.permittedUse == .meaningPreview)
+}
+
+@Test("source resolver exposes only bounded derived context to persisted snapshots")
+func liveMeaningPreviewRuntimeDoesNotPersistProviderRawSource() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let rawMarker = "RAW-IMMUTABLE-SOURCE-DO-NOT-PERSIST-42"
+    let resolver = DerivedOnlyResolver(
+        rawSource: rawMarker,
+        derivedText: "Prepare the bounded outline."
+    )
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: resolver
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    _ = try await runtime.request(
+        reference: .init(id: "derived-only"),
+        now: .fixtureNow
+    )
+
+    let decoded = try fixture.loadSnapshot()
+    let encoded = String(decoding: try JSONEncoder().encode(decoded), as: UTF8.self)
+    #expect(!encoded.contains(rawMarker))
+    #expect(encoded.contains("Prepare the bounded outline."))
+}
+
+@Test("Disable immediately before save prevents Preview and audit persistence")
+func liveMeaningPreviewRuntimeClosesSaveAuthorizationRace() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let barrier = SynchronousSaveBarrier()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver(),
+        beforePreviewSave: { barrier.blockBeforeSave() }
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    let request = Task {
+        try await runtime.request(
+            reference: .init(id: "selected"),
+            now: .fixtureNow
+        )
+    }
+    await barrier.waitUntilBlocked()
+    #expect(try await runtime.disable() == .disabled)
+    barrier.release()
+
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await request.value
+    }
+    #expect(try fixture.loadSnapshot().revision == 0)
+    #expect(try fixture.auditEvents().isEmpty)
+}
+
+@Test("permission revocation during lazy selection refuses before Preview storage")
+func liveMeaningPreviewRuntimeClosesRevocationRace() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let gate = SelectionGate()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: gate
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    let request = Task {
+        try await runtime.request(
+            reference: .init(id: "gated"),
+            now: .fixtureNow
+        )
+    }
+    await gate.waitUntilRequested()
+    let registry = try ModuleRegistry(
+        manifestDirectory: fixture.manifests,
+        stateURL: LocalVaultPaths.stateURL(.moduleState, vaultRoot: fixture.root)
+    )
+    try registry.grant([], to: "cam.meaning-preview")
+    await gate.resume()
+
+    await #expect(throws: MeaningPreviewRuntimeError.disabledDuringRequest) {
+        _ = try await request.value
+    }
+    #expect(!fixture.previewDatabaseExists)
+}
+
+@Test("Disable during lazy selection discards the in-flight result and session")
+func liveMeaningPreviewRuntimeDisablesDuringFlight() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let gate = SelectionGate()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: gate
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    let request = Task {
+        try await runtime.request(
+            reference: .init(id: "gated"),
+            now: .fixtureNow
+        )
+    }
+    await gate.waitUntilRequested()
+    #expect(try await runtime.disable() == .disabled)
+    await gate.resume()
+
+    await #expect(throws: MeaningPreviewRuntimeError.disabledDuringRequest) {
+        _ = try await request.value
+    }
+    #expect(await runtime.loadLifecycle() == .disabled)
+    #expect(!fixture.previewDatabaseExists)
+}
+
+private actor ReadCounter: MeaningPreviewSourceResolving {
+    private(set) var count = 0
+    func resolve(_ reference: MeaningPreviewSourceReference) async throws
+        -> MeaningPreviewResolvedContext {
+        count += 1
+        return .fixture(id: reference.id)
+    }
+}
+
+private actor SelectionGate: MeaningPreviewSourceResolving {
+    private var requested = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func resolve(_ reference: MeaningPreviewSourceReference) async throws
+        -> MeaningPreviewResolvedContext {
+        requested = true
+        await withCheckedContinuation { continuation = $0 }
+        return .fixture(id: reference.id)
+    }
+
+    func waitUntilRequested() async {
+        while !requested { await Task.yield() }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private struct LiveRuntimeFixture {
+    let root: URL
+    let manifests: URL
+
+    init() throws {
+        root = FileManager.default.temporaryDirectory
+            .appending(path: "cam-meaning-preview-app-runtime")
+            .appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(
+            at: root,
+            withIntermediateDirectories: true
+        )
+        manifests = URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Modules/Core", directoryHint: .isDirectory)
+    }
+
+    var previewDatabaseExists: Bool {
+        FileManager.default.fileExists(
+            atPath: LocalVaultPaths.meaningPreviewDatabaseURL(
+                vaultRoot: root
+            ).path
+        )
+    }
+
+    func loadSnapshot() throws -> MeaningPreviewSnapshot {
+        try MeaningPreviewStore(
+            databaseURL: LocalVaultPaths.meaningPreviewDatabaseURL(
+                vaultRoot: root
+            )
+        ).load()
+    }
+
+    func auditEvents() throws -> [AuditEvent] {
+        let store = try AuditStore(databaseURL: root.appending(path: "vault.sqlite"))
+        let events = try store.events()
+        try store.close()
+        return events
+    }
+
+    func remove() { try? FileManager.default.removeItem(at: root) }
+}
+
+private extension Date {
+    static let fixtureNow = Date(timeIntervalSince1970: 1_750_000_000)
+}
+
+private struct MeaningPreviewStaticSourceResolver:
+    MeaningPreviewSourceResolving {
+    let context: MeaningPreviewResolvedContext?
+
+    init(context: MeaningPreviewResolvedContext? = nil) {
+        self.context = context
+    }
+
+    func resolve(_ reference: MeaningPreviewSourceReference) async throws
+        -> MeaningPreviewResolvedContext {
+        context ?? .fixture(id: reference.id)
+    }
+}
+
+private struct DerivedOnlyResolver: MeaningPreviewSourceResolving {
+    private let rawSource: String
+    private let derivedText: String
+
+    init(rawSource: String, derivedText: String) {
+        self.rawSource = rawSource
+        self.derivedText = derivedText
+    }
+
+    func resolve(_ reference: MeaningPreviewSourceReference) async throws
+        -> MeaningPreviewResolvedContext {
+        _ = rawSource
+        return .fixture(id: reference.id, derivedText: derivedText)
+    }
+}
+
+private final class SynchronousSaveBarrier: @unchecked Sendable {
+    private let signal = SaveBarrierSignal()
+    private let released = DispatchSemaphore(value: 0)
+
+    func blockBeforeSave() {
+        Task { await signal.markEntered() }
+        released.wait()
+    }
+
+    func waitUntilBlocked() async {
+        await signal.waitUntilEntered()
+    }
+
+    func release() {
+        released.signal()
+    }
+}
+
+private actor SaveBarrierSignal {
+    private var entered = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func markEntered() {
+        entered = true
+        let pending = waiters
+        waiters.removeAll()
+        pending.forEach { $0.resume() }
+    }
+
+    func waitUntilEntered() async {
+        if entered { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+}
+
+private extension MeaningPreviewResolvedContext {
+    static func fixture(
+        id: String = "selected",
+        derivedText: String = "Prepare the bounded outline.",
+        observedAt: Date = .fixtureNow,
+        uncertainty: MeaningContextUncertainty = .supported,
+        sensitivity: MeaningContextSensitivity = .ordinary,
+        permittedUses: Set<MeaningContextPermittedUse> = [.meaningPreview],
+        isVisible: Bool = true,
+        isActive: Bool = true,
+        isSupported: Bool = true
+    ) -> Self {
+        .init(
+            id: id,
+            derivedText: derivedText,
+            observedAt: observedAt,
+            domain: "selected local source",
+            uncertainty: uncertainty,
+            sensitivity: sensitivity,
+            permittedUses: permittedUses,
+            isVisible: isVisible,
+            isActive: isActive,
+            isSupported: isSupported
+        )
+    }
+}

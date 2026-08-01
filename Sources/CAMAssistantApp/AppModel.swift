@@ -4,6 +4,7 @@ import SwiftUI
 
 enum AssistantSection: String, CaseIterable, Identifiable {
     case assistant = "Assistant"
+    case meaningPreview = "Meaning Preview"
     case library = "Library"
     case activity = "Activity"
     case tasks = "Tasks"
@@ -20,6 +21,8 @@ enum AssistantSection: String, CaseIterable, Identifiable {
         switch self {
         case .assistant:
             "sparkles"
+        case .meaningPreview:
+            "lightbulb.max"
         case .library:
             "books.vertical"
         case .activity:
@@ -54,6 +57,597 @@ struct PackagedTextSummaryPresentation: Equatable {
         hasLocalTextGrant: false,
         statusLabel: "Not installed. Installing does not grant access."
     )
+}
+
+enum MeaningPreviewLifecycle: String, Sendable, Equatable {
+    case disabled
+    case enabledWithoutLocalRead
+    case ready
+    case unavailable
+}
+
+enum MeaningPreviewCardAction: String, Sendable, Equatable, CaseIterable {
+    case now
+    case later
+    case release
+}
+
+enum MeaningPreviewFeedback: String, Sendable, Equatable, CaseIterable {
+    case helpful
+    case notHelpful
+}
+
+struct MeaningPreviewSourceReference: Sendable, Equatable {
+    let id: String
+}
+
+struct MeaningPreviewResolvedContext: Sendable, Equatable {
+    let id: String
+    let derivedText: String
+    let observedAt: Date
+    let domain: String
+    let uncertainty: MeaningContextUncertainty
+    let sensitivity: MeaningContextSensitivity
+    let permittedUses: Set<MeaningContextPermittedUse>
+    let isVisible: Bool
+    let isActive: Bool
+    let isSupported: Bool
+}
+
+protocol MeaningPreviewSourceResolving: Sendable {
+    func resolve(_ reference: MeaningPreviewSourceReference) async throws
+        -> MeaningPreviewResolvedContext
+}
+
+struct MeaningPreviewLiveSourceResolver: MeaningPreviewSourceResolving {
+    static let maximumDerivedContextCharacters = 4_096
+    let root: URL
+
+    func resolve(_ reference: MeaningPreviewSourceReference) async throws
+        -> MeaningPreviewResolvedContext {
+        let root = root
+        return try await Task.detached {
+            let queue = try IngestQueue(
+                databaseURL: root.appending(path: "vault.sqlite"),
+                contentStore: try ContentStore(
+                    rootDirectory: root.appending(
+                        path: "content",
+                        directoryHint: .isDirectory
+                    )
+                ),
+                extractors: .localDefaults
+            )
+            defer { try? queue.close() }
+            let sourceID = ContentID(rawValue: reference.id)
+            guard try queue.lifecycle(for: sourceID) == .active,
+                  let document = try queue.documents().first(where: {
+                      $0.sourceID == sourceID
+                  }),
+                  !document.text.trimmingCharacters(
+                      in: .whitespacesAndNewlines
+                  ).isEmpty else {
+                throw MeaningPreviewRuntimeError.sourceUnavailable
+            }
+            let classification = DataClassifier().classify(document.text)
+            let sensitivity: MeaningContextSensitivity = switch
+                classification.riskClass {
+            case .restricted, .proprietary: .restricted
+            case .contextual: .personal
+            case .public, .generic: .ordinary
+            }
+            return MeaningPreviewResolvedContext(
+                id: document.sourceID.rawValue,
+                derivedText: String(
+                    document.text.prefix(Self.maximumDerivedContextCharacters)
+                ),
+                observedAt: document.capturedAt,
+                domain: "selected local source",
+                uncertainty: .tentative,
+                sensitivity: sensitivity,
+                permittedUses: [.meaningPreview],
+                isVisible: true,
+                isActive: true,
+                isSupported: true
+            )
+        }.value
+    }
+}
+
+struct MeaningPreviewCardPresentation: Sendable, Equatable {
+    let id: UUID
+    let text: String
+}
+
+struct MeaningPreviewInspectPresentation: Sendable, Equatable {
+    let summary: String
+    let evidenceIDs: [String]
+    let counterevidenceIDs: [String]
+    let provenanceLabel: String
+    let uncertaintyLabel: String
+    let whySurfaced: String
+    var exclusionLabels: [String] = []
+}
+
+struct MeaningPreviewAppPresentation: Sendable, Equatable {
+    let version: UInt64
+    var domain: String? = nil
+    let card: MeaningPreviewCardPresentation?
+    let inspect: MeaningPreviewInspectPresentation
+
+    func updatingVersion(_ version: UInt64) -> Self {
+        .init(version: version, domain: domain, card: card, inspect: inspect)
+    }
+}
+
+enum MeaningPreviewRuntimeError: Error, Equatable {
+    case accessDenied
+    case disabledDuringRequest
+    case noActivePresentation
+    case stalePresentation
+    case sourceUnavailable
+}
+
+protocol MeaningPreviewRuntime: Sendable {
+    var initialLifecycle: MeaningPreviewLifecycle { get }
+    func loadLifecycle() async -> MeaningPreviewLifecycle
+    func enable() async throws -> MeaningPreviewLifecycle
+    func grantLocalAccess() async throws -> MeaningPreviewLifecycle
+    func disable() async throws -> MeaningPreviewLifecycle
+    func request(
+        reference: MeaningPreviewSourceReference,
+        now: Date
+    ) async throws -> MeaningPreviewAppPresentation
+    func applyAction(
+        _ action: MeaningPreviewCardAction,
+        memoryID: UUID,
+        expectedVersion: UInt64,
+        at: Date
+    ) async throws -> UInt64
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback,
+        memoryID: UUID,
+        domain: String,
+        expectedVersion: UInt64
+    ) async throws -> UInt64
+}
+
+private struct MeaningPreviewAuthorizationLease: Sendable, Equatable {
+    let epoch: UInt64
+}
+
+private final class MeaningPreviewAuthorizationGate: @unchecked Sendable {
+    // Serializes the app-owned enable/grant/disable path with Preview saves.
+    // The module state file is not an inter-process revocation protocol; an
+    // external writer must not mutate it while the native app owns the pilot.
+    private let lock = NSLock()
+    private var epoch: UInt64 = 0
+    private var authorized = false
+
+    func authorize() -> MeaningPreviewAuthorizationLease {
+        lock.lock()
+        defer { lock.unlock() }
+        authorized = true
+        return MeaningPreviewAuthorizationLease(epoch: epoch)
+    }
+
+    func invalidate() {
+        lock.lock()
+        epoch &+= 1
+        authorized = false
+        lock.unlock()
+    }
+
+    func withValidLease<T>(
+        _ lease: MeaningPreviewAuthorizationLease,
+        _ operation: () throws -> T
+    ) throws -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        guard authorized, lease.epoch == epoch else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        return try operation()
+    }
+}
+
+private final class MeaningPreviewLeaseCheckingStore:
+    MeaningPreviewStateStoring, @unchecked Sendable {
+    private let underlying: MeaningPreviewStore
+    private let gate: MeaningPreviewAuthorizationGate
+    private let beforeSave: @Sendable () -> Void
+    private let lock = NSLock()
+    private var lease: MeaningPreviewAuthorizationLease?
+
+    init(
+        underlying: MeaningPreviewStore,
+        gate: MeaningPreviewAuthorizationGate,
+        beforeSave: @escaping @Sendable () -> Void
+    ) {
+        self.underlying = underlying
+        self.gate = gate
+        self.beforeSave = beforeSave
+    }
+
+    func install(_ lease: MeaningPreviewAuthorizationLease) {
+        lock.lock()
+        self.lease = lease
+        lock.unlock()
+    }
+
+    func load() throws -> MeaningPreviewSnapshot {
+        try underlying.load()
+    }
+
+    func save(_ snapshot: MeaningPreviewSnapshot) throws {
+        lock.lock()
+        let current = lease
+        lock.unlock()
+        guard let current else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        beforeSave()
+        try gate.withValidLease(current) {
+            try underlying.save(snapshot)
+        }
+    }
+}
+
+private struct MeaningPreviewModuleStateSnapshot: Codable {
+    let enabledModuleIDs: Set<String>
+    let permissionGrants: [String: Set<Permission>]
+}
+
+actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
+    nonisolated let initialLifecycle: MeaningPreviewLifecycle
+
+    private let root: URL
+    private let manifestDirectory: URL
+    private let sourceResolver: any MeaningPreviewSourceResolving
+    private let beforePreviewSave: @Sendable () -> Void
+    private let authorizationGate = MeaningPreviewAuthorizationGate()
+    private var coordinator: MeaningPreviewCoordinator?
+    private var leaseStore: MeaningPreviewLeaseCheckingStore?
+    private var activePresentation: (memoryID: UUID, domain: String, version: UInt64)?
+    private var generation = UUID()
+
+    init(
+        root: URL,
+        manifestDirectory: URL? = nil,
+        sourceResolver: (any MeaningPreviewSourceResolving)? = nil,
+        beforePreviewSave: @escaping @Sendable () -> Void = {}
+    ) {
+        self.root = root
+        self.manifestDirectory = manifestDirectory
+            ?? Self.defaultManifestDirectory()
+        self.sourceResolver = sourceResolver
+            ?? MeaningPreviewLiveSourceResolver(root: root)
+        self.beforePreviewSave = beforePreviewSave
+        self.initialLifecycle = (
+            try? Self.readLifecycle(
+                root: root,
+                manifestDirectory: self.manifestDirectory
+            )
+        ) ?? .unavailable
+    }
+
+    func loadLifecycle() -> MeaningPreviewLifecycle {
+        (try? currentLifecycle()) ?? .unavailable
+    }
+
+    func enable() throws -> MeaningPreviewLifecycle {
+        let registry = try makeRegistry()
+        try registry.enable("cam.meaning-preview")
+        authorizationGate.invalidate()
+        return try currentLifecycle()
+    }
+
+    func grantLocalAccess() throws -> MeaningPreviewLifecycle {
+        let registry = try makeRegistry()
+        try registry.grant(
+            [.readLocal, .writeLocal],
+            to: "cam.meaning-preview"
+        )
+        authorizationGate.invalidate()
+        return try currentLifecycle()
+    }
+
+    func disable() throws -> MeaningPreviewLifecycle {
+        authorizationGate.invalidate()
+        let registry = try makeRegistry()
+        try registry.disable("cam.meaning-preview")
+        generation = UUID()
+        activePresentation = nil
+        coordinator = nil
+        return .disabled
+    }
+
+    func request(
+        reference: MeaningPreviewSourceReference,
+        now: Date
+    ) async throws -> MeaningPreviewAppPresentation {
+        guard try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        let requestGeneration = generation
+        let selected = try await sourceResolver.resolve(reference)
+        guard selected.id == reference.id else {
+            throw MeaningPreviewRuntimeError.sourceUnavailable
+        }
+        guard requestGeneration == generation,
+              try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.disabledDuringRequest
+        }
+
+        let lease = authorizationGate.authorize()
+        let activeCoordinator = try makeCoordinatorIfNeeded(lease: lease)
+        let result = try await activeCoordinator.requestPractical(
+            access: MeaningPreviewAccess(enabled: true, localDataGranted: true),
+            selection: {
+                MeaningContextSelection(
+                    purpose: "explicit practical preview",
+                    domain: selected.domain,
+                    capacity: .adequate,
+                    selectedItems: [
+                        MeaningContextItem(
+                            id: selected.id,
+                            sourceID: selected.id,
+                            derivedText: selected.derivedText,
+                            observedAt: selected.observedAt,
+                            uncertainty: selected.uncertainty,
+                            sensitivity: selected.sensitivity,
+                            permittedUses: selected.permittedUses,
+                            isVisible: selected.isVisible,
+                            isActive: selected.isActive,
+                            isSupported: selected.isSupported
+                        ),
+                    ]
+                )
+            },
+            now: now
+        )
+        guard requestGeneration == generation,
+              try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.disabledDuringRequest
+        }
+
+        let item = result.glance.item
+        activePresentation = item.map {
+            (memoryID: $0.id, domain: selected.domain, version: result.version)
+        }
+        return MeaningPreviewAppPresentation(
+            version: result.version,
+            domain: item == nil ? nil : selected.domain,
+            card: item.map {
+                MeaningPreviewCardPresentation(id: $0.id, text: $0.text)
+            },
+            inspect: MeaningPreviewInspectPresentation(
+                summary: result.inspect.summary,
+                evidenceIDs: result.inspect.evidence.map { $0.uuidString },
+                counterevidenceIDs: result.inspect.counterevidence.map { $0.uuidString },
+                provenanceLabel: item.map {
+                    Self.provenanceLabel($0.source.rawValue)
+                } ?? "Unavailable",
+                uncertaintyLabel: item.map {
+                    Self.uncertaintyLabel($0.confidence.rawValue)
+                } ?? "Unavailable",
+                whySurfaced: result.inspect.whySurfaced,
+                exclusionLabels: result.exclusions.values.map { $0.rawValue }.sorted()
+            )
+        )
+    }
+
+    func applyAction(
+        _ action: MeaningPreviewCardAction,
+        memoryID: UUID,
+        expectedVersion: UInt64,
+        at: Date
+    ) async throws -> UInt64 {
+        let (activeCoordinator, lease) = try requireActiveCoordinator(
+            memoryID: memoryID,
+            domain: nil,
+            expectedVersion: expectedVersion
+        )
+        leaseStore?.install(lease)
+        switch action {
+        case .now:
+            _ = try await activeCoordinator.mutate(
+                .action(.now, memoryID: memoryID, at: at),
+                expectedVersion: expectedVersion
+            )
+        case .later:
+            _ = try await activeCoordinator.mutate(
+                .action(.later, memoryID: memoryID, at: at),
+                expectedVersion: expectedVersion
+            )
+        case .release:
+            _ = try await activeCoordinator.mutate(
+                .action(.release, memoryID: memoryID, at: at),
+                expectedVersion: expectedVersion
+            )
+        }
+        activePresentation = nil
+        return expectedVersion + 1
+    }
+
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback,
+        memoryID: UUID,
+        domain: String,
+        expectedVersion: UInt64
+    ) async throws -> UInt64 {
+        let (activeCoordinator, lease) = try requireActiveCoordinator(
+            memoryID: memoryID,
+            domain: domain,
+            expectedVersion: expectedVersion
+        )
+        leaseStore?.install(lease)
+        switch feedback {
+        case .helpful:
+            _ = try await activeCoordinator.mutate(
+                .utilityOutcome(.helpful, memoryID: memoryID, domain: domain),
+                expectedVersion: expectedVersion
+            )
+        case .notHelpful:
+            _ = try await activeCoordinator.mutate(
+                .utilityOutcome(.notHelpful, memoryID: memoryID, domain: domain),
+                expectedVersion: expectedVersion
+            )
+        }
+        activePresentation = nil
+        return expectedVersion + 1
+    }
+
+    private func requireActiveCoordinator(
+        memoryID: UUID,
+        domain: String?,
+        expectedVersion: UInt64
+    ) throws -> (MeaningPreviewCoordinator, MeaningPreviewAuthorizationLease) {
+        guard try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        guard let activePresentation, let coordinator else {
+            throw MeaningPreviewRuntimeError.noActivePresentation
+        }
+        guard activePresentation.memoryID == memoryID,
+              activePresentation.version == expectedVersion,
+              domain == nil || activePresentation.domain == domain else {
+            throw MeaningPreviewRuntimeError.stalePresentation
+        }
+        return (coordinator, authorizationGate.authorize())
+    }
+
+    private func makeCoordinatorIfNeeded(
+        lease: MeaningPreviewAuthorizationLease
+    ) throws -> MeaningPreviewCoordinator {
+        if let coordinator {
+            leaseStore?.install(lease)
+            return coordinator
+        }
+        let audit = try AuditStore(databaseURL: root.appending(path: "vault.sqlite"))
+        let checkedStore = MeaningPreviewLeaseCheckingStore(
+            underlying: try MeaningPreviewStore(
+                databaseURL: LocalVaultPaths.meaningPreviewDatabaseURL(
+                    vaultRoot: root
+                )
+            ),
+            gate: authorizationGate,
+            beforeSave: beforePreviewSave
+        )
+        checkedStore.install(lease)
+        let created = try MeaningPreviewCoordinator(
+            store: checkedStore,
+            auditSink: MeaningPreviewAuditSink(store: audit)
+        )
+        leaseStore = checkedStore
+        coordinator = created
+        return created
+    }
+
+    private func currentLifecycle() throws -> MeaningPreviewLifecycle {
+        try Self.readLifecycle(root: root, manifestDirectory: manifestDirectory)
+    }
+
+    private func makeRegistry() throws -> ModuleRegistry {
+        try ModuleRegistry(
+            manifestDirectory: manifestDirectory,
+            stateURL: LocalVaultPaths.stateURL(.moduleState, vaultRoot: root)
+        )
+    }
+
+    private static func readLifecycle(
+        root: URL,
+        manifestDirectory: URL
+    ) throws -> MeaningPreviewLifecycle {
+        let manifest = try ModuleManifest.decodeValidated(
+            Data(
+                contentsOf: manifestDirectory.appending(
+                    path: "meaning-preview.json"
+                )
+            )
+        )
+        guard manifest.id == "cam.meaning-preview", !manifest.isCore else {
+            return .unavailable
+        }
+        let stateURL = LocalVaultPaths.stateURL(.moduleState, vaultRoot: root)
+        guard FileManager.default.fileExists(atPath: stateURL.path) else {
+            return .disabled
+        }
+        let state = try JSONDecoder().decode(
+            MeaningPreviewModuleStateSnapshot.self,
+            from: Data(contentsOf: stateURL)
+        )
+        guard state.enabledModuleIDs.contains(manifest.id) else {
+            return .disabled
+        }
+        let granted = state.permissionGrants[manifest.id] ?? []
+        return Set(manifest.permissions).isSubset(of: granted)
+            ? .ready : .enabledWithoutLocalRead
+    }
+
+    private static func defaultManifestDirectory() -> URL {
+        let packaged = Bundle.main.resourceURL?
+            .appending(path: "Modules/Core", directoryHint: .isDirectory)
+        if let packaged,
+           FileManager.default.fileExists(atPath: packaged.path) {
+            return packaged
+        }
+        return URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Modules/Core", directoryHint: .isDirectory)
+    }
+
+    private static func provenanceLabel(_ value: String) -> String {
+        switch value {
+        case "hostImport": "Selected CAM-derived local context"
+        case "correction": "Corrected isolated Preview context"
+        case "inference": "Inference"
+        case "observed": "Observed context"
+        case "userStatement": "User-stated context"
+        default: "Unavailable"
+        }
+    }
+
+    private static func uncertaintyLabel(_ value: String) -> String {
+        switch value {
+        case "supported": "Supported"
+        case "tentative": "Tentative"
+        case "low": "Low confidence"
+        default: "Unavailable"
+        }
+    }
+}
+
+struct MeaningPreviewUnavailableRuntime: MeaningPreviewRuntime {
+    let initialLifecycle: MeaningPreviewLifecycle = .unavailable
+
+    func loadLifecycle() async -> MeaningPreviewLifecycle { .unavailable }
+    func enable() async throws -> MeaningPreviewLifecycle { throw MeaningPreviewRuntimeError.accessDenied }
+    func grantLocalAccess() async throws -> MeaningPreviewLifecycle { throw MeaningPreviewRuntimeError.accessDenied }
+    func disable() async throws -> MeaningPreviewLifecycle { .disabled }
+    func request(
+        reference: MeaningPreviewSourceReference,
+        now: Date
+    ) async throws -> MeaningPreviewAppPresentation {
+        throw MeaningPreviewRuntimeError.accessDenied
+    }
+    func applyAction(
+        _ action: MeaningPreviewCardAction,
+        memoryID: UUID,
+        expectedVersion: UInt64,
+        at: Date
+    ) async throws -> UInt64 {
+        throw MeaningPreviewRuntimeError.accessDenied
+    }
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback,
+        memoryID: UUID,
+        domain: String,
+        expectedVersion: UInt64
+    ) async throws -> UInt64 {
+        throw MeaningPreviewRuntimeError.accessDenied
+    }
 }
 
 struct VaultRecoveryOperations: Sendable {
@@ -309,6 +903,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var packagedTextSummaryResult:
         PackagedTextSummary?
     @Published private(set) var packagedTextSummaryError: String?
+    @Published private(set) var meaningPreviewLifecycle: MeaningPreviewLifecycle = .disabled
+    @Published private(set) var meaningPreviewPresentation: MeaningPreviewAppPresentation?
+    @Published private(set) var meaningPreviewSelectedSource: MeaningPreviewSourceReference?
+    @Published private(set) var meaningPreviewStatus: String?
+    @Published private(set) var meaningPreviewError: String?
+    @Published private(set) var isMeaningPreviewWorking = false
     private let hotkeyManager = HotkeyManager()
     private let foregroundActivation: AssistantForegroundActivation
     private lazy var watchedSourceCaptureRefresh = WatchedSourceCaptureRefresh(
@@ -333,6 +933,7 @@ final class AppModel: ObservableObject {
         ResearchAcquisitionOperations
     private let vaultRecoveryOperations: VaultRecoveryOperations
     private let vaultRootProvider: @Sendable () throws -> URL
+    private let meaningPreviewRuntime: any MeaningPreviewRuntime
     private var repositorySnapshot: RepositorySnapshot?
     private var repositoryObservationEvidence: [RepositoryObservation] = []
     private var repositoryIdeaCard: RepositoryIdeaCard?
@@ -349,6 +950,7 @@ final class AppModel: ObservableObject {
     private var activeResearchAcquisitionID: UUID?
     private var activeResearchCancellationID: UUID?
     private var activeResearchRetentionID: UUID?
+    private var meaningPreviewOperationGeneration = UUID()
 
     init(
         health: AppHealth = .evaluate(
@@ -365,6 +967,7 @@ final class AppModel: ObservableObject {
         researchAcquisitionOperations:
             ResearchAcquisitionOperations = .live,
         vaultRecoveryOperations: VaultRecoveryOperations = .live,
+        meaningPreviewRuntime: (any MeaningPreviewRuntime)? = nil,
         vaultRootProvider: @escaping @Sendable () throws -> URL = {
             try LocalVaultPaths.rootURL()
         }
@@ -378,6 +981,17 @@ final class AppModel: ObservableObject {
             researchAcquisitionOperations
         self.vaultRecoveryOperations = vaultRecoveryOperations
         self.vaultRootProvider = vaultRootProvider
+        if let meaningPreviewRuntime {
+            self.meaningPreviewRuntime = meaningPreviewRuntime
+        } else if let root = try? vaultRootProvider() {
+            self.meaningPreviewRuntime = MeaningPreviewLiveRuntime(root: root)
+        } else {
+            self.meaningPreviewRuntime = MeaningPreviewUnavailableRuntime()
+        }
+        meaningPreviewLifecycle = self.meaningPreviewRuntime.initialLifecycle
+        if meaningPreviewLifecycle == .unavailable {
+            meaningPreviewError = Self.meaningPreviewUnavailableMessage
+        }
         guard initializeFullWorkspace else {
             reloadRepositorySources()
             reloadRepositoryJobs(recoverInterrupted: true)
@@ -397,6 +1011,216 @@ final class AppModel: ObservableObject {
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
         reloadPackagedTextSummaryModule()
+    }
+
+    var isMeaningPreviewVisible: Bool {
+        meaningPreviewLifecycle == .enabledWithoutLocalRead
+            || meaningPreviewLifecycle == .ready
+    }
+
+    var canRequestMeaningPreview: Bool {
+        meaningPreviewLifecycle == .ready
+            && meaningPreviewSelectedSource != nil
+            && !isMeaningPreviewWorking
+    }
+
+    func selectMeaningPreviewSource(id: String) {
+        meaningPreviewOperationGeneration = UUID()
+        isMeaningPreviewWorking = false
+        meaningPreviewSelectedSource = .init(id: id)
+        meaningPreviewPresentation = nil
+        meaningPreviewStatus = "Selected one active CAM-derived local source."
+        meaningPreviewError = nil
+    }
+
+    func enableMeaningPreview() async {
+        await updateMeaningPreviewLifecycle(
+            failure: "Meaning Preview could not be enabled. No access was granted."
+        ) { try await meaningPreviewRuntime.enable() }
+    }
+
+    func grantMeaningPreviewLocalRead() async {
+        await updateMeaningPreviewLifecycle(
+            failure: "Local read/write access could not be granted. No Preview ran."
+        ) { try await meaningPreviewRuntime.grantLocalAccess() }
+    }
+
+    func recoverMeaningPreview() async {
+        let operation = beginMeaningPreviewOperation()
+        let lifecycle = await meaningPreviewRuntime.loadLifecycle()
+        guard isCurrentMeaningPreviewOperation(operation) else { return }
+        meaningPreviewLifecycle = lifecycle
+        meaningPreviewError = meaningPreviewLifecycle == .unavailable
+            ? Self.meaningPreviewUnavailableMessage
+            : nil
+        meaningPreviewStatus = meaningPreviewLifecycle == .ready
+            ? "Meaning Preview isolated state is available."
+            : nil
+        finishMeaningPreviewOperation(operation)
+    }
+
+    func disableMeaningPreview() async {
+        let operation = beginMeaningPreviewOperation()
+        meaningPreviewPresentation = nil
+        meaningPreviewSelectedSource = nil
+        isMeaningPreviewWorking = false
+        do {
+            let lifecycle = try await meaningPreviewRuntime.disable()
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewLifecycle = lifecycle
+            selection = .assistant
+            meaningPreviewStatus = "Meaning Preview disabled. Ordinary Assistant is unchanged."
+            meaningPreviewError = nil
+        } catch {
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewError = "Meaning Preview could not be disabled. Ordinary CAM is unchanged."
+        }
+        finishMeaningPreviewOperation(operation)
+    }
+
+    func requestMeaningPreview() async {
+        guard meaningPreviewLifecycle == .ready else {
+            meaningPreviewError = "Grant local read and isolated write access before requesting a Preview."
+            return
+        }
+        guard let selected = meaningPreviewSelectedSource else {
+            meaningPreviewError = "Select one active local source for this Preview."
+            return
+        }
+        let operation = beginMeaningPreviewOperation()
+        meaningPreviewPresentation = nil
+        meaningPreviewStatus = "Checking the explicitly selected local context."
+        meaningPreviewError = nil
+        do {
+            let presentation = try await meaningPreviewRuntime.request(
+                reference: selected,
+                now: Date()
+            )
+            guard isCurrentMeaningPreviewOperation(operation),
+                  meaningPreviewLifecycle == .ready else {
+                return
+            }
+            meaningPreviewPresentation = presentation
+            meaningPreviewStatus = presentation.card == nil
+                ? "Nothing practical surfaced from the selected context."
+                : "One practical Preview is ready."
+        } catch {
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewPresentation = nil
+            meaningPreviewError = Self.meaningPreviewRequestFailure(error)
+            meaningPreviewStatus = nil
+        }
+        finishMeaningPreviewOperation(operation)
+    }
+
+    func applyMeaningPreviewAction(_ action: MeaningPreviewCardAction) async {
+        guard let presentation = meaningPreviewPresentation,
+              let card = presentation.card else { return }
+        let operation = beginMeaningPreviewOperation()
+        do {
+            _ = try await meaningPreviewRuntime.applyAction(
+                action,
+                memoryID: card.id,
+                expectedVersion: presentation.version,
+                at: Date()
+            )
+            guard isCurrentMeaningPreviewOperation(operation),
+                  meaningPreviewLifecycle == .ready else { return }
+            meaningPreviewPresentation = nil
+            meaningPreviewStatus = switch action {
+            case .now: "Now recorded in isolated Preview state."
+            case .later: "Later recorded; this item will not resurface immediately."
+            case .release: "Released from isolated Preview state."
+            }
+            meaningPreviewError = nil
+        } catch {
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewError = Self.meaningPreviewMutationFailure
+        }
+        finishMeaningPreviewOperation(operation)
+    }
+
+    func recordMeaningPreviewFeedback(_ feedback: MeaningPreviewFeedback) async {
+        guard let presentation = meaningPreviewPresentation,
+              let card = presentation.card,
+              let domain = presentation.domain else { return }
+        let operation = beginMeaningPreviewOperation()
+        do {
+            _ = try await meaningPreviewRuntime.recordFeedback(
+                feedback,
+                memoryID: card.id,
+                domain: domain,
+                expectedVersion: presentation.version
+            )
+            guard isCurrentMeaningPreviewOperation(operation),
+                  meaningPreviewLifecycle == .ready else { return }
+            meaningPreviewPresentation = nil
+            meaningPreviewStatus = feedback == .helpful
+                ? "Helpful recorded explicitly in isolated Preview state."
+                : "Not helpful recorded explicitly in isolated Preview state."
+            meaningPreviewError = nil
+        } catch {
+            guard isCurrentMeaningPreviewOperation(operation) else { return }
+            meaningPreviewError = Self.meaningPreviewMutationFailure
+        }
+        finishMeaningPreviewOperation(operation)
+    }
+
+    private func updateMeaningPreviewLifecycle(
+        failure: String,
+        operation: () async throws -> MeaningPreviewLifecycle
+    ) async {
+        let operationID = beginMeaningPreviewOperation()
+        do {
+            let lifecycle = try await operation()
+            guard isCurrentMeaningPreviewOperation(operationID) else { return }
+            meaningPreviewLifecycle = lifecycle
+            meaningPreviewPresentation = nil
+            meaningPreviewError = nil
+            meaningPreviewStatus = switch meaningPreviewLifecycle {
+            case .disabled: "Meaning Preview is disabled."
+            case .enabledWithoutLocalRead:
+                "Meaning Preview enabled. No local access has been granted."
+            case .ready:
+                "Meaning Preview has explicit local read and isolated write access."
+            case .unavailable: nil
+            }
+        } catch {
+            guard isCurrentMeaningPreviewOperation(operationID) else { return }
+            meaningPreviewError = failure
+        }
+        finishMeaningPreviewOperation(operationID)
+    }
+
+    private func beginMeaningPreviewOperation() -> UUID {
+        let value = UUID()
+        meaningPreviewOperationGeneration = value
+        isMeaningPreviewWorking = true
+        return value
+    }
+
+    private func isCurrentMeaningPreviewOperation(_ value: UUID) -> Bool {
+        meaningPreviewOperationGeneration == value
+    }
+
+    private func finishMeaningPreviewOperation(_ value: UUID) {
+        guard isCurrentMeaningPreviewOperation(value) else { return }
+        isMeaningPreviewWorking = false
+    }
+
+    private static let meaningPreviewUnavailableMessage =
+        "Meaning Preview state is unavailable. Ordinary CAM is unchanged."
+    private static let meaningPreviewMutationFailure =
+        "Meaning Preview changed or became unavailable. Request a fresh Preview."
+
+    private static func meaningPreviewRequestFailure(_ error: Error) -> String {
+        switch error {
+        case MeaningPreviewRuntimeError.accessDenied,
+             MeaningPreviewRuntimeError.disabledDuringRequest:
+            "Meaning Preview access changed before the selected context was used."
+        default:
+            "Meaning Preview could not read its isolated state. Ordinary CAM is unchanged."
+        }
     }
 
     func reloadPackagedTextSummaryModule() {
