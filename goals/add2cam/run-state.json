@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-31",
+  "updatedAt": "2026-08-01",
   "integrationBranch": "agent/add2cam-integration-20260731",
-  "acceptedCommit": "6021283",
+  "acceptedCommit": "c0dbe01",
   "terminalTarget": "READY_FOR_HUMAN_PILOT",
   "goals": [
     {
@@ -33,15 +33,15 @@
     },
     {
       "id": "ADD2CAM-20",
-      "status": "in_progress",
+      "status": "complete",
       "dependencies": ["ADD2CAM-10"],
       "prerequisiteCommit": "e5c4b21",
       "branch": "agent/add2cam-20-native-ux",
       "worktree": "/private/tmp/cam-add2cam-20260731/native-ux",
       "attempts": 1,
-      "terminalCommit": null,
+      "terminalCommit": "c0dbe01",
       "handoff": "docs/handoffs/add2cam/20260731/20_NATIVE_UX.md",
-      "evidence": [],
+      "evidence": ["docs/handoffs/add2cam/20260731/20_NATIVE_UX.md", "Tests/CAMAssistantAppTests/MeaningPreviewAppModelTests.swift", "Tests/CAMAssistantAppTests/AccessibilityViewContractTests.swift"],
       "blockers": []
     },
     {
@@ -72,9 +72,9 @@
     },
     {
       "id": "ADD2CAM-40",
-      "status": "pending",
+      "status": "ready",
       "dependencies": ["ADD2CAM-20", "ADD2CAM-21", "ADD2CAM-30"],
-      "prerequisiteCommit": null,
+      "prerequisiteCommit": "c0dbe01",
       "branch": "agent/add2cam-40-reflective-lane",
       "worktree": "/private/tmp/cam-add2cam-20260731/reflective-lane",
       "attempts": 0,

@@ -2383,3 +2383,29 @@ blocker is asserted.
 - A read-only mid-gate review accepted retained coordinator/audit/version behavior but blocked native UI work on permission, source-provider, metadata, persistence-proof, disable-race, revocation, and no-default-effect gaps.
 - The controlling Goal 3 covenant permits bounded derived meaning records in the isolated pilot store and forbids raw immutable source bytes. A stale model comment implied all derived text was transient; it is corrected to match the controlling goal.
 - Goal 20 must therefore keep only an opaque selection before authorization, require both declared local permissions, resolve classified bounded derived context lazily through a trusted provider, and prove by decoded snapshot inspection that a unique raw-source marker never enters pilot state.
+
+## 2026-08-01 - ADD2CAM Goal 20 Integrated
+
+- Integrated the native Meaning Preview runtime, workspace, recovery hardening,
+  and handoff through `c0dbe01`. The accepted handoff is
+  `docs/handoffs/add2cam/20260731/20_NATIVE_UX.md`.
+- The final branch passed independent spec review and code-quality/security
+  review after two blocking review cycles. Every finding was accepted rather
+  than weakening a gate: fixed manifest-permission drift, typed corrupted and
+  incompatible stores, confirmed-corruption-only recovery, transient-I/O
+  refusal, exact-source feedback scope, navigation restoration, in-flight
+  Disable, Inspect-on-silence, truthful evidence labels, recognizable source
+  selection, source-specific failure text, and real mutation/save race proof.
+- Post-integration `/bin/zsh scripts/verify.sh app` passed all 59 app tests.
+  `scripts/verify.sh meaning-preview` passed all 13 frozen evaluation tests and
+  the unchanged offline replay at six scores of `1.0`, still explicitly not
+  named-model evidence. All 12 Goal 21 boundary regressions passed after one
+  sandbox cache-write denial was rerun with the already-approved `swift test`
+  privilege; no product permission or sandbox gate was weakened.
+- Goal 20 focused proof now contains 29 runtime/model tests and 13 tests in the
+  goal-owned accessibility contract file. Disabled and enable-only recovery
+  attempts produce no filesystem mutation; only fully granted, confirmed
+  corrupted/incompatible isolated stores may be archived and reinitialized.
+- Wave 2 is complete. Goal 40 is ready from exact accepted prerequisite
+  `c0dbe01`. Goal 50 remains dependency-blocked on Goal 40, and Goal 60 remains
+  human-only.
