@@ -2371,3 +2371,9 @@ blocker is asserted.
 - Thirteen tests prove strict nested schema, case-scoped exact/paraphrase prohibitions, meaningful field grounding, token-salad and polarity refusal, exact negative error codes, report secrecy, neutral label-free supplier input, and distinct deterministic/named-model eligibility.
 - The first review blocked vacuous prose and mislabeled replay. The second blocked a critical expected-label leak, a token-salad/negation bypass, and named ineligibility returning success. All findings were resolved before commit; final independent re-review passed.
 - Repository-owned `scripts/verify.sh meaning-preview` and post-integration focused tests pass. Deterministic replay scores `1.0` while remaining explicitly ineligible as named-model evidence. No model or network was invoked.
+
+## 2026-08-01 - ADD2CAM Goal 50 Packaging Preflight
+
+- A read-only packaged-pilot preflight found that the current app package omits both the Meaning Preview manifest and the SwiftPM core resource bundle. Same-worktree launches can hide this by falling back to absolute compile-time paths, so they are not portability evidence.
+- Goal 50 now owns the narrow package correction. Its journey must assert embedded resource existence/digests, clean build identity, disabled and enable-without-grant states, one explicit synthetic request, bounded action/feedback receipts, zero sockets/outbound bytes, disable/restart restoration, and absence of raw synthetic text.
+- GUI proof remains isolated from normal aggregate verification because AX/TCC and nested-sandbox behavior are environment-sensitive. Permission denial is a classified environment result, not authorization to bypass macOS controls.

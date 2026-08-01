@@ -30,7 +30,7 @@ The packaged journey, `scripts/verify.sh meaning-preview`, `scripts/verify.sh al
 
 ## OWNED FILES
 
-`Tests/ReleaseProofTests/meaning-preview-packaged-journey-tests.sh`; `scripts/verify.sh`; `Tests/CAMAssistantAppTests/AccessibilityViewContractTests.swift`; `docs/evidence/add2cam-10-packaged-pilot.md`; `docs/pilots/meaning-preview-v1-protocol.md`; `docs/evidence/add2cam-11-final-containment.md`; `docs/handoffs/add2cam/20260731/50_PACKAGED_PILOT.md`.
+`Tests/ReleaseProofTests/meaning-preview-packaged-journey-tests.sh`; `scripts/package-app.sh`; `scripts/verify.sh`; `Tests/CAMAssistantAppTests/AccessibilityViewContractTests.swift`; `docs/evidence/add2cam-10-packaged-pilot.md`; `docs/pilots/meaning-preview-v1-protocol.md`; `docs/evidence/add2cam-11-final-containment.md`; `docs/handoffs/add2cam/20260731/50_PACKAGED_PILOT.md`.
 
 ## PROTECTED FILES
 
@@ -46,7 +46,7 @@ Repair packaging/test harness defects within owned files. Preserve genuine failu
 
 ## CONSTRAINTS
 
-Run aggregate/package/GUI-sensitive proof serially with no concurrent Swift builds. Native permission escalation must be narrow and disposable. Protocol status remains `Draft - approval and participants required`.
+Run aggregate/package/GUI-sensitive proof serially with no concurrent Swift builds. Native permission escalation must be narrow and disposable. Protocol status remains `Draft - approval and participants required`. The package must embed the Meaning Preview manifest and the SwiftPM core resource bundle; neither runtime nor proof may fall back to compile-time source/build paths. AX automation uses stable accessibility identifiers and the existing `open -n APP --env CAM_ASSISTANT_APPLICATION_SUPPORT_ROOT=...` launch boundary only.
 
 ## ITERATION
 
