@@ -54,6 +54,27 @@ public enum MeaningPreviewCoordinatorError: Error, Equatable {
     case sensitiveCorrection
 }
 
+public enum MeaningPreviewReflectionError: Error, Equatable {
+    case accessDenied
+    case selectionBounds
+    case restrictedContext
+    case candidateIdentityMismatch
+    case malformedCandidate
+    case unknownEvidence(String)
+}
+
+public struct MeaningPreviewReflectivePresentation: Equatable, Sendable {
+    public let text: String
+    public let observation: String
+    public let interpretation: String
+    public let supportIDs: [String]
+    public let counterevidenceIDs: [String]
+    public let uncertainty: Double
+    public let runtimeIdentity: String
+    public let modelID: String
+    public let retention: MeaningPreviewReflectiveRetention
+}
+
 public actor MeaningPreviewCoordinator {
     private let store: any MeaningPreviewStateStoring
     private let adapter: CAMMeaningContextAdapter
@@ -169,6 +190,120 @@ public actor MeaningPreviewCoordinator {
             glance: glance,
             inspect: inspect,
             exclusions: projection.exclusions
+        )
+    }
+
+    /// Requests one ephemeral reflective candidate. Selection projection and
+    /// MeaningCore admission are deterministic; model prose is never persisted
+    /// or allowed to advance the practical snapshot revision.
+    public func requestReflective(
+        access: MeaningPreviewAccess,
+        selection: MeaningContextSelection,
+        supplier: any MeaningPreviewReflectiveCandidateSupplying,
+        now: Date,
+        requestID: String = UUID().uuidString
+    ) async throws -> MeaningPreviewReflectivePresentation? {
+        guard access.enabled, access.localDataGranted else {
+            throw MeaningPreviewReflectionError.accessDenied
+        }
+        let selectedIDs = selection.selectedItems.map(\.id)
+        guard (1...8).contains(selection.selectedItems.count),
+              Set(selectedIDs).count == selectedIDs.count else {
+            throw MeaningPreviewReflectionError.selectionBounds
+        }
+        guard !selection.selectedItems.contains(where: {
+            $0.sensitivity == .restricted
+        }) else {
+            throw MeaningPreviewReflectionError.restrictedContext
+        }
+
+        let projection = adapter.project(selection, now: now)
+        guard !projection.exclusions.values.contains(.restricted),
+              !projection.exclusions.values.contains(.secretLike) else {
+            throw MeaningPreviewReflectionError.restrictedContext
+        }
+        // A stale, hidden, unsupported, missing, or non-permitted selection is
+        // an honest abstention before transport. One item cannot provide both
+        // support and distinct counterevidence.
+        guard projection.exclusions.isEmpty,
+              projection.memory.count >= 2 else { return nil }
+
+        let ownerByUUID = projection.identifierOwners
+        let uuidByOwner = Dictionary(
+            uniqueKeysWithValues: ownerByUUID.compactMap { uuid, owner in
+                UUID(uuidString: uuid).map { (owner, $0) }
+            }
+        )
+        guard uuidByOwner.count == projection.memory.count else {
+            throw MeaningPreviewReflectionError.selectionBounds
+        }
+        let input = MeaningPreviewReflectiveInput(
+            requestID: requestID,
+            domain: selection.domain,
+            prompt: "Offer one bounded reflection from the selected evidence, or abstain.",
+            evidence: selection.selectedItems.sorted { $0.id < $1.id }.map {
+                MeaningPreviewReflectiveEvidence(id: $0.id, text: $0.derivedText)
+            }
+        )
+        let candidate = try await supplier.candidate(for: input)
+        guard candidate.requestID == requestID,
+              candidate.domain == selection.domain else {
+            throw MeaningPreviewReflectionError.candidateIdentityMismatch
+        }
+        guard candidate.retention == .ephemeral else {
+            throw MeaningPreviewReflectionError.malformedCandidate
+        }
+        if candidate.decision == .silence { return nil }
+        guard candidate.decision == .surface,
+              let observation = candidate.observation,
+              let interpretation = candidate.interpretation,
+              let opening = candidate.opening,
+              let uncertainty = candidate.uncertainty,
+              uncertainty.isFinite,
+              (0...1).contains(uncertainty),
+              !candidate.supportIDs.isEmpty,
+              !candidate.counterevidenceIDs.isEmpty,
+              Set(candidate.supportIDs).count == candidate.supportIDs.count,
+              Set(candidate.counterevidenceIDs).count
+                == candidate.counterevidenceIDs.count,
+              Set(candidate.supportIDs).isDisjoint(
+                  with: Set(candidate.counterevidenceIDs)
+              ) else {
+            throw MeaningPreviewReflectionError.malformedCandidate
+        }
+        let allCandidateIDs = candidate.supportIDs
+            + candidate.counterevidenceIDs
+        for id in allCandidateIDs where uuidByOwner[id] == nil {
+            throw MeaningPreviewReflectionError.unknownEvidence(id)
+        }
+        let inference = InferenceCandidate(
+            claim: opening,
+            observation: observation,
+            interpretation: interpretation,
+            support: candidate.supportIDs.compactMap { uuidByOwner[$0] },
+            counterevidence: candidate.counterevidenceIDs.compactMap {
+                uuidByOwner[$0]
+            },
+            context: projection.context,
+            uncertainty: uncertainty <= 0.25
+                ? .supported
+                : (uncertainty <= 0.75 ? .tentative : .low)
+        )
+        guard let admitted = ReflectiveInferenceEngine().admit(inference),
+              admitted.support == inference.support,
+              admitted.conflicts == inference.counterevidence else {
+            return nil
+        }
+        return MeaningPreviewReflectivePresentation(
+            text: admitted.text,
+            observation: observation,
+            interpretation: interpretation,
+            supportIDs: candidate.supportIDs,
+            counterevidenceIDs: candidate.counterevidenceIDs,
+            uncertainty: uncertainty,
+            runtimeIdentity: candidate.runtimeIdentity,
+            modelID: candidate.modelID,
+            retention: candidate.retention
         )
     }
 
