@@ -2347,3 +2347,12 @@ blocker is asserted.
 - Review corrections were accepted: persisted identifier ownership now rejects collisions across requests; unrelated stored conflict records cannot bypass current explicit selection; correction lineage remains valid across repeated corrections.
 - Goals 20, 21, and 30 are now ready from the accepted Goal 10 integration commit. Native UX, feedback/audit, and frozen reflective evaluation remain unimplemented.
 - Two delegated implementation attempts stalled without file output; bounded local recovery completed the slice. The stalls changed no repository files and did not weaken tests or safety gates.
+
+## 2026-08-01 - ADD2CAM Goal 21 Integrated
+
+- Integrated the feedback, correction, audit, and inert-proposal boundary at `f95b826` after the practical coordinator and before the remaining Wave 2 lanes. The immutable worker handoff is `docs/handoffs/add2cam/20260731/21_FEEDBACK_AUDIT.md`.
+- Twelve focused boundary tests pass. They prove exact surfaced-card feedback binding, one-shot version authority, fresh-request behavior after restart, complete operational-action coverage without implicit helpfulness, public/generic-only correction persistence, serialized status-only audit delivery, and zero-byte restricted proposal behavior.
+- Privacy verification passed 8 privacy tests plus 3 audit tests, and all 14 Goal 10 coordinator regressions remained green after integration.
+- Review findings were resolved in production wiring: the coordinator owns audit/proposal paths; audit failure degrades an observable health flag without falsely failing an already committed mutation; no proposal can execute or consume approval.
+- Goals 20 and 30 are now running in isolated worktrees from the accepted Goal 10 prerequisite. Their disjoint patches will be reviewed and integrated onto the Goal 21 boundary before Goal 40 becomes eligible.
+- Recovery note: unrelated untracked ReAgent documents and an archive appeared in the canonical checkout after the previous clean-state observation. They are treated as user-owned, remain untouched, and are excluded from ADD2CAM commits and proof claims.

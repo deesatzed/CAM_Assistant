@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-31",
   "integrationBranch": "agent/add2cam-integration-20260731",
-  "acceptedCommit": "e5c4b21",
+  "acceptedCommit": "f95b826",
   "terminalTarget": "READY_FOR_HUMAN_PILOT",
   "goals": [
     {
@@ -33,7 +33,7 @@
     },
     {
       "id": "ADD2CAM-20",
-      "status": "ready",
+      "status": "in_progress",
       "dependencies": ["ADD2CAM-10"],
       "prerequisiteCommit": "e5c4b21",
       "branch": "agent/add2cam-20-native-ux",
@@ -46,20 +46,20 @@
     },
     {
       "id": "ADD2CAM-21",
-      "status": "ready",
+      "status": "complete",
       "dependencies": ["ADD2CAM-10"],
       "prerequisiteCommit": "e5c4b21",
       "branch": "agent/add2cam-21-feedback-audit",
       "worktree": "/private/tmp/cam-add2cam-20260731/feedback-audit",
-      "attempts": 0,
-      "terminalCommit": null,
+      "attempts": 3,
+      "terminalCommit": "f95b826",
       "handoff": "docs/handoffs/add2cam/20260731/21_FEEDBACK_AUDIT.md",
-      "evidence": [],
+      "evidence": ["docs/handoffs/add2cam/20260731/21_FEEDBACK_AUDIT.md", "Tests/CAMAssistantCoreTests/MeaningPreviewBoundaryTests.swift"],
       "blockers": []
     },
     {
       "id": "ADD2CAM-30",
-      "status": "ready",
+      "status": "in_progress",
       "dependencies": ["ADD2CAM-10"],
       "prerequisiteCommit": "e5c4b21",
       "branch": "agent/add2cam-30-reflective-evaluation",
