@@ -34,8 +34,9 @@ public enum MeaningContextExclusion: String, Codable, Sendable, Equatable {
     case identifierCollision
 }
 
-/// Explicit, CAM-owned derived context. `derivedText` is transient adapter input;
-/// pilot persistence stores only identifiers and bounded provenance.
+/// Explicit, CAM-owned derived context. `derivedText` must already be a bounded
+/// derived meaning record, never raw immutable source bytes; eligible records may
+/// enter isolated pilot memory with identifier-only provenance.
 public struct MeaningContextItem: Sendable, Equatable {
     public let id: String
     public let sourceID: String

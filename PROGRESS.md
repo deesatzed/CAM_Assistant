@@ -2377,3 +2377,9 @@ blocker is asserted.
 - A read-only packaged-pilot preflight found that the current app package omits both the Meaning Preview manifest and the SwiftPM core resource bundle. Same-worktree launches can hide this by falling back to absolute compile-time paths, so they are not portability evidence.
 - Goal 50 now owns the narrow package correction. Its journey must assert embedded resource existence/digests, clean build identity, disabled and enable-without-grant states, one explicit synthetic request, bounded action/feedback receipts, zero sockets/outbound bytes, disable/restart restoration, and absence of raw synthetic text.
 - GUI proof remains isolated from normal aggregate verification because AX/TCC and nested-sandbox behavior are environment-sensitive. Permission denial is a classified environment result, not authorization to bypass macOS controls.
+
+## 2026-08-01 - ADD2CAM Goal 20 Runtime Review Adjudication
+
+- A read-only mid-gate review accepted retained coordinator/audit/version behavior but blocked native UI work on permission, source-provider, metadata, persistence-proof, disable-race, revocation, and no-default-effect gaps.
+- The controlling Goal 3 covenant permits bounded derived meaning records in the isolated pilot store and forbids raw immutable source bytes. A stale model comment implied all derived text was transient; it is corrected to match the controlling goal.
+- Goal 20 must therefore keep only an opaque selection before authorization, require both declared local permissions, resolve classified bounded derived context lazily through a trusted provider, and prove by decoded snapshot inspection that a unique raw-source marker never enters pilot state.
