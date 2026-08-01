@@ -2356,3 +2356,10 @@ blocker is asserted.
 - Review findings were resolved in production wiring: the coordinator owns audit/proposal paths; audit failure degrades an observable health flag without falsely failing an already committed mutation; no proposal can execute or consume approval.
 - Goals 20 and 30 are now running in isolated worktrees from the accepted Goal 10 prerequisite. Their disjoint patches will be reviewed and integrated onto the Goal 21 boundary before Goal 40 becomes eligible.
 - Recovery note: unrelated untracked ReAgent documents and an archive appeared in the canonical checkout after the previous clean-state observation. They are treated as user-owned, remain untouched, and are excluded from ADD2CAM commits and proof claims.
+
+## 2026-08-01 - ADD2CAM Goal 40 Preflight Amendment
+
+- A read-only preflight mapped the future reflective lane to the existing loopback assignment, HTTP transport, and repository-semantic strict-output patterns without invoking a model or network.
+- It found two ownership gaps before dispatch: Goal 40 needs the CLI seam for a genuine named-model evaluator and the AppModel seam for an explicit native Reflect action. Both paths are now narrowly added to Goal 40 ownership.
+- Deterministic replay remains an offline contract check with model identity `none`; it may not be presented as named-model eligibility. The named loopback run receives its own command and immutable report.
+- Native reflection may extend selection to at most eight explicit permitted items because valid support and counterevidence must be nonempty, disjoint, and current. Single-item reflective requests abstain instead of reusing one identifier in both roles.

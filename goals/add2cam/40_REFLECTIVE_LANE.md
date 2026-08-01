@@ -28,9 +28,11 @@ An explicitly requested selected loopback model may propose ephemeral structured
 
 Reflection tests prove explicit request, loopback validation, selected model identity, bounded payload, strict structure, validation, abstention, no fallback, ephemeral output, and practical isolation. The frozen named-model report is preserved exactly.
 
+The offline `evaluate-meaning-preview MANIFEST OUTPUT` replay from Goal 30 remains a deterministic contract check only. Goal 40 adds a distinct `evaluate-meaning-preview-model MANIFEST OUTPUT` entry path for the selected named loopback assignment; replay output can never satisfy named-model eligibility.
+
 ## OWNED FILES
 
-`Sources/CAMAssistantCore/Meaning/MeaningPreviewCandidateSupplier.swift`; `Sources/CAMAssistantCore/Meaning/MeaningPreviewCoordinator.swift`; `Sources/CAMAssistantApp/Views/MeaningPreviewView.swift`; `Tests/CAMAssistantCoreTests/MeaningPreviewReflectionTests.swift`; `Tests/CAMAssistantAppTests/MeaningPreviewAppModelTests.swift`; `docs/evidence/add2cam-09-named-model-report.json`; `docs/handoffs/add2cam/20260731/40_REFLECTIVE_LANE.md`.
+`Sources/CAMAssistantCore/Meaning/MeaningPreviewCandidateSupplier.swift`; `Sources/CAMAssistantCore/Meaning/MeaningPreviewCoordinator.swift`; `Sources/CAMAssistantCLI/main.swift`; `Sources/CAMAssistantApp/AppModel.swift`; `Sources/CAMAssistantApp/Views/MeaningPreviewView.swift`; `Tests/CAMAssistantCoreTests/MeaningPreviewReflectionTests.swift`; `Tests/CAMAssistantAppTests/MeaningPreviewAppModelTests.swift`; `docs/evidence/add2cam-09-named-model-report.json`; `docs/handoffs/add2cam/20260731/40_REFLECTIVE_LANE.md`.
 
 ## PROTECTED FILES
 
@@ -46,7 +48,7 @@ Preserve failing named-model evidence. If the frozen gate fails, return `verifie
 
 ## CONSTRAINTS
 
-No post-observation tuning. Use TDD. Context is bounded and current. Deterministic validation, not model prose, controls eligibility.
+No post-observation tuning. Use TDD. Context is bounded and current. Deterministic validation, not model prose, controls eligibility. Reflection may extend the native selection to at most eight explicitly selected permitted items so support and counterevidence can be distinct; a single-item request must abstain and one identifier may never fill both roles. Restricted classification is checked before any transport call.
 
 ## ITERATION
 
