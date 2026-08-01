@@ -37,6 +37,7 @@ public struct MeaningPreviewPresentation: Sendable {
 
 public enum MeaningPreviewMutation: Sendable {
     case action(UtilityAction, memoryID: UUID, at: Date)
+    case utilityOutcome(UtilityOutcome, memoryID: UUID, domain: String)
     case reject(memoryID: UUID)
     case correct(memoryID: UUID, replacement: String)
     case expire(at: Date)
@@ -47,6 +48,10 @@ public enum MeaningPreviewCoordinatorError: Error, Equatable {
     case staleVersion(expected: UInt64, actual: UInt64)
     case missingMemory(UUID)
     case identifierCollision(UUID)
+    case feedbackUnavailable
+    case feedbackDecisionMismatch
+    case feedbackDomainMismatch
+    case sensitiveCorrection
 }
 
 public actor MeaningPreviewCoordinator {
@@ -54,18 +59,26 @@ public actor MeaningPreviewCoordinator {
     private let adapter: CAMMeaningContextAdapter
     private let utility: UtilitySpine
     private let projections: HostProjections
+    private let auditSink: (any MeaningPreviewAuditRecording)?
+    private let proposalAdapter: MeaningActionProposalAdapter
     private var snapshot: MeaningPreviewSnapshot
+    private var surfacedDecision: SurfacedDecision?
+    private var auditDeliveryHealthy = true
 
     public init(
         store: any MeaningPreviewStateStoring,
         adapter: CAMMeaningContextAdapter = .init(),
         utility: UtilitySpine = .init(),
-        projections: HostProjections = .init()
+        projections: HostProjections = .init(),
+        auditSink: (any MeaningPreviewAuditRecording)? = nil,
+        proposalAdapter: MeaningActionProposalAdapter = .init()
     ) throws {
         self.store = store
         self.adapter = adapter
         self.utility = utility
         self.projections = projections
+        self.auditSink = auditSink
+        self.proposalAdapter = proposalAdapter
 
         let loaded = try store.load()
         self.snapshot = MeaningPreviewSnapshot(
@@ -133,6 +146,24 @@ public actor MeaningPreviewCoordinator {
             surfaced: result.practical,
             intrusiveness: .embedded
         )
+        surfacedDecision = result.practical.map {
+            SurfacedDecision(
+                memoryID: $0.id,
+                domain: selectionDomain(projection),
+                presentationVersion: nextSnapshot.revision,
+                at: now
+            )
+        }
+        deliverAudit(
+            MeaningPreviewAuditReceipt(
+                timestamp: now,
+                decisionID: result.practical?.id.uuidString ?? "silence",
+                version: nextSnapshot.revision,
+                status: .succeeded,
+                reason: .surfaced,
+                exclusions: projection.exclusions.values.sorted { $0.rawValue < $1.rawValue }
+            )
+        )
         return MeaningPreviewPresentation(
             version: nextSnapshot.revision,
             glance: glance,
@@ -163,6 +194,20 @@ public actor MeaningPreviewCoordinator {
             }
             stateChange = utility.apply(action, to: &state.memory[index], at: date)
 
+        case let .utilityOutcome(outcome, memoryID, domain):
+            guard let surfacedDecision else {
+                throw MeaningPreviewCoordinatorError.feedbackUnavailable
+            }
+            guard surfacedDecision.presentationVersion == expectedVersion,
+                  surfacedDecision.memoryID == memoryID else {
+                throw MeaningPreviewCoordinatorError.feedbackDecisionMismatch
+            }
+            guard surfacedDecision.domain == domain else {
+                throw MeaningPreviewCoordinatorError.feedbackDomainMismatch
+            }
+            state.recordUtilityOutcome(outcome, domain: domain)
+            stateChange = nil
+
         case let .reject(memoryID):
             guard state.memory.contains(where: { $0.id == memoryID }) else {
                 throw MeaningPreviewCoordinatorError.missingMemory(memoryID)
@@ -173,6 +218,9 @@ public actor MeaningPreviewCoordinator {
             stateChange = nil
 
         case let .correct(memoryID, replacement):
+            guard Self.isSafeCorrection(replacement) else {
+                throw MeaningPreviewCoordinatorError.sensitiveCorrection
+            }
             var ecology = try ecology(from: state.memory)
             let previousIDs = Set(state.memory.map(\.id))
             try ecology.correct(memoryID, replacement: replacement)
@@ -203,7 +251,42 @@ public actor MeaningPreviewCoordinator {
         )
         try store.save(nextSnapshot)
         snapshot = nextSnapshot
+        recordMutationAudit(mutation, version: nextSnapshot.revision)
+        surfacedDecision = retainedDecision(after: mutation)
         return stateChange
+    }
+
+    public func proposeAction(
+        id: String,
+        kind: MeaningActionProposalKind,
+        description: String,
+        requestedRole: ModelRouteRole? = .local,
+        at: Date
+    ) throws -> MeaningActionProposal {
+        let proposal = proposalAdapter.propose(
+            id: id,
+            kind: kind,
+            description: description,
+            requestedRole: requestedRole,
+            stateVersion: Int(clamping: snapshot.revision)
+        )
+        deliverAudit(
+            MeaningPreviewAuditReceipt(
+                timestamp: at,
+                decisionID: id,
+                version: snapshot.revision,
+                status: proposal.privacyDecision == .blocked ? .denied : .proposed,
+                reason: proposal.privacyDecision == .blocked ? .proposalBlocked : .proposalOnly,
+                riskClass: proposal.riskClass,
+                privacyDecision: proposal.privacyDecision,
+                outboundByteCount: proposal.outboundByteCount
+            )
+        )
+        return proposal
+    }
+
+    public func auditDeliveryIsHealthy() -> Bool {
+        auditDeliveryHealthy
     }
 
     private func reconcile(projection: MeaningContextProjection) -> CoreState {
@@ -254,4 +337,98 @@ public actor MeaningPreviewCoordinator {
         }
         return ecology
     }
+
+    private func selectionDomain(_ projection: MeaningContextProjection) -> String {
+        projection.context.topics.first ?? ""
+    }
+
+    private func recordMutationAudit(
+        _ mutation: MeaningPreviewMutation,
+        version: UInt64
+    ) {
+        guard let auditSink else { return }
+        let receipt: MeaningPreviewAuditReceipt
+        switch mutation {
+        case let .action(action, memoryID, date):
+            let reason: MeaningPreviewAuditReason = switch action {
+            case .now: .now
+            case .later: .later
+            case .release: .released
+            }
+            receipt = .init(
+                timestamp: date,
+                decisionID: memoryID.uuidString,
+                version: version,
+                status: .succeeded,
+                reason: reason
+            )
+        case let .utilityOutcome(outcome, memoryID, _):
+            receipt = .init(
+                timestamp: surfacedDecision?.at ?? Date(timeIntervalSince1970: 0),
+                decisionID: memoryID.uuidString,
+                version: version,
+                status: .succeeded,
+                reason: outcome == .helpful ? .helpful : .notHelpful
+            )
+        case let .reject(memoryID):
+            receipt = .init(
+                timestamp: Date(timeIntervalSince1970: 0),
+                decisionID: memoryID.uuidString,
+                version: version,
+                status: .succeeded,
+                reason: .rejected
+            )
+        case let .correct(memoryID, _):
+            receipt = .init(
+                timestamp: Date(timeIntervalSince1970: 0),
+                decisionID: memoryID.uuidString,
+                version: version,
+                status: .succeeded,
+                reason: .corrected
+            )
+        case .expire:
+            receipt = .init(
+                timestamp: Date(timeIntervalSince1970: 0),
+                decisionID: "expiry",
+                version: version,
+                status: .succeeded,
+                reason: .expired
+            )
+        }
+        if !auditSink.record(receipt) {
+            auditDeliveryHealthy = false
+        }
+    }
+
+    private func deliverAudit(_ receipt: MeaningPreviewAuditReceipt) {
+        guard let auditSink else { return }
+        if !auditSink.record(receipt) {
+            auditDeliveryHealthy = false
+        }
+    }
+
+    private func retainedDecision(after mutation: MeaningPreviewMutation) -> SurfacedDecision? {
+        switch mutation {
+        case .utilityOutcome, .reject, .correct, .expire, .action:
+            return nil
+        }
+    }
+
+    private static func isSafeCorrection(_ replacement: String) -> Bool {
+        let trimmed = replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.utf8.count <= 4_096 else { return false }
+        switch DataClassifier().classify(trimmed).riskClass {
+        case .public, .generic:
+            return true
+        case .contextual, .proprietary, .restricted:
+            return false
+        }
+    }
+}
+
+private struct SurfacedDecision: Sendable {
+    let memoryID: UUID
+    let domain: String
+    let presentationVersion: UInt64
+    let at: Date
 }
