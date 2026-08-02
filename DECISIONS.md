@@ -97,6 +97,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-08-01 | Meaning Preview runtime authority requires the fixed exact permission set `readLocal` plus `writeLocal`; a manifest that omits either permission or adds authority fails unavailable even if its own reduced set would otherwise be satisfied | Active |
 | 2026-08-01 | Meaning Preview recovery is an explicit archive-and-reinitialize operation allowed only for fully granted stores with confirmed malformed state or unsupported schema. Disabled, enable-only, healthy, module-unavailable, lock/open/I/O-failed, and other transient states cannot archive or recreate pilot storage | Active |
 | 2026-08-01 | Meaning Preview feedback familiarity is scoped to the exact selected source identity, even when sources share a broad domain label. Operational actions remain independent from helpfulness, and silence retains Inspect access to bounded exclusion evidence | Active |
+| 2026-08-02 | Meaning Preview reflection is admitted only by exact current bundled report bytes bound to the executable, canonical frozen digest, complete 22-case named-model result, and current selected loopback assignment. Permission-first async resolution, no-ambient-authority transport, CAM-owned grounding/prohibition checks, and post-await lease checks fail closed; a missing named model leaves reflection disabled without blocking deterministic practical Preview | Active |
 
 ## Initial Default Decisions
 

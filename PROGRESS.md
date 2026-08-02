@@ -2416,3 +2416,25 @@ blocker is asserted.
   and handoff; a parallel read-only reviewer is mapping the existing strict
   loopback transport and fail-closed test surface. No model or network has been
   invoked by the orchestrator dispatch.
+
+## 2026-08-02 - ADD2CAM Goal 40 Integrated
+
+- Integrated the explicit reflective lane through accepted integration commit
+  `5409c3b`. The durable handoff is
+  `docs/handoffs/add2cam/20260731/40_REFLECTIVE_LANE.md` and the immutable named
+  result is `docs/evidence/add2cam-09-named-model-report.json`.
+- Independent review blocked the first core pass until canonical manifest bytes,
+  complete case evidence, current report age, exact selected assignment/runtime,
+  permission-first async resolution, runtime grounding/prohibition, file-swap
+  resistance, and post-await revocation were enforced. A final independent
+  review passed after exact bundled report-byte/executable binding was added.
+- Post-integration proof passes: 16 reflection tests, 36 AppModel tests, 13
+  frozen Meaning Preview tests with all six deterministic replay metrics `1.0`,
+  and 8 privacy plus 3 audit tests. Replay remains explicitly ineligible for
+  named-model admission.
+- The named-model command truthfully returned exit `2` with
+  `selected_model_unavailable`; no model, alternate provider, web, cloud, CAM,
+  retry, or fallback was invoked. Reflection therefore remains disabled while
+  deterministic practical Preview stays eligible.
+- Goal 40 is terminal `verified_partial`, which is an allowed autonomous result.
+  Goal 50 is ready from exact prerequisite `5409c3b`; Goal 60 remains human-only.

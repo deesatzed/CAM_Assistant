@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-01",
+  "updatedAt": "2026-08-02",
   "integrationBranch": "agent/add2cam-integration-20260731",
-  "acceptedCommit": "c0dbe01",
+  "acceptedCommit": "5409c3b",
   "terminalTarget": "READY_FOR_HUMAN_PILOT",
   "goals": [
     {
@@ -72,22 +72,22 @@
     },
     {
       "id": "ADD2CAM-40",
-      "status": "in_progress",
+      "status": "verified_partial",
       "dependencies": ["ADD2CAM-20", "ADD2CAM-21", "ADD2CAM-30"],
       "prerequisiteCommit": "c0dbe01",
       "branch": "agent/add2cam-40-reflective-lane",
       "worktree": "/private/tmp/cam-add2cam-20260731/reflective-lane",
       "attempts": 1,
-      "terminalCommit": null,
+      "terminalCommit": "5409c3b",
       "handoff": "docs/handoffs/add2cam/20260731/40_REFLECTIVE_LANE.md",
-      "evidence": [],
+      "evidence": ["docs/evidence/add2cam-09-named-model-report.json", "docs/handoffs/add2cam/20260731/40_REFLECTIVE_LANE.md", "Tests/CAMAssistantCoreTests/MeaningPreviewReflectionTests.swift", "Tests/CAMAssistantAppTests/MeaningPreviewAppModelTests.swift"],
       "blockers": []
     },
     {
       "id": "ADD2CAM-50",
-      "status": "pending",
+      "status": "ready",
       "dependencies": ["ADD2CAM-40"],
-      "prerequisiteCommit": null,
+      "prerequisiteCommit": "5409c3b",
       "branch": "agent/add2cam-50-packaged-pilot",
       "worktree": "/private/tmp/cam-add2cam-20260731/packaged-pilot",
       "attempts": 0,
