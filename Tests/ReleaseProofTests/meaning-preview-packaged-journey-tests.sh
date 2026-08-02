@@ -379,9 +379,10 @@ private final class Driver {
     func waitEnabled(_ value: String) throws -> AXUIElement {
         let deadline = Date().addingTimeInterval(12)
         repeat {
-            if let result = try AXIndex(application: application).identifier(value),
-               try boolAttribute(result, kAXEnabledAttribute as CFString) == true {
-                return result
+            if let anchor = try AXIndex(application: application).identifier(value),
+               let button = try ancestor(anchor, role: kAXButtonRole as String),
+               try boolAttribute(button, kAXEnabledAttribute as CFString) == true {
+                return button
             }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
@@ -412,14 +413,35 @@ private final class Driver {
     }
 
     func pressIdentifier(_ value: String) throws {
-        try press(waitIdentifier(value), token: value)
+        let anchor = try waitIdentifier(value)
+        guard let button = try ancestor(anchor, role: kAXButtonRole as String) else {
+            throw DriverError.missing("button-\(value)")
+        }
+        try press(button, token: value)
+    }
+
+    func ancestor(_ start: AXUIElement, role: String) throws -> AXUIElement? {
+        var element = start
+        for _ in 0..<12 {
+            if try stringAttribute(element, kAXRoleAttribute as CFString) == role {
+                return element
+            }
+            guard let parentValue = try copyAttribute(
+                element,
+                kAXParentAttribute as CFString
+            ), CFGetTypeID(parentValue) == AXUIElementGetTypeID() else {
+                return nil
+            }
+            element = unsafeBitCast(parentValue, to: AXUIElement.self)
+        }
+        return nil
     }
 
     func selectSidebar(_ identifier: String) throws {
-        var element = try waitIdentifier(identifier)
-        for _ in 0..<12 {
-            if try stringAttribute(element, kAXRoleAttribute as CFString)
-                == (kAXRowRole as String) {
+        let anchor = try waitIdentifier(identifier)
+        guard let element = try ancestor(anchor, role: kAXRowRole as String) else {
+            throw DriverError.missing("sidebar-row")
+        }
                 var settable = DarwinBoolean(false)
                 let check = AXUIElementIsAttributeSettable(
                     element,
@@ -439,17 +461,6 @@ private final class Driver {
                 guard selected == .success else {
                     throw DriverError.action("sidebar-row-selection")
                 }
-                return
-            }
-            guard let parentValue = try copyAttribute(
-                element,
-                kAXParentAttribute as CFString
-            ), CFGetTypeID(parentValue) == AXUIElementGetTypeID() else {
-                throw DriverError.missing("sidebar-row")
-            }
-            element = unsafeBitCast(parentValue, to: AXUIElement.self)
-        }
-        throw DriverError.missing("sidebar-row")
     }
 
     func key(_ code: CGKeyCode) throws {
