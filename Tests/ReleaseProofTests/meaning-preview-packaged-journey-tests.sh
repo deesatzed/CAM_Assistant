@@ -548,18 +548,27 @@ private func enable(_ driver: Driver) throws {
     try driver.pressIdentifier("meaning-preview-enable")
 }
 
-private func exercise(_ driver: Driver) throws -> String {
-    _ = try driver.waitIdentifier("meaning-preview-grant")
-    _ = try driver.waitIdentifier("meaning-preview-sidebar")
-    try driver.assertAbsent("meaning-preview-request")
+private func closeSettings(_ driver: Driver) throws {
     try driver.key(53)
     try driver.waitAbsent("meaning-preview-settings")
+    print("settings=closed")
+}
+
+private func selectPreview(_ driver: Driver) throws {
     try driver.selectSidebar("meaning-preview-sidebar")
     _ = try driver.waitIdentifier("meaning-preview-permission-state")
+    print("preview=selected")
+}
+
+private func grant(_ driver: Driver) throws {
     try driver.pressIdentifier(
         "meaning-preview-grant",
         within: "meaning-preview-permission-state"
     )
+    print("grant=pressed")
+}
+
+private func exercise(_ driver: Driver) throws -> String {
     let picker = try driver.waitIdentifier("meaning-preview-source-picker")
     try driver.press(picker, token: "source-picker")
     try driver.key(125)
@@ -611,6 +620,12 @@ do {
     case "enable":
         try enable(driver)
         print("enable=pressed")
+    case "close-settings":
+        try closeSettings(driver)
+    case "select-preview":
+        try selectPreview(driver)
+    case "grant":
+        try grant(driver)
     case "exercise":
         print(try exercise(driver))
     case "disable":
@@ -717,6 +732,17 @@ trace_module_state() {
   done
 }
 
+assert_permission_count() {
+  local expected="$1"
+  [[ -f "$MODULE_STATE" ]] || fail module-state-missing
+  local permission_count
+  permission_count="$(/opt/homebrew/bin/jq -r \
+    '(.permissionGrants["cam.meaning-preview"] // []) | length' \
+    "$MODULE_STATE")"
+  [[ "$permission_count" == "$expected" ]] \
+    || fail "unexpected-permission-count-$permission_count-expected-$expected"
+}
+
 prepare_watched_source() {
   mkdir -p "$VAULT_ROOT" "$WATCH_DIRECTORY"
   /usr/bin/printf \
@@ -782,6 +808,12 @@ done
 native_ax_phase enable
 wait_for_enabled_without_access
 trace_module_state
+native_ax_phase close-settings
+assert_permission_count 0
+native_ax_phase select-preview
+assert_permission_count 0
+native_ax_phase grant
+assert_permission_count 2
 EXERCISE_RESULT="$(native_ax_phase exercise)"
 print "$EXERCISE_RESULT"
 [[ "$EXERCISE_RESULT" == *"result=card action=now feedback=helpful"* ]] \
