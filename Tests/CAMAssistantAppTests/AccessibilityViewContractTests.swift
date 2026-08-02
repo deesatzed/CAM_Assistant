@@ -447,6 +447,81 @@ func meaningPreviewIsConditionalAndReducedMotionSafe() throws {
     }
 }
 
+@Test("Meaning Preview package and pilot verifier require embedded resources")
+func meaningPreviewPackageAndPilotVerifierRequireEmbeddedResources() throws {
+    let root = accessibilityRepositoryRoot()
+    let packageScript = try String(
+        contentsOf: root.appending(path: "scripts/package-app.sh"),
+        encoding: .utf8
+    )
+    let verifyScript = try String(
+        contentsOf: root.appending(path: "scripts/verify.sh"),
+        encoding: .utf8
+    )
+    let requiredPackageContracts = [
+        "Contents/Resources/Modules/Core",
+        "Modules/Core/meaning-preview.json",
+        "\"$APP_DIR/CAMAssistant_CAMAssistantCore.bundle\"",
+        "Contents/Resources/MeaningPreview",
+        "docs/evidence/add2cam-09-named-model-report.json",
+        "git -C \"$ROOT\" ls-files --error-unmatch",
+    ]
+    #expect(
+        requiredPackageContracts.allSatisfy(packageScript.contains),
+        "The app package must carry exact committed Meaning Preview resources without a source/build-tree runtime fallback."
+    )
+    #expect(
+        !packageScript.contains(
+            "\"$RESOURCES_DIR/CAMAssistant_CAMAssistantCore.bundle\""
+        ),
+        "SwiftPM Bundle.module resolves the core resource bundle at the app root, not Contents/Resources."
+    )
+    #expect(
+        verifyScript.contains("meaning-preview-packaged)")
+            && verifyScript.contains(
+                "meaning-preview-packaged-journey-tests.sh"
+            ),
+        "The GUI-sensitive packaged pilot must remain an explicit suite separate from aggregate verification."
+    )
+}
+
+@Test("Meaning Preview packaged journey preserves the native safety boundary")
+func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
+    let journeyURL = accessibilityRepositoryRoot().appending(
+        path: "Tests/ReleaseProofTests/meaning-preview-packaged-journey-tests.sh"
+    )
+    #expect(FileManager.default.fileExists(atPath: journeyURL.path))
+    guard FileManager.default.fileExists(atPath: journeyURL.path) else {
+        return
+    }
+    let journey = try String(contentsOf: journeyURL, encoding: .utf8)
+    let requiredContracts = [
+        "pgrep -x CAMAssistant",
+        "open -n \"$PILOT_APP\" --env",
+        "CAM_ASSISTANT_APPLICATION_SUPPORT_ROOT=$SUPPORT_ROOT",
+        "chmod 000 \"$BUILD_DIR\" \"$SOURCE_MANIFEST_DIRECTORY\"",
+        "meaning-preview-sidebar",
+        "meaning-preview-enable",
+        "meaning-preview-grant",
+        "meaning-preview-source-picker",
+        "meaning-preview-request",
+        "meaning-preview-inspect",
+        "meaning-preview-disable",
+        "meaning-preview-reflect-unavailable",
+        "readLocal",
+        "writeLocal",
+        "outbound_byte_count",
+        "/usr/sbin/lsof -nP -a -p",
+        "exit 77",
+    ]
+    #expect(requiredContracts.allSatisfy(journey.contains))
+    #expect(!journey.contains("kill "))
+    #expect(!journey.contains("pkill"))
+    #expect(!journey.contains("tccutil"))
+    #expect(!journey.contains("codesign"))
+    #expect(!journey.contains("CAM_ASSISTANT_SKIP_FRESH_CLONE"))
+}
+
 private struct AccessibilitySourceContract {
     let fileName: String
     let rootLabelPrefix: String
