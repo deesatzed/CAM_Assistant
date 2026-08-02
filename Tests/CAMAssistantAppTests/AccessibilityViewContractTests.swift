@@ -529,6 +529,16 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
         "kAXChildrenAttribute",
         "AXUIElementPerformAction",
         "native_ax_phase capture",
+        "watched-sources.json",
+        "Watching locally",
+        "CGPreflightPostEventAccess()",
+        "kAXVisibleChildrenAttribute",
+        "kAXRowsAttribute",
+        "kAXContentsAttribute",
+        "AXChildrenInNavigationOrder",
+        "executableURL",
+        "assert_ordinary_unchanged",
+        "postflight_git_state",
         "meaning-preview-sidebar",
         "meaning-preview-enable",
         "meaning-preview-grant",
@@ -550,6 +560,7 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
     #expect(!journey.contains("codesign"))
     #expect(!journey.contains("CAM_ASSISTANT_SKIP_FRESH_CLONE"))
     #expect(!journey.contains("tell application \"System Events\""))
+    #expect(!journey.contains("NSPasteboard"))
     #expect(
         !journey.contains(
             "BUILD_DIR=\"$REPOSITORY_ROOT/.swift-build\""

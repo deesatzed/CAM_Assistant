@@ -12,9 +12,12 @@ PACKAGED_APP="$CLONE_ROOT/artifacts/CAM Assistant.app"
 SOURCE_MANIFEST="$CLONE_ROOT/Modules/Core/meaning-preview.json"
 SOURCE_REPORT="$CLONE_ROOT/docs/evidence/add2cam-09-named-model-report.json"
 PILOT_APP="$TEST_ROOT/CAM Assistant.app"
+PILOT_EXECUTABLE="$PILOT_APP/Contents/MacOS/CAMAssistant"
 AX_DRIVER="$TEST_ROOT/meaning-preview-ax-driver"
 SUPPORT_ROOT="$TEST_ROOT/application-support"
 VAULT_ROOT="$SUPPORT_ROOT/CAMAssistant"
+WATCH_DIRECTORY="$TEST_ROOT/watched-source"
+WATCH_FILE="$WATCH_DIRECTORY/synthetic-pilot.txt"
 VAULT_DB="$VAULT_ROOT/vault.sqlite"
 MODULE_STATE="$VAULT_ROOT/module-state.json"
 PREVIEW_DB="$VAULT_ROOT/meaning-preview/MeaningPreview.sqlite"
@@ -25,27 +28,46 @@ SOURCE_MANIFEST_MODE=""
 BUILD_WAS_RESTRICTED="false"
 SOURCE_MANIFEST_WAS_RESTRICTED="false"
 
+bound_app_pid() {
+  /usr/bin/osascript -l JavaScript - "$PILOT_EXECUTABLE" <<'JXA'
+ObjC.import("AppKit")
+function run(argv) {
+    const expected = argv[0]
+    return $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
+        "com.deesatzed.cam-assistant"
+    ).js.filter(application => {
+        const url = application.executableURL
+        return url && ObjC.unwrap(url.path) === expected
+    }).map(application => String(application.processIdentifier)).join("\n")
+}
+JXA
+}
+
 graceful_terminate_launched_app() {
   if [[ -z "$APP_PID" ]]; then
     return
   fi
   /usr/bin/perl -e 'alarm shift; exec @ARGV' 5 \
-    /usr/bin/osascript -l JavaScript - "$APP_PID" >/dev/null 2>&1 <<'JXA' || true
+    /usr/bin/osascript -l JavaScript - "$APP_PID" "$PILOT_EXECUTABLE" \
+    >/dev/null 2>&1 <<'JXA' || true
 ObjC.import("AppKit")
 function run(argv) {
     const wantedPID = Number(argv[0])
+    const expected = argv[1]
     const applications = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
         "com.deesatzed.cam-assistant"
     ).js
     applications.forEach(application => {
-        if (Number(application.processIdentifier) === wantedPID) {
+        const url = application.executableURL
+        if (Number(application.processIdentifier) === wantedPID
+            && url && ObjC.unwrap(url.path) === expected) {
             application.terminate
         }
     })
 }
 JXA
   for _ in {1..50}; do
-    if ! /bin/ps -p "$APP_PID" >/dev/null 2>&1; then
+    if [[ "$(bound_app_pid)" != "$APP_PID" ]]; then
       APP_PID=""
       return
     fi
@@ -54,6 +76,12 @@ JXA
 }
 
 cleanup() {
+  graceful_terminate_launched_app
+  if [[ -n "$APP_PID" ]]; then
+    print -u2 \
+      "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED cleanup=preserved reason=app-still-running"
+    return
+  fi
   if [[ "$BUILD_WAS_RESTRICTED" == "true" ]]; then
     chmod "$BUILD_MODE" "$BUILD_DIR" || true
     BUILD_WAS_RESTRICTED="false"
@@ -61,12 +89,6 @@ cleanup() {
   if [[ "$SOURCE_MANIFEST_WAS_RESTRICTED" == "true" ]]; then
     chmod "$SOURCE_MANIFEST_MODE" "$SOURCE_MANIFEST_DIRECTORY" || true
     SOURCE_MANIFEST_WAS_RESTRICTED="false"
-  fi
-  graceful_terminate_launched_app
-  if [[ -n "$APP_PID" ]]; then
-    print -u2 \
-      "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED cleanup=preserved reason=app-still-running"
-    return
   fi
   rm -rf "$TEST_ROOT"
 }
@@ -135,19 +157,28 @@ launch_pilot_app() {
   /usr/bin/open -n "$PILOT_APP" --env \
     "CAM_ASSISTANT_APPLICATION_SUPPORT_ROOT=$SUPPORT_ROOT"
   for _ in {1..100}; do
-    APP_PID="$(/usr/bin/pgrep -x CAMAssistant || true)"
-    if [[ -n "$APP_PID" ]]; then
+    APP_PID="$(bound_app_pid)"
+    if [[ "$APP_PID" == <-> ]]; then
       return
     fi
+    [[ "$APP_PID" != *$'\n'* ]] || fail app-launch-ambiguous
     /bin/sleep 0.1
   done
   fail app-launch-timeout
 }
 
 assert_no_app_sockets() {
-  if /usr/sbin/lsof -nP -a -p "$APP_PID" -i >/dev/null 2>&1; then
+  local socket_status
+  /usr/sbin/lsof -nP -p "$APP_PID" >/dev/null 2>&1 \
+    || fail lsof-process-inspection
+  set +e
+  /usr/sbin/lsof -nP -a -p "$APP_PID" -i >/dev/null 2>&1
+  socket_status=$?
+  set -e
+  if [[ "$socket_status" -eq 0 ]]; then
     fail app-network-socket-observed
   fi
+  [[ "$socket_status" -eq 1 ]] || fail lsof-socket-inspection
 }
 
 build_ax_driver() {
@@ -196,8 +227,12 @@ private func copyAttribute(
         return value
     case .apiDisabled:
         throw AXAccessError.denied
-    default:
+    case .cannotComplete, .invalidUIElement:
+        throw DriverError.action("ax-index-incomplete")
+    case .attributeUnsupported, .noValue:
         return nil
+    default:
+        throw DriverError.action("ax-index-incomplete")
     }
 }
 
@@ -226,6 +261,13 @@ private struct AXIndex {
     let elements: [AXUIElement]
 
     init(application: AXUIElement) throws {
+        let relationAttributes: [CFString] = [
+            kAXChildrenAttribute as CFString,
+            kAXVisibleChildrenAttribute as CFString,
+            kAXRowsAttribute as CFString,
+            kAXContentsAttribute as CFString,
+            "AXChildrenInNavigationOrder" as CFString,
+        ]
         var queue = try elementsAttribute(application, kAXWindowsAttribute as CFString)
             .map { ($0, 0) }
         var cursor = 0
@@ -240,10 +282,19 @@ private struct AXIndex {
             }) { continue }
             seen[identity, default: []].append(element)
             result.append(element)
-            guard depth < 24 else { continue }
-            for child in try elementsAttribute(element, kAXChildrenAttribute as CFString) {
+            var descendants: [AXUIElement] = []
+            for relation in relationAttributes {
+                descendants.append(contentsOf: try elementsAttribute(element, relation))
+            }
+            if depth >= 24 && !descendants.isEmpty {
+                throw DriverError.action("ax-depth-cap")
+            }
+            for child in descendants {
                 queue.append((child, depth + 1))
             }
+        }
+        if cursor < queue.count {
+            throw DriverError.action("ax-node-cap")
         }
         elements = result
     }
@@ -278,6 +329,7 @@ private final class Driver {
 
     init(pid: pid_t) throws {
         guard AXIsProcessTrusted() else { throw AXAccessError.denied }
+        guard CGPreflightPostEventAccess() else { throw AXAccessError.denied }
         application = AXUIElementCreateApplication(pid)
         NSRunningApplication(processIdentifier: pid)?.activate(
             options: []
@@ -369,42 +421,27 @@ private final class Driver {
     }
 }
 
-private struct PasteboardSnapshot {
-    let items: [[(NSPasteboard.PasteboardType, Data)]]
-
-    init(_ pasteboard: NSPasteboard) {
-        items = (pasteboard.pasteboardItems ?? []).map { item in
-            item.types.compactMap { type in
-                item.data(forType: type).map { (type, $0) }
-            }
-        }
-    }
-
-    func restore(to pasteboard: NSPasteboard) {
-        pasteboard.clearContents()
-        let restored = items.map { values -> NSPasteboardItem in
-            let item = NSPasteboardItem()
-            for (type, data) in values { item.setData(data, forType: type) }
-            return item
-        }
-        if !restored.isEmpty { pasteboard.writeObjects(restored) }
-    }
-}
-
 private func capture(_ driver: Driver) throws {
     _ = try driver.waitIdentifier("assistant-section-settings")
     try driver.assertAbsent("meaning-preview-sidebar")
-    let pasteboard = NSPasteboard.general
-    let snapshot = PasteboardSnapshot(pasteboard)
-    defer { snapshot.restore(to: pasteboard) }
+    try driver.pressIdentifier("assistant-section-settings")
+    let captureSources = try driver.waitNamed(
+        "Capture Sources",
+        role: kAXRadioButtonRole
+    )
+    try driver.press(captureSources, token: "capture-sources-pane")
+    _ = try driver.waitNamed("Watching locally")
     guard let text = ProcessInfo.processInfo.environment[
-        "CAM_PILOT_SYNTHETIC_DERIVED_TEXT"
-    ] else { throw DriverError.missing("synthetic-input") }
-    pasteboard.clearContents()
-    pasteboard.setString(text, forType: .string)
-    let button = try driver.waitNamed("Capture Clipboard Locally", role: kAXButtonRole)
-    try driver.press(button, token: "capture")
-    _ = try driver.waitNamed("Clipboard captured and indexed locally.")
+              "CAM_PILOT_SYNTHETIC_DERIVED_TEXT"
+          ],
+          let path = ProcessInfo.processInfo.environment[
+              "CAM_PILOT_WATCH_FILE"
+          ] else { throw DriverError.missing("synthetic-input") }
+    try Data(text.utf8).write(to: URL(filePath: path), options: .atomic)
+    try driver.pressIdentifier("assistant-section-assistant")
+    _ = try driver.waitNamed(
+        "Watched folder captured and indexed content locally."
+    )
 }
 
 private func exercise(_ driver: Driver) throws -> String {
@@ -494,8 +531,10 @@ native_ax_phase() {
   local phase="$1"
   local output
   local ax_status
+  [[ "$(bound_app_pid)" == "$APP_PID" ]] || fail app-identity-drift
   export CAM_PILOT_APP_PID="$APP_PID"
   export CAM_PILOT_SYNTHETIC_DERIVED_TEXT="$SYNTHETIC_DERIVED_TEXT"
+  export CAM_PILOT_WATCH_FILE="$WATCH_FILE"
   set +e
   output="$(/usr/bin/perl -e 'alarm shift; exec @ARGV' 45 \
     "$AX_DRIVER" "$phase" 2>&1)"
@@ -535,6 +574,13 @@ wait_for_source_capture() {
   fail synthetic-capture-not-persisted
 }
 
+prepare_watched_source() {
+  mkdir -p "$VAULT_ROOT" "$WATCH_DIRECTORY"
+  /usr/bin/printf \
+    '[{"id":"00000000-0000-4000-8000-000000000050","canonicalPath":"%s","isEnabled":true}]' \
+    "$WATCH_DIRECTORY" > "$VAULT_ROOT/watched-sources.json"
+}
+
 ordinary_table_fingerprint() {
   local table="$1"
   /usr/bin/sqlite3 "$VAULT_DB" ".dump \"$table\"" \
@@ -555,8 +601,31 @@ decoded_preview_digest() {
     | /usr/bin/awk '{print $1}'
 }
 
+assert_ordinary_unchanged() {
+  local after_tables="$(ordinary_tables)"
+  [[ "$after_tables" == "${(j:\n:)${(ok)ORDINARY_BEFORE}}" ]] \
+    || fail ordinary-table-set-changed
+  for table in ${(f)after_tables}; do
+    [[ "$(ordinary_table_fingerprint "$table")" \
+        == "$ORDINARY_BEFORE[$table]" ]] \
+      || fail ordinary-table-content-changed
+  done
+}
+
+postflight_git_state() {
+  [[ "$(git -C "$REPOSITORY_ROOT" rev-parse HEAD)" == "$EXPECTED_COMMIT" ]] \
+    || fail root-head-drift
+  [[ -z "$(git -C "$REPOSITORY_ROOT" status --porcelain)" ]] \
+    || fail root-worktree-drift
+  [[ "$(git -C "$CLONE_ROOT" rev-parse HEAD)" == "$EXPECTED_COMMIT" ]] \
+    || fail clone-head-drift
+  [[ -z "$(git -C "$CLONE_ROOT" status --porcelain)" ]] \
+    || fail clone-worktree-drift
+}
+
 typeset -A ORDINARY_BEFORE
 
+prepare_watched_source
 build_ax_driver
 launch_pilot_app
 native_ax_phase capture
@@ -599,13 +668,7 @@ FEEDBACK_AUDIT_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
 [[ "$ACTION_AUDIT_COUNT" -ge 1 ]] || fail action-audit-missing
 [[ "$FEEDBACK_AUDIT_COUNT" -ge 1 ]] || fail feedback-audit-missing
 
-AFTER_TABLES="$(ordinary_tables)"
-[[ "$AFTER_TABLES" == "${(j:\n:)${(ok)ORDINARY_BEFORE}}" ]] \
-  || fail ordinary-table-set-changed
-for table in ${(f)AFTER_TABLES}; do
-  [[ "$(ordinary_table_fingerprint "$table")" == "$ORDINARY_BEFORE[$table]" ]] \
-    || fail ordinary-table-content-changed
-done
+assert_ordinary_unchanged
 
 native_ax_phase disable
 /opt/homebrew/bin/jq -e '
@@ -615,6 +678,7 @@ native_ax_phase disable
 [[ -f "$PREVIEW_DB" ]] || fail isolated-state-deleted-on-disable
 [[ "$(decoded_preview_digest)" \
     == "$PREVIEW_STATE_DIGEST" ]] || fail isolated-state-mutated-on-disable
+assert_ordinary_unchanged
 
 graceful_terminate_launched_app
 [[ -z "$APP_PID" ]] || fail app-did-not-terminate
@@ -624,6 +688,8 @@ assert_no_app_sockets
 [[ -f "$PREVIEW_DB" ]] || fail isolated-state-deleted-on-restart
 [[ "$(decoded_preview_digest)" \
     == "$PREVIEW_STATE_DIGEST" ]] || fail isolated-state-mutated-on-restart
+assert_ordinary_unchanged
+postflight_git_state
 
 print \
-  "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=pass commit=$EXPECTED_COMMIT resources=exact result=zero-or-one permissions=exact audit=status-only outbound_sockets=0 restart=disabled"
+  "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=pass commit=$EXPECTED_COMMIT resources=exact result=card action=now feedback=helpful permissions=exact audit=status-only audit_outbound_bytes=0 sockets_point_in_time=0 restart=disabled"
