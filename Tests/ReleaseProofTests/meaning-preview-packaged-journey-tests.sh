@@ -16,7 +16,7 @@ VAULT_ROOT="$SUPPORT_ROOT/CAMAssistant"
 VAULT_DB="$VAULT_ROOT/vault.sqlite"
 MODULE_STATE="$VAULT_ROOT/module-state.json"
 PREVIEW_DB="$VAULT_ROOT/meaning-preview/MeaningPreview.sqlite"
-SYNTHETIC_MARKER="CAM_MEANING_PREVIEW_SYNTHETIC_PILOT_MARKER"
+SYNTHETIC_DERIVED_TEXT="A synthetic local pilot note records one bounded community errand."
 APP_PID=""
 BUILD_MODE=""
 SOURCE_MANIFEST_MODE=""
@@ -61,6 +61,11 @@ cleanup() {
     SOURCE_MANIFEST_WAS_RESTRICTED="false"
   fi
   graceful_terminate_launched_app
+  if [[ -n "$APP_PID" ]]; then
+    print -u2 \
+      "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED cleanup=preserved reason=app-still-running"
+    return
+  fi
   rm -rf "$TEST_ROOT"
 }
 trap cleanup EXIT
@@ -141,7 +146,7 @@ ax_phase() {
   local output
   local ax_status
   export CAM_PILOT_APP_PID="$APP_PID"
-  export CAM_PILOT_SYNTHETIC_MARKER="$SYNTHETIC_MARKER"
+  export CAM_PILOT_SYNTHETIC_DERIVED_TEXT="$SYNTHETIC_DERIVED_TEXT"
   set +e
   output="$(/usr/bin/perl -e 'alarm shift; exec @ARGV' 45 \
     /usr/bin/osascript - "$phase" 2>&1 <<'APPLESCRIPT'
@@ -156,24 +161,44 @@ on identifierOf(anElement)
     tell application "System Events"
         try
             return value of attribute "AXIdentifier" of anElement
-        on error
+        on error errorText number errorNumber
+            if errorNumber is -1719 or errorNumber is -1743 then
+                error errorText number errorNumber
+            end if
             return ""
         end try
     end tell
 end identifierOf
 
-on findIdentifier(identifierValue)
+on childElements(anElement)
     tell application "System Events"
-        set processRef to my appProcess()
-        repeat with windowRef in windows of processRef
-            try
-                if my identifierOf(windowRef) is identifierValue then return windowRef
-                repeat with candidate in entire contents of windowRef
-                    if my identifierOf(candidate) is identifierValue then return candidate
-                end repeat
-            end try
-        end repeat
+        try
+            return UI elements of anElement
+        on error errorText number errorNumber
+            if errorNumber is -1719 or errorNumber is -1743 then
+                error errorText number errorNumber
+            end if
+            return {}
+        end try
     end tell
+end childElements
+
+on findIdentifierWithin(anElement, identifierValue, remainingDepth)
+    if my identifierOf(anElement) is identifierValue then return anElement
+    if remainingDepth is 0 then return missing value
+    repeat with childElement in my childElements(anElement)
+        set foundElement to my findIdentifierWithin(childElement, identifierValue, remainingDepth - 1)
+        if foundElement is not missing value then return foundElement
+    end repeat
+    return missing value
+end findIdentifierWithin
+
+on findIdentifier(identifierValue)
+    tell application "System Events" to set processWindows to windows of my appProcess()
+    repeat with windowRef in processWindows
+        set foundElement to my findIdentifierWithin(windowRef, identifierValue, 18)
+        if foundElement is not missing value then return foundElement
+    end repeat
     return missing value
 end findIdentifier
 
@@ -194,22 +219,57 @@ on waitIdentifierAbsent(identifierValue)
     error "CAM_AX_FAILURE:unexpected-" & identifierValue number 1002
 end waitIdentifierAbsent
 
-on findNamedButton(buttonName)
+on roleOf(anElement)
     tell application "System Events"
-        set processRef to my appProcess()
-        repeat with windowRef in windows of processRef
-            try
-                repeat with candidate in entire contents of windowRef
-                    try
-                        if role of candidate is "AXButton" and name of candidate is buttonName then
-                            return candidate
-                        end if
-                    end try
-                end repeat
-            end try
-        end repeat
+        try
+            return role of anElement
+        on error errorText number errorNumber
+            if errorNumber is -1719 or errorNumber is -1743 then
+                error errorText number errorNumber
+            end if
+            return ""
+        end try
     end tell
+end roleOf
+
+on nameOf(anElement)
+    tell application "System Events"
+        try
+            return name of anElement
+        on error errorText number errorNumber
+            if errorNumber is -1719 or errorNumber is -1743 then
+                error errorText number errorNumber
+            end if
+            return ""
+        end try
+    end tell
+end nameOf
+
+on findNamedWithin(anElement, elementName, requiredRole, remainingDepth)
+    if my nameOf(anElement) is elementName then
+        if requiredRole is "" or my roleOf(anElement) is requiredRole then
+            return anElement
+        end if
+    end if
+    if remainingDepth is 0 then return missing value
+    repeat with childElement in my childElements(anElement)
+        set foundElement to my findNamedWithin(childElement, elementName, requiredRole, remainingDepth - 1)
+        if foundElement is not missing value then return foundElement
+    end repeat
     return missing value
+end findNamedWithin
+
+on findNamedElement(elementName, requiredRole)
+    tell application "System Events" to set processWindows to windows of my appProcess()
+    repeat with windowRef in processWindows
+        set foundElement to my findNamedWithin(windowRef, elementName, requiredRole, 18)
+        if foundElement is not missing value then return foundElement
+    end repeat
+    return missing value
+end findNamedElement
+
+on findNamedButton(buttonName)
+    return my findNamedElement(buttonName, "AXButton")
 end findNamedButton
 
 on waitNamedButton(buttonName)
@@ -222,21 +282,8 @@ on waitNamedButton(buttonName)
 end waitNamedButton
 
 on waitNamedText(textValue)
-    tell application "System Events"
-        set processRef to my appProcess()
-    end tell
     repeat 120 times
-        tell application "System Events"
-            repeat with windowRef in windows of processRef
-                try
-                    repeat with candidate in entire contents of windowRef
-                        try
-                            if name of candidate is textValue then return
-                        end try
-                    end repeat
-                end try
-            end repeat
-        end tell
+        if my findNamedElement(textValue, "") is not missing value then return
         delay 0.1
     end repeat
     error "CAM_AX_FAILURE:missing-status" number 1002
@@ -265,7 +312,7 @@ end waitEnabled
 on captureSyntheticClipboard()
     set savedClipboard to the clipboard as record
     try
-        set the clipboard to system attribute "CAM_PILOT_SYNTHETIC_MARKER"
+        set the clipboard to system attribute "CAM_PILOT_SYNTHETIC_DERIVED_TEXT"
         set captureButton to my waitNamedButton("Capture Clipboard Locally")
         tell application "System Events" to click captureButton
         my waitNamedText("Clipboard captured and indexed locally.")
@@ -279,7 +326,14 @@ end captureSyntheticClipboard
 on run(arguments)
     set phase to item 1 of arguments
     try
-        tell application "System Events" to set frontmost of my appProcess() to true
+        tell application "System Events"
+            set processRef to my appProcess()
+            set frontmost of processRef to true
+            set windowCount to count of windows of processRef
+        end tell
+        if windowCount is 0 then
+            error "CAM_AX_FAILURE:no-app-window" number 1002
+        end if
         if phase is "capture" then
             my waitIdentifier("assistant-section-settings")
             if my findIdentifier("meaning-preview-sidebar") is not missing value then
@@ -320,14 +374,20 @@ on run(arguments)
                     my clickIdentifier("meaning-preview-inspect")
                     my waitIdentifier("meaning-preview-inspect-sheet")
                     tell application "System Events" to key code 53
+                    my clickIdentifier("meaning-preview-now")
+                    my waitNamedText("Now recorded in isolated Preview state.")
+                    set secondRequest to my waitEnabled("meaning-preview-request")
+                    tell application "System Events" to click secondRequest
+                    my waitIdentifier("meaning-preview-card")
                     my clickIdentifier("meaning-preview-helpful")
-                    return "result=card feedback=helpful"
+                    my waitNamedText("Helpful recorded explicitly in isolated Preview state.")
+                    return "result=card action=now feedback=helpful"
                 end if
                 if my findIdentifier("meaning-preview-silence") is not missing value then
                     my clickIdentifier("meaning-preview-inspect")
                     my waitIdentifier("meaning-preview-inspect-sheet")
                     tell application "System Events" to key code 53
-                    return "result=silence feedback=not-applicable"
+                    return "result=silence action=not-applicable feedback=not-applicable"
                 end if
                 delay 0.1
             end repeat
@@ -402,6 +462,14 @@ ordinary_tables() {
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('audit_events', 'sqlite_sequence') ORDER BY name;"
 }
 
+decoded_preview_digest() {
+  /usr/bin/sqlite3 "$PREVIEW_DB" \
+    "SELECT snapshot_json FROM meaning_preview_state WHERE singleton = 1;" \
+    | /usr/bin/base64 -D \
+    | /usr/bin/shasum -a 256 \
+    | /usr/bin/awk '{print $1}'
+}
+
 typeset -A ORDINARY_BEFORE
 
 launch_pilot_app
@@ -413,7 +481,10 @@ for table in ${(f)"$(ordinary_tables)"}; do
   ORDINARY_BEFORE[$table]="$(ordinary_table_fingerprint "$table")"
 done
 
-ax_phase exercise
+EXERCISE_RESULT="$(ax_phase exercise)"
+print "$EXERCISE_RESULT"
+[[ "$EXERCISE_RESULT" == *"result=card action=now feedback=helpful"* ]] \
+  || fail synthetic-result-not-actionable
 assert_no_app_sockets
 
 [[ -f "$MODULE_STATE" ]] || fail module-state-missing
@@ -424,8 +495,7 @@ assert_no_app_sockets
 ' "$MODULE_STATE" >/dev/null || fail exact-permission-state
 
 [[ -f "$PREVIEW_DB" ]] || fail isolated-state-missing
-PREVIEW_STATE_DIGEST="$(/usr/bin/shasum -a 256 "$PREVIEW_DB" \
-  | /usr/bin/awk '{print $1}')"
+PREVIEW_STATE_DIGEST="$(decoded_preview_digest)"
 
 MEANING_AUDIT_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
   "SELECT COUNT(*) FROM audit_events WHERE resource_id LIKE 'meaning-preview:%';")"
@@ -434,14 +504,14 @@ INVALID_AUDIT_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
   "SELECT COUNT(*) FROM audit_events WHERE resource_id LIKE 'meaning-preview:%' AND (operation != 'system' OR status NOT IN ('succeeded','cancelled','denied','failed') OR privacy_decision != 'localOnly' OR payload_sha256 IS NOT NULL OR COALESCE(outbound_byte_count, 0) != 0);")"
 [[ "$INVALID_AUDIT_COUNT" == "0" ]] || fail audit-not-status-only
 RAW_AUDIT_MARKER_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
-  "SELECT COUNT(*) FROM audit_events WHERE COALESCE(resource_id,'') LIKE '%' || '$SYNTHETIC_MARKER' || '%' OR COALESCE(route,'') LIKE '%' || '$SYNTHETIC_MARKER' || '%' OR COALESCE(payload_sha256,'') LIKE '%' || '$SYNTHETIC_MARKER' || '%';")"
+  "SELECT COUNT(*) FROM audit_events WHERE COALESCE(resource_id,'') LIKE '%' || '$SYNTHETIC_DERIVED_TEXT' || '%' OR COALESCE(route,'') LIKE '%' || '$SYNTHETIC_DERIVED_TEXT' || '%' OR COALESCE(payload_sha256,'') LIKE '%' || '$SYNTHETIC_DERIVED_TEXT' || '%';")"
 [[ "$RAW_AUDIT_MARKER_COUNT" == "0" ]] || fail raw-marker-in-audit
-RAW_PREVIEW_MARKER_COUNT="$(/usr/bin/sqlite3 "$PREVIEW_DB" \
-  "SELECT COUNT(*) FROM meaning_preview_state WHERE instr(snapshot_json, '$SYNTHETIC_MARKER') > 0;")"
-[[ "$RAW_PREVIEW_MARKER_COUNT" == "0" ]] || fail raw-marker-in-preview-field
-if /usr/bin/grep -a -F -q "$SYNTHETIC_MARKER" "$PREVIEW_DB"; then
-  fail raw-marker-in-preview-bytes
-fi
+ACTION_AUDIT_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
+  "SELECT COUNT(*) FROM audit_events WHERE resource_id LIKE 'meaning-preview:%' AND route = 'now';")"
+FEEDBACK_AUDIT_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
+  "SELECT COUNT(*) FROM audit_events WHERE resource_id LIKE 'meaning-preview:%' AND route = 'helpful';")"
+[[ "$ACTION_AUDIT_COUNT" -ge 1 ]] || fail action-audit-missing
+[[ "$FEEDBACK_AUDIT_COUNT" -ge 1 ]] || fail feedback-audit-missing
 
 AFTER_TABLES="$(ordinary_tables)"
 [[ "$AFTER_TABLES" == "${(j:\n:)${(ok)ORDINARY_BEFORE}}" ]] \
@@ -457,7 +527,7 @@ ax_phase disable
   and (.permissionGrants["cam.meaning-preview"] == null)
 ' "$MODULE_STATE" >/dev/null || fail disable-state-authority
 [[ -f "$PREVIEW_DB" ]] || fail isolated-state-deleted-on-disable
-[[ "$(/usr/bin/shasum -a 256 "$PREVIEW_DB" | /usr/bin/awk '{print $1}')" \
+[[ "$(decoded_preview_digest)" \
     == "$PREVIEW_STATE_DIGEST" ]] || fail isolated-state-mutated-on-disable
 
 graceful_terminate_launched_app
@@ -466,7 +536,7 @@ launch_pilot_app
 ax_phase restart
 assert_no_app_sockets
 [[ -f "$PREVIEW_DB" ]] || fail isolated-state-deleted-on-restart
-[[ "$(/usr/bin/shasum -a 256 "$PREVIEW_DB" | /usr/bin/awk '{print $1}')" \
+[[ "$(decoded_preview_digest)" \
     == "$PREVIEW_STATE_DIGEST" ]] || fail isolated-state-mutated-on-restart
 
 print \
