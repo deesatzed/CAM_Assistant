@@ -415,6 +415,43 @@ private final class Driver {
         try press(waitIdentifier(value), token: value)
     }
 
+    func selectSidebar(_ identifier: String) throws {
+        var element = try waitIdentifier(identifier)
+        for _ in 0..<12 {
+            if try stringAttribute(element, kAXRoleAttribute as CFString)
+                == (kAXRowRole as String) {
+                var settable = DarwinBoolean(false)
+                let check = AXUIElementIsAttributeSettable(
+                    element,
+                    kAXSelectedAttribute as CFString,
+                    &settable
+                )
+                if check == .apiDisabled { throw AXAccessError.denied }
+                guard check == .success, settable.boolValue else {
+                    throw DriverError.action("sidebar-row-selection")
+                }
+                let selected = AXUIElementSetAttributeValue(
+                    element,
+                    kAXSelectedAttribute as CFString,
+                    kCFBooleanTrue
+                )
+                if selected == .apiDisabled { throw AXAccessError.denied }
+                guard selected == .success else {
+                    throw DriverError.action("sidebar-row-selection")
+                }
+                return
+            }
+            guard let parentValue = try copyAttribute(
+                element,
+                kAXParentAttribute as CFString
+            ), CFGetTypeID(parentValue) == AXUIElementGetTypeID() else {
+                throw DriverError.missing("sidebar-row")
+            }
+            element = unsafeBitCast(parentValue, to: AXUIElement.self)
+        }
+        throw DriverError.missing("sidebar-row")
+    }
+
     func key(_ code: CGKeyCode) throws {
         guard let source = CGEventSource(stateID: .hidSystemState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true),
@@ -444,14 +481,14 @@ private func capture(_ driver: Driver) throws {
 }
 
 private func exercise(_ driver: Driver) throws -> String {
-    try driver.pressIdentifier("assistant-section-settings")
+    try driver.selectSidebar("assistant-section-settings")
     try driver.pressIdentifier("meaning-preview-settings-open")
     try driver.pressIdentifier("meaning-preview-enable")
     _ = try driver.waitIdentifier("meaning-preview-grant")
     _ = try driver.waitIdentifier("meaning-preview-sidebar")
     try driver.assertAbsent("meaning-preview-request")
     try driver.key(53)
-    try driver.pressIdentifier("meaning-preview-sidebar")
+    try driver.selectSidebar("meaning-preview-sidebar")
     _ = try driver.waitIdentifier("meaning-preview-permission-state")
     try driver.pressIdentifier("meaning-preview-grant")
     let picker = try driver.waitIdentifier("meaning-preview-source-picker")
