@@ -121,6 +121,8 @@ git clone --quiet --local --no-hardlinks "$REPOSITORY_ROOT" "$CLONE_ROOT"
 
 "$PACKAGE_SCRIPT" >/dev/null
 cp -R "$PACKAGED_APP" "$PILOT_APP"
+PILOT_APP="${PILOT_APP:A}"
+PILOT_EXECUTABLE="$PILOT_APP/Contents/MacOS/CAMAssistant"
 
 ACTUAL_COMMIT="$(/usr/bin/plutil -extract CAMBuildCommit raw -o - \
   "$PILOT_APP/Contents/Info.plist")"
