@@ -313,7 +313,8 @@ private struct MeaningPreviewModuleStateSnapshot: Codable {
     let permissionGrants: [String: Set<Permission>]
 }
 
-actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
+actor MeaningPreviewLiveRuntime:
+    MeaningPreviewRuntime, MeaningPreviewReflectiveRuntime {
     nonisolated let initialLifecycle: MeaningPreviewLifecycle
     nonisolated let reflectionInitiallyAvailable: Bool
 
@@ -865,17 +866,14 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
     }
 
     private static func defaultReflectionReportURL() -> URL {
-        if let resource = Bundle.main.resourceURL?
+        if let resourceRoot = Bundle.main.resourceURL {
+            return resourceRoot
             .appending(path: "MeaningPreview", directoryHint: .isDirectory)
-            .appending(path: "named-model-report.json"),
-           FileManager.default.fileExists(atPath: resource.path) {
-            return resource
+            .appending(path: "named-model-report.json")
         }
-        return URL(filePath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appending(path: "docs/evidence/add2cam-09-named-model-report.json")
+        return Bundle.main.bundleURL
+            .appending(path: "Contents/Resources/MeaningPreview")
+            .appending(path: "named-model-report.json")
     }
 
     private static func activeLocalAssignment() throws -> ModelAssignment {

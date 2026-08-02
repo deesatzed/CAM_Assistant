@@ -1302,6 +1302,29 @@ func liveReflectionRefusesBeforeResolvingContext() async throws {
     #expect(await reads.count == 0)
 }
 
+@MainActor
+@Test("AppModel recognizes live runtime only with an injected current admitted report")
+func appModelRecognizesAdmittedLiveReflection() throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let reportURL = fixture.root.appending(path: "named-report.json")
+    try writePassingReflectionReport(to: reportURL, evaluatedAt: Date())
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver(),
+        reflectionReportURL: reportURL,
+        reflectionAssignmentProvider: { try reflectionAssignmentFixture() }
+    )
+
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+
+    #expect(model.isMeaningPreviewReflectionAvailable)
+}
+
 @Test("disable during reflective model await suppresses candidate after revocation")
 func liveReflectionDisableWinsAfterModelAwait() async throws {
     let fixture = try LiveRuntimeFixture()
