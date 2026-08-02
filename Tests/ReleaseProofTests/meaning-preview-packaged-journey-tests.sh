@@ -395,6 +395,9 @@ private final class Driver {
         within ancestorIdentifier: String? = nil
     ) throws -> AXUIElement {
         let deadline = Date().addingTimeInterval(12)
+        var matchingAnchors = 0
+        var matchingButtons = 0
+        var enabledValues: Set<String> = []
         repeat {
             let anchors = try AXIndex(application: application).identifiers(value)
             for anchor in anchors {
@@ -402,14 +405,20 @@ private final class Driver {
                    !(try hasAncestor(anchor, identifier: ancestorIdentifier)) {
                     continue
                 }
+                matchingAnchors += 1
                 if let button = try ancestor(anchor, role: kAXButtonRole as String),
-                   try boolAttribute(button, kAXEnabledAttribute as CFString) == true {
-                    return button
+                   let enabled = try boolAttribute(button, kAXEnabledAttribute as CFString) {
+                    matchingButtons += 1
+                    enabledValues.insert(enabled.map(String.init) ?? "nil")
+                    if enabled { return button }
                 }
             }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
-        throw DriverError.disabled(value)
+        let values = enabledValues.sorted().joined(separator: ",")
+        throw DriverError.disabled(
+            "\(value)-anchors-\(matchingAnchors)-buttons-\(matchingButtons)-enabled-\(values.isEmpty ? \"none\" : values)"
+        )
     }
 
     func assertAbsent(_ value: String) throws {
