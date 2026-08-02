@@ -510,6 +510,7 @@ private func exercise(_ driver: Driver) throws -> String {
     _ = try driver.waitIdentifier("meaning-preview-sidebar")
     try driver.assertAbsent("meaning-preview-request")
     try driver.key(53)
+    try driver.waitAbsent("meaning-preview-settings")
     try driver.selectSidebar("meaning-preview-sidebar")
     _ = try driver.waitIdentifier("meaning-preview-permission-state")
     try driver.pressIdentifier("meaning-preview-grant")

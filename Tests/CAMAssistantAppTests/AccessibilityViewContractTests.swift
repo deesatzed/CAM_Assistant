@@ -533,6 +533,7 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
         "kAXSelectedAttribute",
         "selectSidebar(\"assistant-section-settings\")",
         "selectSidebar(\"meaning-preview-sidebar\")",
+        "waitAbsent(\"meaning-preview-settings\")",
         "native_ax_phase capture",
         "native_ax_phase enable",
         "wait_for_enabled_without_access",
