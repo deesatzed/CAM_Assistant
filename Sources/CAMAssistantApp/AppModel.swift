@@ -1580,6 +1580,7 @@ final class AppModel: ObservableObject {
         failure: String,
         operation: () async throws -> MeaningPreviewLifecycle
     ) async {
+        guard !isMeaningPreviewWorking else { return }
         let operationID = beginMeaningPreviewOperation()
         do {
             let lifecycle = try await operation()
