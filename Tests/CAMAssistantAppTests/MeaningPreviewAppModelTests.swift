@@ -1280,6 +1280,165 @@ func liveMeaningPreviewRuntimeDisablesDuringFlight() async throws {
     #expect(!fixture.previewDatabaseExists)
 }
 
+@Test("reflective runtime refuses before admission and permission without source reads")
+func liveReflectionRefusesBeforeResolvingContext() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let reads = ReadCounter()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: reads,
+        reflectionReportURL: fixture.root.appending(path: "missing-report.json"),
+        reflectionAssignmentProvider: { try reflectionAssignmentFixture() }
+    )
+
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await runtime.requestReflection(
+            references: [.init(id: "a"), .init(id: "b")],
+            now: .fixtureNow
+        )
+    }
+    #expect(await reads.count == 0)
+}
+
+@Test("disable during reflective model await suppresses candidate after revocation")
+func liveReflectionDisableWinsAfterModelAwait() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let reportURL = fixture.root.appending(path: "named-report.json")
+    try writePassingReflectionReport(to: reportURL, evaluatedAt: .fixtureNow)
+    let transport = GatedReflectionTransport()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: MeaningPreviewStaticSourceResolver(),
+        reflectionReportURL: reportURL,
+        reflectionAssignmentProvider: { try reflectionAssignmentFixture() },
+        reflectionTransport: transport
+    )
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    let request = Task {
+        try await runtime.requestReflection(
+            references: [.init(id: "source-a"), .init(id: "source-b")],
+            now: .fixtureNow
+        )
+    }
+    await transport.waitUntilCandidateRequested()
+    #expect(try await runtime.disable() == .disabled)
+    await transport.resumeCandidate()
+
+    await #expect(throws: MeaningPreviewRuntimeError.disabledDuringRequest) {
+        _ = try await request.value
+    }
+    #expect(await runtime.loadLifecycle() == .disabled)
+    if fixture.previewDatabaseExists {
+        let encoded = try JSONEncoder().encode(fixture.loadSnapshot())
+        let text = String(decoding: encoded, as: UTF8.self)
+        #expect(!text.contains("The bounded outline may remain a preparation"))
+    }
+}
+
+private func reflectionAssignmentFixture() throws -> ModelAssignment {
+    try ModelAssignment(
+        provider: .local,
+        modelID: "local/meaning",
+        localEndpoint: "http://127.0.0.1:8080/v1"
+    )
+}
+
+private func writePassingReflectionReport(to url: URL, evaluatedAt: Date) throws {
+    let manifestURL = URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(path: "Fixtures/MeaningPreview/v1/manifest.json")
+    let manifest = try MeaningPreviewEvaluationManifest.decode(
+        Data(contentsOf: manifestURL)
+    )
+    let runtimeIdentity = "loopback:http://127.0.0.1:8080/v1"
+    let evaluation = MeaningPreviewEvaluationReport(
+        evaluatorVersion: "meaning-preview-evaluator-v1",
+        evaluationMode: .namedModel,
+        manifestHash: MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+        runtimeIdentity: runtimeIdentity,
+        modelID: "local/meaning",
+        caseCount: 22,
+        surfaceCaseCount: 7,
+        silenceCaseCount: 15,
+        decisionAccuracy: 1,
+        supportRecall: 1,
+        evidencePrecision: 1,
+        counterevidenceRecall: 1,
+        abstentionAccuracy: 1,
+        prohibitedBehaviorAccuracy: 1,
+        failedCaseIDs: [],
+        unansweredCaseIDs: [],
+        prohibitedFindings: [],
+        caseResults: manifest.cases.map {
+            MeaningPreviewEvaluationCaseResult(
+                caseID: $0.id,
+                expectedDecision: $0.expectedDecision,
+                actualDecision: $0.expectedDecision,
+                selectedSupportIDs: $0.requiredSupportIDs,
+                selectedCounterevidenceIDs: $0.requiredCounterevidenceIDs,
+                prohibitedBehaviorIDs: [],
+                passed: true,
+                errorCode: nil
+            )
+        },
+        thresholds: manifest.thresholds,
+        meetsFrozenThresholds: true,
+        namedModelEligible: true
+    )
+    let report = MeaningPreviewNamedModelReport(
+        reportVersion: "meaning-preview-named-model-report-v1",
+        evaluatedAt: evaluatedAt,
+        manifestHash: MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+        runtimeAvailable: true,
+        reflectionEnabled: true,
+        runtimeIdentity: runtimeIdentity,
+        modelID: "local/meaning",
+        errorCode: nil,
+        evaluation: evaluation
+    )
+    try JSONEncoder().encode(report).write(to: url, options: .atomic)
+}
+
+private actor GatedReflectionTransport: LocalModelTransport {
+    private var requested = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func send(_ request: LocalModelHTTPRequest) async throws
+        -> LocalModelHTTPResponse {
+        if request.method == .get {
+            return .init(
+                statusCode: 200,
+                data: Data(#"{"data":[{"id":"local/meaning"}]}"#.utf8)
+            )
+        }
+        requested = true
+        await withCheckedContinuation { continuation = $0 }
+        let content = #"{"domain":"explicit reflection|sources:source-a,source-b","decision":"surface","observation":"Prepare the bounded outline.","interpretation":"The bounded outline may need preparation.","opening":"The bounded outline may remain a preparation.","support_ids":["source-a"],"counterevidence_ids":["source-b"],"uncertainty":0.4}"#
+        let envelope = try JSONSerialization.data(withJSONObject: [
+            "model": "local/meaning",
+            "choices": [[
+                "message": ["role": "assistant", "content": content],
+            ]],
+        ])
+        return .init(statusCode: 200, data: envelope)
+    }
+
+    func waitUntilCandidateRequested() async {
+        while !requested { await Task.yield() }
+    }
+
+    func resumeCandidate() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
 private actor ReadCounter: MeaningPreviewSourceResolving {
     private(set) var count = 0
     func resolve(_ reference: MeaningPreviewSourceReference) async throws

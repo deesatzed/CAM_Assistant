@@ -612,13 +612,22 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
             throw MeaningPreviewRuntimeError.disabledDuringRequest
         }
         let activeCoordinator = try makeCoordinatorIfNeeded(lease: lease)
-        let result = try await activeCoordinator.requestReflective(
-            access: .init(enabled: true, localDataGranted: true),
-            admission: admission,
-            selection: { selection },
-            supplier: supplier,
-            now: now
-        )
+        let result: MeaningPreviewReflectivePresentation?
+        do {
+            result = try await activeCoordinator.requestReflective(
+                access: .init(enabled: true, localDataGranted: true),
+                admission: admission,
+                selection: { selection },
+                supplier: supplier,
+                now: now
+            )
+        } catch {
+            guard requestGeneration == generation,
+                  (try? currentLifecycle()) == .ready else {
+                throw MeaningPreviewRuntimeError.disabledDuringRequest
+            }
+            throw error
+        }
         try Task.checkCancellation()
         try authorizationGate.withValidLease(lease) {}
         guard requestGeneration == generation,
