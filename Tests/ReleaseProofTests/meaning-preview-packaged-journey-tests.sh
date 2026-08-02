@@ -409,16 +409,15 @@ private final class Driver {
                 if let button = try ancestor(anchor, role: kAXButtonRole as String),
                    let enabled = try boolAttribute(button, kAXEnabledAttribute as CFString) {
                     matchingButtons += 1
-                    enabledValues.insert(enabled.map(String.init) ?? "nil")
+                    enabledValues.insert(String(enabled))
                     if enabled { return button }
                 }
             }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
         let values = enabledValues.sorted().joined(separator: ",")
-        throw DriverError.disabled(
-            "\(value)-anchors-\(matchingAnchors)-buttons-\(matchingButtons)-enabled-\(values.isEmpty ? \"none\" : values)"
-        )
+        let enabledSummary = values.isEmpty ? "none" : values
+        throw DriverError.disabled("\(value)-anchors-\(matchingAnchors)-buttons-\(matchingButtons)-enabled-\(enabledSummary)")
     }
 
     func assertAbsent(_ value: String) throws {
