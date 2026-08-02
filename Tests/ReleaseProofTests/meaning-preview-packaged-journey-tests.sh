@@ -3,14 +3,16 @@ set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
 REPOSITORY_ROOT="${SCRIPT_DIR:h:h}"
-PACKAGE_SCRIPT="$REPOSITORY_ROOT/scripts/package-app.sh"
-BUILD_DIR="$REPOSITORY_ROOT/.swift-build"
-SOURCE_MANIFEST_DIRECTORY="$REPOSITORY_ROOT/Modules/Core"
-PACKAGED_APP="$REPOSITORY_ROOT/artifacts/CAM Assistant.app"
-SOURCE_MANIFEST="$REPOSITORY_ROOT/Modules/Core/meaning-preview.json"
-SOURCE_REPORT="$REPOSITORY_ROOT/docs/evidence/add2cam-09-named-model-report.json"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cam-meaning-preview-packaged.XXXXXX")"
+CLONE_ROOT="$TEST_ROOT/source"
+PACKAGE_SCRIPT="$CLONE_ROOT/scripts/package-app.sh"
+BUILD_DIR="$CLONE_ROOT/.swift-build"
+SOURCE_MANIFEST_DIRECTORY="$CLONE_ROOT/Modules/Core"
+PACKAGED_APP="$CLONE_ROOT/artifacts/CAM Assistant.app"
+SOURCE_MANIFEST="$CLONE_ROOT/Modules/Core/meaning-preview.json"
+SOURCE_REPORT="$CLONE_ROOT/docs/evidence/add2cam-09-named-model-report.json"
 PILOT_APP="$TEST_ROOT/CAM Assistant.app"
+AX_DRIVER="$TEST_ROOT/meaning-preview-ax-driver"
 SUPPORT_ROOT="$TEST_ROOT/application-support"
 VAULT_ROOT="$SUPPORT_ROOT/CAMAssistant"
 VAULT_DB="$VAULT_ROOT/vault.sqlite"
@@ -87,10 +89,17 @@ if [[ -n "$(git -C "$REPOSITORY_ROOT" status --porcelain)" ]]; then
   exit 65
 fi
 
+EXPECTED_COMMIT="$(git -C "$REPOSITORY_ROOT" rev-parse HEAD)"
+git clone --quiet --local --no-hardlinks "$REPOSITORY_ROOT" "$CLONE_ROOT"
+[[ -d "$CLONE_ROOT/.git" ]] || fail disposable-clone-missing
+[[ "$(git -C "$CLONE_ROOT" rev-parse HEAD)" == "$EXPECTED_COMMIT" ]] \
+  || fail disposable-clone-identity
+[[ -z "$(git -C "$CLONE_ROOT" status --porcelain)" ]] \
+  || fail disposable-clone-not-clean
+
 "$PACKAGE_SCRIPT" >/dev/null
 cp -R "$PACKAGED_APP" "$PILOT_APP"
 
-EXPECTED_COMMIT="$(git -C "$REPOSITORY_ROOT" rev-parse HEAD)"
 ACTUAL_COMMIT="$(/usr/bin/plutil -extract CAMBuildCommit raw -o - \
   "$PILOT_APP/Contents/Info.plist")"
 ACTUAL_DIRTY="$(/usr/bin/plutil -extract CAMBuildSourceDirty raw -o - \
@@ -106,7 +115,7 @@ PACKAGED_REPORT="$PILOT_APP/Contents/Resources/MeaningPreview/named-model-report
 /usr/bin/cmp -s "$SOURCE_MANIFEST" "$PACKAGED_MANIFEST" \
   || fail manifest-byte-drift
 
-if git -C "$REPOSITORY_ROOT" ls-files --error-unmatch \
+if git -C "$CLONE_ROOT" ls-files --error-unmatch \
     "docs/evidence/add2cam-09-named-model-report.json" >/dev/null 2>&1; then
   [[ -f "$PACKAGED_REPORT" ]] || fail named-model-report-missing
   /usr/bin/cmp -s "$SOURCE_REPORT" "$PACKAGED_REPORT" \
@@ -141,7 +150,347 @@ assert_no_app_sockets() {
   fi
 }
 
-ax_phase() {
+build_ax_driver() {
+  mkdir -p "$TEST_ROOT/ax-module-cache"
+  /usr/bin/swiftc \
+    -module-cache-path "$TEST_ROOT/ax-module-cache" \
+    -framework AppKit \
+    -framework ApplicationServices \
+    -o "$AX_DRIVER" - <<'SWIFT'
+import AppKit
+import ApplicationServices
+import Darwin
+import Foundation
+
+private enum DriverError: Error {
+    case missing(String)
+    case disabled(String)
+    case unexpected(String)
+    case action(String)
+
+    var token: String {
+        switch self {
+        case .missing(let value): "missing-\(value)"
+        case .disabled(let value): "disabled-\(value)"
+        case .unexpected(let value): "unexpected-\(value)"
+        case .action(let value): "action-\(value)"
+        }
+    }
+}
+
+private enum AXAccessError: Error { case denied }
+
+private func finish(_ code: Int32, _ token: String) -> Never {
+    FileHandle.standardError.write(Data((token + "\n").utf8))
+    Darwin.exit(code)
+}
+
+private func copyAttribute(
+    _ element: AXUIElement,
+    _ attribute: CFString
+) throws -> CFTypeRef? {
+    var value: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(element, attribute, &value)
+    switch result {
+    case .success:
+        return value
+    case .apiDisabled:
+        throw AXAccessError.denied
+    default:
+        return nil
+    }
+}
+
+private func stringAttribute(
+    _ element: AXUIElement,
+    _ attribute: CFString
+) throws -> String? {
+    try copyAttribute(element, attribute) as? String
+}
+
+private func boolAttribute(
+    _ element: AXUIElement,
+    _ attribute: CFString
+) throws -> Bool? {
+    try copyAttribute(element, attribute) as? Bool
+}
+
+private func elementsAttribute(
+    _ element: AXUIElement,
+    _ attribute: CFString
+) throws -> [AXUIElement] {
+    (try copyAttribute(element, attribute) as? [AXUIElement]) ?? []
+}
+
+private struct AXIndex {
+    let elements: [AXUIElement]
+
+    init(application: AXUIElement) throws {
+        var queue = try elementsAttribute(application, kAXWindowsAttribute as CFString)
+            .map { ($0, 0) }
+        var cursor = 0
+        var seen: [CFHashCode: [AXUIElement]] = [:]
+        var result: [AXUIElement] = []
+        while cursor < queue.count && result.count < 4_000 {
+            let (element, depth) = queue[cursor]
+            cursor += 1
+            let identity = CFHash(element)
+            if seen[identity, default: []].contains(where: {
+                CFEqual($0, element)
+            }) { continue }
+            seen[identity, default: []].append(element)
+            result.append(element)
+            guard depth < 24 else { continue }
+            for child in try elementsAttribute(element, kAXChildrenAttribute as CFString) {
+                queue.append((child, depth + 1))
+            }
+        }
+        elements = result
+    }
+
+    func identifier(_ value: String) throws -> AXUIElement? {
+        for element in elements where
+            try stringAttribute(element, kAXIdentifierAttribute as CFString) == value {
+            return element
+        }
+        return nil
+    }
+
+    func named(_ value: String, role: String? = nil) throws -> AXUIElement? {
+        for element in elements {
+            if let role,
+               try stringAttribute(element, kAXRoleAttribute as CFString) != role {
+                continue
+            }
+            let names = try [
+                stringAttribute(element, kAXTitleAttribute as CFString),
+                stringAttribute(element, kAXDescriptionAttribute as CFString),
+                stringAttribute(element, kAXValueAttribute as CFString),
+            ]
+            if names.compactMap({ $0 }).contains(value) { return element }
+        }
+        return nil
+    }
+}
+
+private final class Driver {
+    let application: AXUIElement
+
+    init(pid: pid_t) throws {
+        guard AXIsProcessTrusted() else { throw AXAccessError.denied }
+        application = AXUIElementCreateApplication(pid)
+        NSRunningApplication(processIdentifier: pid)?.activate(
+            options: []
+        )
+        let deadline = Date().addingTimeInterval(12)
+        repeat {
+            if !(try elementsAttribute(
+                application,
+                kAXWindowsAttribute as CFString
+            )).isEmpty { return }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        throw DriverError.missing("app-window")
+    }
+
+    func waitIdentifier(_ value: String, timeout: TimeInterval = 12) throws -> AXUIElement {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let result = try AXIndex(application: application).identifier(value) {
+                return result
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        throw DriverError.missing(value)
+    }
+
+    func waitNamed(
+        _ value: String,
+        role: String? = nil,
+        timeout: TimeInterval = 12
+    ) throws -> AXUIElement {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let result = try AXIndex(application: application).named(value, role: role) {
+                return result
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        throw DriverError.missing("named-element")
+    }
+
+    func waitEnabled(_ value: String) throws -> AXUIElement {
+        let deadline = Date().addingTimeInterval(12)
+        repeat {
+            if let result = try AXIndex(application: application).identifier(value),
+               try boolAttribute(result, kAXEnabledAttribute as CFString) == true {
+                return result
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        throw DriverError.disabled(value)
+    }
+
+    func assertAbsent(_ value: String) throws {
+        if try AXIndex(application: application).identifier(value) != nil {
+            throw DriverError.unexpected(value)
+        }
+    }
+
+    func waitAbsent(_ value: String) throws {
+        let deadline = Date().addingTimeInterval(12)
+        repeat {
+            if try AXIndex(application: application).identifier(value) == nil { return }
+            Thread.sleep(forTimeInterval: 0.1)
+        } while Date() < deadline
+        throw DriverError.unexpected(value)
+    }
+
+    func press(_ element: AXUIElement, token: String) throws {
+        let result = AXUIElementPerformAction(element, kAXPressAction as CFString)
+        if result == .apiDisabled {
+            throw AXAccessError.denied
+        }
+        guard result == .success else { throw DriverError.action(token) }
+    }
+
+    func pressIdentifier(_ value: String) throws {
+        try press(waitIdentifier(value), token: value)
+    }
+
+    func key(_ code: CGKeyCode) throws {
+        guard let source = CGEventSource(stateID: .hidSystemState),
+              let down = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false)
+        else { throw DriverError.action("keyboard") }
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        Thread.sleep(forTimeInterval: 0.15)
+    }
+}
+
+private struct PasteboardSnapshot {
+    let items: [[(NSPasteboard.PasteboardType, Data)]]
+
+    init(_ pasteboard: NSPasteboard) {
+        items = (pasteboard.pasteboardItems ?? []).map { item in
+            item.types.compactMap { type in
+                item.data(forType: type).map { (type, $0) }
+            }
+        }
+    }
+
+    func restore(to pasteboard: NSPasteboard) {
+        pasteboard.clearContents()
+        let restored = items.map { values -> NSPasteboardItem in
+            let item = NSPasteboardItem()
+            for (type, data) in values { item.setData(data, forType: type) }
+            return item
+        }
+        if !restored.isEmpty { pasteboard.writeObjects(restored) }
+    }
+}
+
+private func capture(_ driver: Driver) throws {
+    _ = try driver.waitIdentifier("assistant-section-settings")
+    try driver.assertAbsent("meaning-preview-sidebar")
+    let pasteboard = NSPasteboard.general
+    let snapshot = PasteboardSnapshot(pasteboard)
+    defer { snapshot.restore(to: pasteboard) }
+    guard let text = ProcessInfo.processInfo.environment[
+        "CAM_PILOT_SYNTHETIC_DERIVED_TEXT"
+    ] else { throw DriverError.missing("synthetic-input") }
+    pasteboard.clearContents()
+    pasteboard.setString(text, forType: .string)
+    let button = try driver.waitNamed("Capture Clipboard Locally", role: kAXButtonRole)
+    try driver.press(button, token: "capture")
+    _ = try driver.waitNamed("Clipboard captured and indexed locally.")
+}
+
+private func exercise(_ driver: Driver) throws -> String {
+    try driver.pressIdentifier("assistant-section-settings")
+    try driver.pressIdentifier("meaning-preview-settings-open")
+    try driver.pressIdentifier("meaning-preview-enable")
+    _ = try driver.waitIdentifier("meaning-preview-grant")
+    _ = try driver.waitIdentifier("meaning-preview-sidebar")
+    try driver.assertAbsent("meaning-preview-request")
+    try driver.key(53)
+    try driver.pressIdentifier("meaning-preview-sidebar")
+    _ = try driver.waitIdentifier("meaning-preview-permission-state")
+    try driver.pressIdentifier("meaning-preview-grant")
+    let picker = try driver.waitIdentifier("meaning-preview-source-picker")
+    try driver.press(picker, token: "source-picker")
+    try driver.key(125)
+    try driver.key(36)
+    try driver.press(try driver.waitEnabled("meaning-preview-request"), token: "request")
+    _ = try driver.waitIdentifier("meaning-preview-reflect-unavailable")
+
+    let deadline = Date().addingTimeInterval(12)
+    repeat {
+        let index = try AXIndex(application: driver.application)
+        if try index.identifier("meaning-preview-card") != nil {
+            for identifier in [
+                "meaning-preview-inspect", "meaning-preview-now",
+                "meaning-preview-later", "meaning-preview-release",
+                "meaning-preview-helpful", "meaning-preview-not-helpful",
+            ] { _ = try driver.waitIdentifier(identifier) }
+            try driver.pressIdentifier("meaning-preview-inspect")
+            _ = try driver.waitIdentifier("meaning-preview-inspect-sheet")
+            try driver.key(53)
+            try driver.pressIdentifier("meaning-preview-now")
+            _ = try driver.waitNamed("Now recorded in isolated Preview state.")
+            try driver.press(try driver.waitEnabled("meaning-preview-request"), token: "second-request")
+            _ = try driver.waitIdentifier("meaning-preview-card")
+            try driver.pressIdentifier("meaning-preview-helpful")
+            _ = try driver.waitNamed("Helpful recorded explicitly in isolated Preview state.")
+            return "result=card action=now feedback=helpful"
+        }
+        if try index.identifier("meaning-preview-silence") != nil {
+            try driver.pressIdentifier("meaning-preview-inspect")
+            _ = try driver.waitIdentifier("meaning-preview-inspect-sheet")
+            try driver.key(53)
+            return "result=silence action=not-applicable feedback=not-applicable"
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    throw DriverError.missing("bounded-result")
+}
+
+do {
+    guard CommandLine.arguments.count == 2,
+          let pidText = ProcessInfo.processInfo.environment["CAM_PILOT_APP_PID"],
+          let pid = pid_t(pidText)
+    else { throw DriverError.missing("arguments") }
+    let driver = try Driver(pid: pid)
+    switch CommandLine.arguments[1] {
+    case "capture":
+        try capture(driver)
+        print("capture=pass")
+    case "exercise":
+        print(try exercise(driver))
+    case "disable":
+        try driver.pressIdentifier("meaning-preview-disable")
+        try driver.waitAbsent("meaning-preview-sidebar")
+        _ = try driver.waitIdentifier("assistant-section-assistant")
+        print("disable=pass")
+    case "restart":
+        _ = try driver.waitIdentifier("assistant-section-assistant")
+        try driver.assertAbsent("meaning-preview-sidebar")
+        print("restart=disabled")
+    default:
+        throw DriverError.missing("phase")
+    }
+} catch is AXAccessError {
+    finish(77, "CAM_AX_TCC_DENIED")
+} catch let error as DriverError {
+    finish(1, "CAM_AX_FAILURE:\(error.token)")
+} catch {
+    finish(1, "CAM_AX_FAILURE:unclassified")
+}
+SWIFT
+}
+
+native_ax_phase() {
   local phase="$1"
   local output
   local ax_status
@@ -149,281 +498,17 @@ ax_phase() {
   export CAM_PILOT_SYNTHETIC_DERIVED_TEXT="$SYNTHETIC_DERIVED_TEXT"
   set +e
   output="$(/usr/bin/perl -e 'alarm shift; exec @ARGV' 45 \
-    /usr/bin/osascript - "$phase" 2>&1 <<'APPLESCRIPT'
-on appProcess()
-    set wantedPID to (system attribute "CAM_PILOT_APP_PID") as integer
-    tell application "System Events"
-        return first application process whose unix id is wantedPID
-    end tell
-end appProcess
-
-on identifierOf(anElement)
-    tell application "System Events"
-        try
-            return value of attribute "AXIdentifier" of anElement
-        on error errorText number errorNumber
-            if errorNumber is -1719 or errorNumber is -1743 then
-                error errorText number errorNumber
-            end if
-            return ""
-        end try
-    end tell
-end identifierOf
-
-on childElements(anElement)
-    tell application "System Events"
-        try
-            return UI elements of anElement
-        on error errorText number errorNumber
-            if errorNumber is -1719 or errorNumber is -1743 then
-                error errorText number errorNumber
-            end if
-            return {}
-        end try
-    end tell
-end childElements
-
-on findIdentifierWithin(anElement, identifierValue, remainingDepth)
-    if my identifierOf(anElement) is identifierValue then return anElement
-    if remainingDepth is 0 then return missing value
-    repeat with childElement in my childElements(anElement)
-        set foundElement to my findIdentifierWithin(childElement, identifierValue, remainingDepth - 1)
-        if foundElement is not missing value then return foundElement
-    end repeat
-    return missing value
-end findIdentifierWithin
-
-on findIdentifier(identifierValue)
-    tell application "System Events" to set processWindows to windows of my appProcess()
-    repeat with windowRef in processWindows
-        set foundElement to my findIdentifierWithin(windowRef, identifierValue, 18)
-        if foundElement is not missing value then return foundElement
-    end repeat
-    return missing value
-end findIdentifier
-
-on waitIdentifier(identifierValue)
-    repeat 120 times
-        set foundElement to my findIdentifier(identifierValue)
-        if foundElement is not missing value then return foundElement
-        delay 0.1
-    end repeat
-    error "CAM_AX_FAILURE:missing-" & identifierValue number 1002
-end waitIdentifier
-
-on waitIdentifierAbsent(identifierValue)
-    repeat 120 times
-        if my findIdentifier(identifierValue) is missing value then return
-        delay 0.1
-    end repeat
-    error "CAM_AX_FAILURE:unexpected-" & identifierValue number 1002
-end waitIdentifierAbsent
-
-on roleOf(anElement)
-    tell application "System Events"
-        try
-            return role of anElement
-        on error errorText number errorNumber
-            if errorNumber is -1719 or errorNumber is -1743 then
-                error errorText number errorNumber
-            end if
-            return ""
-        end try
-    end tell
-end roleOf
-
-on nameOf(anElement)
-    tell application "System Events"
-        try
-            return name of anElement
-        on error errorText number errorNumber
-            if errorNumber is -1719 or errorNumber is -1743 then
-                error errorText number errorNumber
-            end if
-            return ""
-        end try
-    end tell
-end nameOf
-
-on findNamedWithin(anElement, elementName, requiredRole, remainingDepth)
-    if my nameOf(anElement) is elementName then
-        if requiredRole is "" or my roleOf(anElement) is requiredRole then
-            return anElement
-        end if
-    end if
-    if remainingDepth is 0 then return missing value
-    repeat with childElement in my childElements(anElement)
-        set foundElement to my findNamedWithin(childElement, elementName, requiredRole, remainingDepth - 1)
-        if foundElement is not missing value then return foundElement
-    end repeat
-    return missing value
-end findNamedWithin
-
-on findNamedElement(elementName, requiredRole)
-    tell application "System Events" to set processWindows to windows of my appProcess()
-    repeat with windowRef in processWindows
-        set foundElement to my findNamedWithin(windowRef, elementName, requiredRole, 18)
-        if foundElement is not missing value then return foundElement
-    end repeat
-    return missing value
-end findNamedElement
-
-on findNamedButton(buttonName)
-    return my findNamedElement(buttonName, "AXButton")
-end findNamedButton
-
-on waitNamedButton(buttonName)
-    repeat 120 times
-        set foundElement to my findNamedButton(buttonName)
-        if foundElement is not missing value then return foundElement
-        delay 0.1
-    end repeat
-    error "CAM_AX_FAILURE:missing-button" number 1002
-end waitNamedButton
-
-on waitNamedText(textValue)
-    repeat 120 times
-        if my findNamedElement(textValue, "") is not missing value then return
-        delay 0.1
-    end repeat
-    error "CAM_AX_FAILURE:missing-status" number 1002
-end waitNamedText
-
-on clickIdentifier(identifierValue)
-    set foundElement to my waitIdentifier(identifierValue)
-    tell application "System Events" to click foundElement
-end clickIdentifier
-
-on waitEnabled(identifierValue)
-    repeat 120 times
-        set foundElement to my findIdentifier(identifierValue)
-        if foundElement is not missing value then
-            tell application "System Events"
-                try
-                    if enabled of foundElement then return foundElement
-                end try
-            end tell
-        end if
-        delay 0.1
-    end repeat
-    error "CAM_AX_FAILURE:disabled-" & identifierValue number 1002
-end waitEnabled
-
-on captureSyntheticClipboard()
-    set savedClipboard to the clipboard as record
-    try
-        set the clipboard to system attribute "CAM_PILOT_SYNTHETIC_DERIVED_TEXT"
-        set captureButton to my waitNamedButton("Capture Clipboard Locally")
-        tell application "System Events" to click captureButton
-        my waitNamedText("Clipboard captured and indexed locally.")
-    on error errorText number errorNumber
-        set the clipboard to savedClipboard
-        error errorText number errorNumber
-    end try
-    set the clipboard to savedClipboard
-end captureSyntheticClipboard
-
-on run(arguments)
-    set phase to item 1 of arguments
-    try
-        tell application "System Events"
-            set processRef to my appProcess()
-            set frontmost of processRef to true
-            set windowCount to count of windows of processRef
-        end tell
-        if windowCount is 0 then
-            error "CAM_AX_FAILURE:no-app-window" number 1002
-        end if
-        if phase is "capture" then
-            my waitIdentifier("assistant-section-settings")
-            if my findIdentifier("meaning-preview-sidebar") is not missing value then
-                error "CAM_AX_FAILURE:preview-visible-while-disabled" number 1002
-            end if
-            my captureSyntheticClipboard()
-            return "capture=pass"
-        else if phase is "exercise" then
-            my clickIdentifier("assistant-section-settings")
-            my clickIdentifier("meaning-preview-settings-open")
-            my clickIdentifier("meaning-preview-enable")
-            my waitIdentifier("meaning-preview-grant")
-            my waitIdentifier("meaning-preview-sidebar")
-            if my findIdentifier("meaning-preview-request") is not missing value then
-                error "CAM_AX_FAILURE:enablement-granted-access" number 1002
-            end if
-            tell application "System Events" to key code 53
-            my clickIdentifier("meaning-preview-sidebar")
-            my waitIdentifier("meaning-preview-permission-state")
-            my clickIdentifier("meaning-preview-grant")
-            set pickerElement to my waitIdentifier("meaning-preview-source-picker")
-            tell application "System Events"
-                click pickerElement
-                key code 125
-                key code 36
-            end tell
-            set requestElement to my waitEnabled("meaning-preview-request")
-            tell application "System Events" to click requestElement
-            my waitIdentifier("meaning-preview-reflect-unavailable")
-            repeat 120 times
-                if my findIdentifier("meaning-preview-card") is not missing value then
-                    my waitIdentifier("meaning-preview-inspect")
-                    my waitIdentifier("meaning-preview-now")
-                    my waitIdentifier("meaning-preview-later")
-                    my waitIdentifier("meaning-preview-release")
-                    my waitIdentifier("meaning-preview-helpful")
-                    my waitIdentifier("meaning-preview-not-helpful")
-                    my clickIdentifier("meaning-preview-inspect")
-                    my waitIdentifier("meaning-preview-inspect-sheet")
-                    tell application "System Events" to key code 53
-                    my clickIdentifier("meaning-preview-now")
-                    my waitNamedText("Now recorded in isolated Preview state.")
-                    set secondRequest to my waitEnabled("meaning-preview-request")
-                    tell application "System Events" to click secondRequest
-                    my waitIdentifier("meaning-preview-card")
-                    my clickIdentifier("meaning-preview-helpful")
-                    my waitNamedText("Helpful recorded explicitly in isolated Preview state.")
-                    return "result=card action=now feedback=helpful"
-                end if
-                if my findIdentifier("meaning-preview-silence") is not missing value then
-                    my clickIdentifier("meaning-preview-inspect")
-                    my waitIdentifier("meaning-preview-inspect-sheet")
-                    tell application "System Events" to key code 53
-                    return "result=silence action=not-applicable feedback=not-applicable"
-                end if
-                delay 0.1
-            end repeat
-            error "CAM_AX_FAILURE:no-bounded-result" number 1002
-        else if phase is "disable" then
-            my clickIdentifier("meaning-preview-disable")
-            my waitIdentifierAbsent("meaning-preview-sidebar")
-            my waitIdentifier("assistant-section-assistant")
-            return "disable=pass"
-        else if phase is "restart" then
-            my waitIdentifier("assistant-section-assistant")
-            if my findIdentifier("meaning-preview-sidebar") is not missing value then
-                error "CAM_AX_FAILURE:preview-visible-after-restart" number 1002
-            end if
-            return "restart=disabled"
-        end if
-        error "CAM_AX_FAILURE:unknown-phase" number 1002
-    on error errorText number errorNumber
-        if errorNumber is -1719 or errorNumber is -1743 or errorText contains "assistive access" or errorText contains "not authorized to send Apple events" then
-            error "CAM_AX_TCC_DENIED" number 1001
-        end if
-        error errorText number errorNumber
-    end try
-end run
-APPLESCRIPT
-)"
+    "$AX_DRIVER" "$phase" 2>&1)"
   ax_status=$?
   set -e
+  if [[ "$ax_status" -eq 77 || "$output" == *"CAM_AX_TCC_DENIED"* ]]; then
+    print -u2 \
+      "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=unmet reason=ax-or-apple-events-denied"
+    exit 77
+  fi
   if [[ "$ax_status" -ne 0 ]]; then
     if [[ "$ax_status" -ge 128 && -z "$output" ]]; then
       fail "ax-$phase-timeout"
-    fi
-    if [[ "$output" == *"CAM_AX_TCC_DENIED"* ]]; then
-      print -u2 \
-        "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=unmet reason=ax-or-apple-events-denied"
-      exit 77
     fi
     if [[ "$output" == *"CAM_AX_FAILURE:"* ]]; then
       local detail="${output#*CAM_AX_FAILURE:}"
@@ -472,8 +557,9 @@ decoded_preview_digest() {
 
 typeset -A ORDINARY_BEFORE
 
+build_ax_driver
 launch_pilot_app
-ax_phase capture
+native_ax_phase capture
 wait_for_source_capture
 
 for table in ${(f)"$(ordinary_tables)"}; do
@@ -481,7 +567,7 @@ for table in ${(f)"$(ordinary_tables)"}; do
   ORDINARY_BEFORE[$table]="$(ordinary_table_fingerprint "$table")"
 done
 
-EXERCISE_RESULT="$(ax_phase exercise)"
+EXERCISE_RESULT="$(native_ax_phase exercise)"
 print "$EXERCISE_RESULT"
 [[ "$EXERCISE_RESULT" == *"result=card action=now feedback=helpful"* ]] \
   || fail synthetic-result-not-actionable
@@ -521,7 +607,7 @@ for table in ${(f)AFTER_TABLES}; do
     || fail ordinary-table-content-changed
 done
 
-ax_phase disable
+native_ax_phase disable
 /opt/homebrew/bin/jq -e '
   (.enabledModuleIDs | index("cam.meaning-preview")) == null
   and (.permissionGrants["cam.meaning-preview"] == null)
@@ -533,7 +619,7 @@ ax_phase disable
 graceful_terminate_launched_app
 [[ -z "$APP_PID" ]] || fail app-did-not-terminate
 launch_pilot_app
-ax_phase restart
+native_ax_phase restart
 assert_no_app_sockets
 [[ -f "$PREVIEW_DB" ]] || fail isolated-state-deleted-on-restart
 [[ "$(decoded_preview_digest)" \

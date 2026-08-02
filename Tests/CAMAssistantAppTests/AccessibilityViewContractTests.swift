@@ -497,11 +497,18 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
     let journey = try String(contentsOf: journeyURL, encoding: .utf8)
     let requiredContracts = [
         "pgrep -x CAMAssistant",
+        "git clone --quiet --local --no-hardlinks",
+        "[[ -d \"$CLONE_ROOT/.git\" ]]",
         "open -n \"$PILOT_APP\" --env",
         "CAM_ASSISTANT_APPLICATION_SUPPORT_ROOT=$SUPPORT_ROOT",
         "chmod 000 \"$BUILD_DIR\"",
         "chmod 000 \"$SOURCE_MANIFEST_DIRECTORY\"",
         "alarm shift; exec @ARGV",
+        "AXIsProcessTrusted()",
+        "AXUIElementCreateApplication",
+        "kAXChildrenAttribute",
+        "AXUIElementPerformAction",
+        "native_ax_phase capture",
         "meaning-preview-sidebar",
         "meaning-preview-enable",
         "meaning-preview-grant",
@@ -522,6 +529,17 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
     #expect(!journey.contains("tccutil"))
     #expect(!journey.contains("codesign"))
     #expect(!journey.contains("CAM_ASSISTANT_SKIP_FRESH_CLONE"))
+    #expect(!journey.contains("tell application \"System Events\""))
+    #expect(
+        !journey.contains(
+            "BUILD_DIR=\"$REPOSITORY_ROOT/.swift-build\""
+        )
+    )
+    #expect(
+        !journey.contains(
+            "SOURCE_MANIFEST_DIRECTORY=\"$REPOSITORY_ROOT/Modules/Core\""
+        )
+    )
 }
 
 private struct AccessibilitySourceContract {
