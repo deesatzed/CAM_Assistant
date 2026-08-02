@@ -27,7 +27,8 @@ graceful_terminate_launched_app() {
   if [[ -z "$APP_PID" ]]; then
     return
   fi
-  /usr/bin/osascript -l JavaScript - "$APP_PID" >/dev/null 2>&1 <<'JXA' || true
+  /usr/bin/perl -e 'alarm shift; exec @ARGV' 5 \
+    /usr/bin/osascript -l JavaScript - "$APP_PID" >/dev/null 2>&1 <<'JXA' || true
 ObjC.import("AppKit")
 function run(argv) {
     const wantedPID = Number(argv[0])
@@ -51,13 +52,15 @@ JXA
 }
 
 cleanup() {
-  graceful_terminate_launched_app
   if [[ "$BUILD_WAS_RESTRICTED" == "true" ]]; then
-    chmod "$BUILD_MODE" "$BUILD_DIR"
+    chmod "$BUILD_MODE" "$BUILD_DIR" || true
+    BUILD_WAS_RESTRICTED="false"
   fi
   if [[ "$SOURCE_MANIFEST_WAS_RESTRICTED" == "true" ]]; then
-    chmod "$SOURCE_MANIFEST_MODE" "$SOURCE_MANIFEST_DIRECTORY"
+    chmod "$SOURCE_MANIFEST_MODE" "$SOURCE_MANIFEST_DIRECTORY" || true
+    SOURCE_MANIFEST_WAS_RESTRICTED="false"
   fi
+  graceful_terminate_launched_app
   rm -rf "$TEST_ROOT"
 }
 trap cleanup EXIT
@@ -109,8 +112,9 @@ fi
 
 BUILD_MODE="$(/usr/bin/stat -f %Lp "$BUILD_DIR")"
 SOURCE_MANIFEST_MODE="$(/usr/bin/stat -f %Lp "$SOURCE_MANIFEST_DIRECTORY")"
-chmod 000 "$BUILD_DIR" "$SOURCE_MANIFEST_DIRECTORY"
+chmod 000 "$BUILD_DIR"
 BUILD_WAS_RESTRICTED="true"
+chmod 000 "$SOURCE_MANIFEST_DIRECTORY"
 SOURCE_MANIFEST_WAS_RESTRICTED="true"
 
 launch_pilot_app() {
@@ -135,9 +139,12 @@ assert_no_app_sockets() {
 ax_phase() {
   local phase="$1"
   local output
+  local ax_status
   export CAM_PILOT_APP_PID="$APP_PID"
   export CAM_PILOT_SYNTHETIC_MARKER="$SYNTHETIC_MARKER"
-  if ! output="$(/usr/bin/osascript - "$phase" 2>&1 <<'APPLESCRIPT'
+  set +e
+  output="$(/usr/bin/perl -e 'alarm shift; exec @ARGV' 45 \
+    /usr/bin/osascript - "$phase" 2>&1 <<'APPLESCRIPT'
 on appProcess()
     set wantedPID to (system attribute "CAM_PILOT_APP_PID") as integer
     tell application "System Events"
@@ -346,13 +353,24 @@ on run(arguments)
     end try
 end run
 APPLESCRIPT
-)"; then
+)"
+  ax_status=$?
+  set -e
+  if [[ "$ax_status" -ne 0 ]]; then
+    if [[ "$ax_status" -ge 128 && -z "$output" ]]; then
+      fail "ax-$phase-timeout"
+    fi
     if [[ "$output" == *"CAM_AX_TCC_DENIED"* ]]; then
       print -u2 \
         "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=unmet reason=ax-or-apple-events-denied"
       exit 77
     fi
-    fail "ax-$phase"
+    if [[ "$output" == *"CAM_AX_FAILURE:"* ]]; then
+      local detail="${output#*CAM_AX_FAILURE:}"
+      detail="${detail%% *}"
+      fail "ax-$phase-$detail"
+    fi
+    fail "ax-$phase-unclassified"
   fi
   print "$output"
 }
@@ -418,6 +436,12 @@ INVALID_AUDIT_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
 RAW_AUDIT_MARKER_COUNT="$(/usr/bin/sqlite3 "$VAULT_DB" \
   "SELECT COUNT(*) FROM audit_events WHERE COALESCE(resource_id,'') LIKE '%' || '$SYNTHETIC_MARKER' || '%' OR COALESCE(route,'') LIKE '%' || '$SYNTHETIC_MARKER' || '%' OR COALESCE(payload_sha256,'') LIKE '%' || '$SYNTHETIC_MARKER' || '%';")"
 [[ "$RAW_AUDIT_MARKER_COUNT" == "0" ]] || fail raw-marker-in-audit
+RAW_PREVIEW_MARKER_COUNT="$(/usr/bin/sqlite3 "$PREVIEW_DB" \
+  "SELECT COUNT(*) FROM meaning_preview_state WHERE instr(snapshot_json, '$SYNTHETIC_MARKER') > 0;")"
+[[ "$RAW_PREVIEW_MARKER_COUNT" == "0" ]] || fail raw-marker-in-preview-field
+if /usr/bin/grep -a -F -q "$SYNTHETIC_MARKER" "$PREVIEW_DB"; then
+  fail raw-marker-in-preview-bytes
+fi
 
 AFTER_TABLES="$(ordinary_tables)"
 [[ "$AFTER_TABLES" == "${(j:\n:)${(ok)ORDINARY_BEFORE}}" ]] \
