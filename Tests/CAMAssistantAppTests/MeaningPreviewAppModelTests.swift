@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import Testing
 @testable import CAMAssistantCore
@@ -11,12 +12,22 @@ func meaningPreviewAppModelOptInIsSeparateFromGrant() async {
         initializeFullWorkspace: false,
         meaningPreviewRuntime: runtime
     )
+    var publishedEnabledWhileWorking = false
+    let lifecycleObservation = model.$meaningPreviewLifecycle
+        .combineLatest(model.$isMeaningPreviewWorking)
+        .sink { lifecycle, isWorking in
+            if lifecycle == .enabledWithoutLocalRead && isWorking {
+                publishedEnabledWhileWorking = true
+            }
+        }
+    defer { withExtendedLifetime(lifecycleObservation) {} }
 
     #expect(!model.isMeaningPreviewVisible)
     #expect(await runtime.requestCount == 0)
     await model.enableMeaningPreview()
     #expect(model.isMeaningPreviewVisible)
     #expect(model.meaningPreviewLifecycle == .enabledWithoutLocalRead)
+    #expect(!publishedEnabledWhileWorking)
     #expect(!model.canRequestMeaningPreview)
     #expect(await runtime.requestCount == 0)
 }

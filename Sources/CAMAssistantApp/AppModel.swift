@@ -1585,6 +1585,7 @@ final class AppModel: ObservableObject {
         do {
             let lifecycle = try await operation()
             guard isCurrentMeaningPreviewOperation(operationID) else { return }
+            finishMeaningPreviewOperation(operationID)
             meaningPreviewLifecycle = lifecycle
             meaningPreviewPresentation = nil
             meaningPreviewError = nil
@@ -1602,9 +1603,9 @@ final class AppModel: ObservableObject {
             }
         } catch {
             guard isCurrentMeaningPreviewOperation(operationID) else { return }
+            finishMeaningPreviewOperation(operationID)
             meaningPreviewError = failure
         }
-        finishMeaningPreviewOperation(operationID)
     }
 
     private func beginMeaningPreviewOperation() -> UUID {
