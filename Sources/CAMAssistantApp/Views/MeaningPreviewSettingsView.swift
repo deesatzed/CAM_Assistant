@@ -51,6 +51,7 @@ struct MeaningPreviewSettingsView: View {
             Button("Enable Meaning Preview") {
                 Task { await model.enableMeaningPreview() }
             }
+            .id("meaning-preview-enable-control")
             .disabled(model.isMeaningPreviewWorking)
             .accessibilityIdentifier("meaning-preview-enable")
             .accessibilityHint("Reveals the optional workspace but grants no local data access.")
@@ -58,6 +59,7 @@ struct MeaningPreviewSettingsView: View {
             Button("Grant Local Read & Isolated Write") {
                 Task { await model.grantMeaningPreviewLocalRead() }
             }
+            .id("meaning-preview-grant-control")
             .disabled(model.isMeaningPreviewWorking)
             .accessibilityIdentifier("meaning-preview-grant")
             .accessibilityHint("Grants access only to one explicitly selected active derived local source and Meaning Preview's isolated state.")

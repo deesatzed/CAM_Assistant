@@ -383,6 +383,7 @@ func meaningPreviewSurfacesExposeExplicitPilotJourney() throws {
     let settingsContracts = [
         "meaning-preview-settings", "meaning-preview-enable",
         "meaning-preview-grant", "meaning-preview-settings-disable",
+        "meaning-preview-enable-control", "meaning-preview-grant-control",
         "meaning-preview-recover", "Enablement grants no data access",
         "local read and isolated write access",
         "Ordinary Assistant remains unchanged", "corrupted", "incompatible",
@@ -533,6 +534,9 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
         "selectSidebar(\"assistant-section-settings\")",
         "selectSidebar(\"meaning-preview-sidebar\")",
         "native_ax_phase capture",
+        "native_ax_phase enable",
+        "wait_for_enabled_without_access",
+        "enable-granted-access",
         "watched-sources.json",
         "Thread.sleep(forTimeInterval: 1)",
         "Watched folder captured and indexed content locally.",

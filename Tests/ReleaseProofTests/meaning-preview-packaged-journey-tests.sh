@@ -425,11 +425,7 @@ private final class Driver {
     }
 
     func pressIdentifier(_ value: String) throws {
-        let anchor = try waitIdentifier(value)
-        guard let button = try ancestor(anchor, role: kAXButtonRole as String) else {
-            throw DriverError.missing("button-\(value)")
-        }
-        try press(button, token: value)
+        try press(try waitEnabled(value), token: value)
     }
 
     func ancestor(_ start: AXUIElement, role: String) throws -> AXUIElement? {
@@ -503,10 +499,13 @@ private func capture(_ driver: Driver) throws {
     )
 }
 
-private func exercise(_ driver: Driver) throws -> String {
+private func enable(_ driver: Driver) throws {
     try driver.selectSidebar("assistant-section-settings")
     try driver.pressIdentifier("meaning-preview-settings-open")
     try driver.pressIdentifier("meaning-preview-enable")
+}
+
+private func exercise(_ driver: Driver) throws -> String {
     _ = try driver.waitIdentifier("meaning-preview-grant")
     _ = try driver.waitIdentifier("meaning-preview-sidebar")
     try driver.assertAbsent("meaning-preview-request")
@@ -562,6 +561,9 @@ do {
     case "capture":
         try capture(driver)
         print("capture=pass")
+    case "enable":
+        try enable(driver)
+        print("enable=pressed")
     case "exercise":
         print(try exercise(driver))
     case "disable":
@@ -633,6 +635,27 @@ wait_for_source_capture() {
   fail synthetic-capture-not-persisted
 }
 
+wait_for_enabled_without_access() {
+  for _ in {1..100}; do
+    if [[ -f "$MODULE_STATE" ]]; then
+      local module_enabled
+      local permission_count
+      module_enabled="$(/opt/homebrew/bin/jq -r \
+        '(.enabledModuleIDs | index("cam.meaning-preview")) != null' \
+        "$MODULE_STATE")"
+      permission_count="$(/opt/homebrew/bin/jq -r \
+        '(.permissionGrants["cam.meaning-preview"] // []) | length' \
+        "$MODULE_STATE")"
+      if [[ "$module_enabled" == "true" ]]; then
+        [[ "$permission_count" == "0" ]] || fail enable-granted-access
+        return
+      fi
+    fi
+    /bin/sleep 0.1
+  done
+  fail enable-not-persisted
+}
+
 prepare_watched_source() {
   mkdir -p "$VAULT_ROOT" "$WATCH_DIRECTORY"
   /usr/bin/printf \
@@ -695,6 +718,8 @@ for table in ${(f)"$(ordinary_tables)"}; do
   ORDINARY_BEFORE[$table]="$(ordinary_table_fingerprint "$table")"
 done
 
+native_ax_phase enable
+wait_for_enabled_without_access
 EXERCISE_RESULT="$(native_ax_phase exercise)"
 print "$EXERCISE_RESULT"
 [[ "$EXERCISE_RESULT" == *"result=card action=now feedback=helpful"* ]] \
