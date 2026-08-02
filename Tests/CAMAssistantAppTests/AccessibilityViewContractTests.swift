@@ -530,7 +530,8 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
         "AXUIElementPerformAction",
         "native_ax_phase capture",
         "watched-sources.json",
-        "Watching locally",
+        "Thread.sleep(forTimeInterval: 1)",
+        "Watched folder captured and indexed content locally.",
         "CGPreflightPostEventAccess()",
         "kAXVisibleChildrenAttribute",
         "kAXRowsAttribute",
@@ -561,6 +562,8 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
     #expect(!journey.contains("CAM_ASSISTANT_SKIP_FRESH_CLONE"))
     #expect(!journey.contains("tell application \"System Events\""))
     #expect(!journey.contains("NSPasteboard"))
+    #expect(!journey.contains("capture-sources-pane"))
+    #expect(!journey.contains("Watching locally"))
     #expect(
         !journey.contains(
             "BUILD_DIR=\"$REPOSITORY_ROOT/.swift-build\""

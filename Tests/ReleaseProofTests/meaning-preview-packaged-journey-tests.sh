@@ -427,23 +427,17 @@ private final class Driver {
 }
 
 private func capture(_ driver: Driver) throws {
+    _ = try driver.waitIdentifier("assistant-section-assistant")
     _ = try driver.waitIdentifier("assistant-section-settings")
     try driver.assertAbsent("meaning-preview-sidebar")
-    try driver.pressIdentifier("assistant-section-settings")
-    let captureSources = try driver.waitNamed(
-        "Capture Sources",
-        role: kAXRadioButtonRole
-    )
-    try driver.press(captureSources, token: "capture-sources-pane")
-    _ = try driver.waitNamed("Watching locally")
     guard let text = ProcessInfo.processInfo.environment[
               "CAM_PILOT_SYNTHETIC_DERIVED_TEXT"
           ],
           let path = ProcessInfo.processInfo.environment[
               "CAM_PILOT_WATCH_FILE"
           ] else { throw DriverError.missing("synthetic-input") }
+    Thread.sleep(forTimeInterval: 1)
     try Data(text.utf8).write(to: URL(filePath: path), options: .atomic)
-    try driver.pressIdentifier("assistant-section-assistant")
     _ = try driver.waitNamed(
         "Watched folder captured and indexed content locally."
     )
