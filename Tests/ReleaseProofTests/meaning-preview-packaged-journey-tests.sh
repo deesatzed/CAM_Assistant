@@ -703,6 +703,20 @@ wait_for_enabled_without_access() {
   fail enable-not-persisted
 }
 
+trace_module_state() {
+  [[ "${CAM_PILOT_TRACE_STATE:-false}" == "true" ]] || return
+  for _ in {1..30}; do
+    if [[ -f "$MODULE_STATE" ]]; then
+      local permission_count
+      permission_count="$(/opt/homebrew/bin/jq -r \
+        '(.permissionGrants["cam.meaning-preview"] // []) | length' \
+        "$MODULE_STATE")"
+      print "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED trace=post-enable permission_count=$permission_count"
+    fi
+    /bin/sleep 0.1
+  done
+}
+
 prepare_watched_source() {
   mkdir -p "$VAULT_ROOT" "$WATCH_DIRECTORY"
   /usr/bin/printf \
@@ -767,6 +781,7 @@ done
 
 native_ax_phase enable
 wait_for_enabled_without_access
+trace_module_state
 EXERCISE_RESULT="$(native_ax_phase exercise)"
 print "$EXERCISE_RESULT"
 [[ "$EXERCISE_RESULT" == *"result=card action=now feedback=helpful"* ]] \
