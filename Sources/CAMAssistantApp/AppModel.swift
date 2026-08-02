@@ -219,6 +219,14 @@ protocol MeaningPreviewRuntime: Sendable {
     ) async throws -> UInt64
 }
 
+protocol MeaningPreviewReflectiveRuntime: Sendable {
+    var reflectionInitiallyAvailable: Bool { get }
+    func requestReflection(
+        references: [MeaningPreviewSourceReference],
+        now: Date
+    ) async throws -> MeaningPreviewReflectivePresentation?
+}
+
 private struct MeaningPreviewAuthorizationLease: Sendable, Equatable {
     let epoch: UInt64
 }
@@ -307,11 +315,16 @@ private struct MeaningPreviewModuleStateSnapshot: Codable {
 
 actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
     nonisolated let initialLifecycle: MeaningPreviewLifecycle
+    nonisolated let reflectionInitiallyAvailable: Bool
 
     private let root: URL
     private let manifestDirectory: URL
     private let sourceResolver: any MeaningPreviewSourceResolving
     private let beforePreviewSave: @Sendable () -> Void
+    private let reflectionReportURL: URL
+    private let reflectionAssignmentProvider:
+        @Sendable () throws -> ModelAssignment
+    private let reflectionTransport: (any LocalModelTransport)?
     private let authorizationGate = MeaningPreviewAuthorizationGate()
     private var coordinator: MeaningPreviewCoordinator?
     private var leaseStore: MeaningPreviewLeaseCheckingStore?
@@ -322,6 +335,12 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
         root: URL,
         manifestDirectory: URL? = nil,
         sourceResolver: (any MeaningPreviewSourceResolving)? = nil,
+        reflectionReportURL: URL? = nil,
+        reflectionAssignmentProvider:
+            @escaping @Sendable () throws -> ModelAssignment = {
+                try MeaningPreviewLiveRuntime.activeLocalAssignment()
+            },
+        reflectionTransport: (any LocalModelTransport)? = nil,
         beforePreviewSave: @escaping @Sendable () -> Void = {}
     ) {
         self.root = root
@@ -330,12 +349,21 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
         self.sourceResolver = sourceResolver
             ?? MeaningPreviewLiveSourceResolver(root: root)
         self.beforePreviewSave = beforePreviewSave
+        self.reflectionReportURL = reflectionReportURL
+            ?? Self.defaultReflectionReportURL()
+        self.reflectionAssignmentProvider = reflectionAssignmentProvider
+        self.reflectionTransport = reflectionTransport
         self.initialLifecycle = (
             try? Self.readLifecycle(
                 root: root,
                 manifestDirectory: self.manifestDirectory
             )
         ) ?? .unavailable
+        self.reflectionInitiallyAvailable = Self.hasCurrentReflectionAdmission(
+            reportURL: self.reflectionReportURL,
+            assignmentProvider: reflectionAssignmentProvider,
+            now: Date()
+        )
     }
 
     func loadLifecycle() -> MeaningPreviewLifecycle {
@@ -504,6 +532,100 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
                 exclusionLabels: result.exclusions.values.map { $0.rawValue }.sorted()
             )
         )
+    }
+
+    func requestReflection(
+        references: [MeaningPreviewSourceReference],
+        now: Date
+    ) async throws -> MeaningPreviewReflectivePresentation? {
+        guard try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        let uniqueReferences = references.sorted { $0.id < $1.id }
+        guard (2...8).contains(uniqueReferences.count),
+              Set(uniqueReferences.map(\.id)).count == uniqueReferences.count else {
+            return nil
+        }
+        let requestGeneration = generation
+        let assignment = try reflectionAssignmentProvider()
+        let report = try JSONDecoder().decode(
+            MeaningPreviewNamedModelReport.self,
+            from: Data(contentsOf: reflectionReportURL)
+        )
+        guard let admission = MeaningPreviewReflectionAdmission.validated(
+            report: report,
+            assignment: assignment,
+            now: now
+        ) else {
+            throw MeaningPreviewRuntimeError.accessDenied
+        }
+        let lease = authorizationGate.authorize()
+        var resolved: [MeaningPreviewResolvedContext] = []
+        resolved.reserveCapacity(uniqueReferences.count)
+        for reference in uniqueReferences {
+            try Task.checkCancellation()
+            resolved.append(try await sourceResolver.resolve(reference))
+        }
+        try Task.checkCancellation()
+        try authorizationGate.withValidLease(lease) {}
+        guard requestGeneration == generation,
+              try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.disabledDuringRequest
+        }
+        guard !resolved.contains(where: {
+            $0.sensitivity == .restricted
+                || $0.derivedText.lowercased().contains("secret")
+                || $0.derivedText.lowercased().contains("password")
+                || $0.derivedText.lowercased().contains("api key")
+        }) else {
+            throw MeaningPreviewReflectionError.restrictedContext
+        }
+        let scopedDomain = "explicit reflection|sources:"
+            + uniqueReferences.map(\.id).joined(separator: ",")
+        let selection = MeaningContextSelection(
+            purpose: "explicit reflective preview",
+            domain: scopedDomain,
+            capacity: .adequate,
+            selectedItems: resolved.map {
+                MeaningContextItem(
+                    id: $0.id,
+                    sourceID: $0.id,
+                    derivedText: $0.derivedText,
+                    observedAt: $0.observedAt,
+                    uncertainty: $0.uncertainty,
+                    sensitivity: $0.sensitivity,
+                    permittedUses: $0.permittedUses,
+                    isVisible: $0.isVisible,
+                    isActive: $0.isActive,
+                    isSupported: $0.isSupported
+                )
+            }
+        )
+        let supplier = try MeaningPreviewLoopbackCandidateSupplier(
+            assignment: assignment,
+            transport: reflectionTransport
+        )
+        _ = try await supplier.health()
+        try authorizationGate.withValidLease(lease) {}
+        guard requestGeneration == generation,
+              try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.disabledDuringRequest
+        }
+        let activeCoordinator = try makeCoordinatorIfNeeded(lease: lease)
+        let result = try await activeCoordinator.requestReflective(
+            access: .init(enabled: true, localDataGranted: true),
+            admission: admission,
+            selection: { selection },
+            supplier: supplier,
+            now: now
+        )
+        try Task.checkCancellation()
+        try authorizationGate.withValidLease(lease) {}
+        guard requestGeneration == generation,
+              try currentLifecycle() == .ready else {
+            throw MeaningPreviewRuntimeError.disabledDuringRequest
+        }
+        return result
     }
 
     func applyAction(
@@ -731,6 +853,49 @@ actor MeaningPreviewLiveRuntime: MeaningPreviewRuntime {
         let normalized = message.lowercased()
         return normalized.contains("file is not a database")
             || normalized.contains("database disk image is malformed")
+    }
+
+    private static func defaultReflectionReportURL() -> URL {
+        if let resource = Bundle.main.resourceURL?
+            .appending(path: "MeaningPreview", directoryHint: .isDirectory)
+            .appending(path: "named-model-report.json"),
+           FileManager.default.fileExists(atPath: resource.path) {
+            return resource
+        }
+        return URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "docs/evidence/add2cam-09-named-model-report.json")
+    }
+
+    private static func activeLocalAssignment() throws -> ModelAssignment {
+        let registry = try ModelRegistry(
+            stateURL: ModelProfileStorage.defaultStateURL()
+        )
+        guard let assignment = try registry.activeProfile()?
+            .assignment(for: .local) else {
+            throw LocalModelInferenceError.invalidAssignment
+        }
+        return assignment
+    }
+
+    private static func hasCurrentReflectionAdmission(
+        reportURL: URL,
+        assignmentProvider: @Sendable () throws -> ModelAssignment,
+        now: Date
+    ) -> Bool {
+        guard let assignment = try? assignmentProvider(),
+              let data = try? Data(contentsOf: reportURL),
+              let report = try? JSONDecoder().decode(
+                  MeaningPreviewNamedModelReport.self,
+                  from: data
+              ) else { return false }
+        return MeaningPreviewReflectionAdmission.validated(
+            report: report,
+            assignment: assignment,
+            now: now
+        ) != nil
     }
 }
 
@@ -1026,6 +1191,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var meaningPreviewSelectedSource: MeaningPreviewSourceReference?
     @Published private(set) var meaningPreviewStatus: String?
     @Published private(set) var meaningPreviewError: String?
+    @Published private(set) var meaningPreviewReflectiveSourceIDs: Set<String> = []
+    @Published private(set) var meaningPreviewReflection: MeaningPreviewReflectivePresentation?
+    @Published private(set) var meaningPreviewReflectionStatus: String?
+    @Published private(set) var meaningPreviewReflectionError: String?
+    @Published private(set) var isMeaningPreviewReflecting = false
+    @Published private(set) var isMeaningPreviewReflectionAvailable = false
     @Published private(set) var isMeaningPreviewWorking = false
     private let hotkeyManager = HotkeyManager()
     private let foregroundActivation: AssistantForegroundActivation
@@ -1052,6 +1223,7 @@ final class AppModel: ObservableObject {
     private let vaultRecoveryOperations: VaultRecoveryOperations
     private let vaultRootProvider: @Sendable () throws -> URL
     private let meaningPreviewRuntime: any MeaningPreviewRuntime
+    private let meaningPreviewReflectiveRuntime: (any MeaningPreviewReflectiveRuntime)?
     private var repositorySnapshot: RepositorySnapshot?
     private var repositoryObservationEvidence: [RepositoryObservation] = []
     private var repositoryIdeaCard: RepositoryIdeaCard?
@@ -1069,6 +1241,9 @@ final class AppModel: ObservableObject {
     private var activeResearchCancellationID: UUID?
     private var activeResearchRetentionID: UUID?
     private var meaningPreviewOperationGeneration = UUID()
+    private var meaningPreviewReflectionGeneration = UUID()
+    private var meaningPreviewReflectionTask:
+        Task<MeaningPreviewReflectivePresentation?, Error>?
 
     init(
         health: AppHealth = .evaluate(
@@ -1106,6 +1281,11 @@ final class AppModel: ObservableObject {
         } else {
             self.meaningPreviewRuntime = MeaningPreviewUnavailableRuntime()
         }
+        self.meaningPreviewReflectiveRuntime = self.meaningPreviewRuntime
+            as? any MeaningPreviewReflectiveRuntime
+        self.isMeaningPreviewReflectionAvailable =
+            self.meaningPreviewReflectiveRuntime?.reflectionInitiallyAvailable
+                ?? false
         meaningPreviewLifecycle = self.meaningPreviewRuntime.initialLifecycle
         if meaningPreviewLifecycle == .unavailable {
             meaningPreviewError = Self.meaningPreviewUnavailableMessage
@@ -1144,6 +1324,13 @@ final class AppModel: ObservableObject {
             && !isMeaningPreviewWorking
     }
 
+    var canRequestMeaningPreviewReflection: Bool {
+        meaningPreviewLifecycle == .ready
+            && isMeaningPreviewReflectionAvailable
+            && (2...8).contains(meaningPreviewReflectiveSourceIDs.count)
+            && !isMeaningPreviewReflecting
+    }
+
     func selectMeaningPreviewSource(id: String) {
         meaningPreviewOperationGeneration = UUID()
         isMeaningPreviewWorking = false
@@ -1151,6 +1338,74 @@ final class AppModel: ObservableObject {
         meaningPreviewPresentation = nil
         meaningPreviewStatus = "Selected one active CAM-derived local source."
         meaningPreviewError = nil
+    }
+
+    func toggleMeaningPreviewReflectiveSource(id: String) {
+        meaningPreviewReflectionTask?.cancel()
+        meaningPreviewReflectionGeneration = UUID()
+        meaningPreviewReflection = nil
+        isMeaningPreviewReflecting = false
+        if meaningPreviewReflectiveSourceIDs.contains(id) {
+            meaningPreviewReflectiveSourceIDs.remove(id)
+        } else if meaningPreviewReflectiveSourceIDs.count < 8 {
+            meaningPreviewReflectiveSourceIDs.insert(id)
+        } else {
+            meaningPreviewReflectionError =
+                "Reflection accepts at most eight explicitly selected sources."
+            return
+        }
+        meaningPreviewReflectionError = nil
+        meaningPreviewReflectionStatus =
+            "Selected \(meaningPreviewReflectiveSourceIDs.count) current sources for explicit reflection."
+    }
+
+    func requestMeaningPreviewReflection() async {
+        guard (2...8).contains(meaningPreviewReflectiveSourceIDs.count) else {
+            meaningPreviewReflectionStatus =
+                "Select at least two and at most eight current sources for reflection."
+            return
+        }
+        guard isMeaningPreviewReflectionAvailable,
+              let runtime = meaningPreviewReflectiveRuntime else {
+            meaningPreviewReflectionError =
+                "Reflection is not admitted by current frozen model evidence. Practical Preview remains available."
+            return
+        }
+        let generation = UUID()
+        meaningPreviewReflectionGeneration = generation
+        let references = meaningPreviewReflectiveSourceIDs.sorted().map {
+            MeaningPreviewSourceReference(id: $0)
+        }
+        isMeaningPreviewReflecting = true
+        meaningPreviewReflection = nil
+        meaningPreviewReflectionError = nil
+        meaningPreviewReflectionStatus = "Checking explicit selected context locally."
+        let task = Task {
+            try await runtime.requestReflection(references: references, now: Date())
+        }
+        meaningPreviewReflectionTask = task
+        do {
+            let result = try await task.value
+            guard generation == meaningPreviewReflectionGeneration,
+                  meaningPreviewLifecycle == .ready else { return }
+            meaningPreviewReflection = result
+            meaningPreviewReflectionStatus = result == nil
+                ? "The validated reflective lane abstained. No fallback occurred."
+                : "One ephemeral reflection was admitted by the frozen local-model gate."
+        } catch is CancellationError {
+            // Selection change or disable owns the newer status.
+        } catch {
+            guard generation == meaningPreviewReflectionGeneration else { return }
+            isMeaningPreviewReflectionAvailable = false
+            meaningPreviewReflection = nil
+            meaningPreviewReflectionError =
+                "Selected local reflection is unavailable. No fallback occurred; practical Preview remains available."
+            meaningPreviewReflectionStatus = nil
+        }
+        if generation == meaningPreviewReflectionGeneration {
+            isMeaningPreviewReflecting = false
+            meaningPreviewReflectionTask = nil
+        }
     }
 
     func enableMeaningPreview() async {
@@ -1190,6 +1445,13 @@ final class AppModel: ObservableObject {
     }
 
     func disableMeaningPreview() async {
+        meaningPreviewReflectionTask?.cancel()
+        meaningPreviewReflectionGeneration = UUID()
+        meaningPreviewReflectiveSourceIDs = []
+        meaningPreviewReflection = nil
+        meaningPreviewReflectionStatus = nil
+        meaningPreviewReflectionError = nil
+        isMeaningPreviewReflecting = false
         let operation = beginMeaningPreviewOperation()
         meaningPreviewPresentation = nil
         meaningPreviewSelectedSource = nil

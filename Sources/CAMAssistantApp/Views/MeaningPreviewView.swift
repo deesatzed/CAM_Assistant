@@ -38,6 +38,7 @@ struct MeaningPreviewView: View {
             } else if model.meaningPreviewLifecycle == .ready {
                 requestControls
                 presentationState
+                reflectiveState
             } else {
                 unavailableState
             }
@@ -55,6 +56,73 @@ struct MeaningPreviewView: View {
             }
         }
         .task { sourcePickerFocused = true }
+    }
+
+    private var reflectiveState: some View {
+        GroupBox("Optional local reflection") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Reflection runs only when explicitly requested, uses two to eight selected current sources, and never replaces practical Preview.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if model.isMeaningPreviewReflectionAvailable {
+                    ForEach(model.libraryPresentation.rows) { row in
+                        Toggle(
+                            row.captures.first?.sourceName
+                                ?? String(row.preview.prefix(80)),
+                            isOn: Binding(
+                                get: {
+                                    model.meaningPreviewReflectiveSourceIDs
+                                        .contains(row.id)
+                                },
+                                set: { _ in
+                                    model.toggleMeaningPreviewReflectiveSource(
+                                        id: row.id
+                                    )
+                                }
+                            )
+                        )
+                        .accessibilityIdentifier(
+                            "meaning-preview-reflect-source-\(row.id)"
+                        )
+                    }
+                    Button("Reflect on Selected Context") {
+                        Task { await model.requestMeaningPreviewReflection() }
+                    }
+                    .disabled(!model.canRequestMeaningPreviewReflection)
+                    .accessibilityIdentifier("meaning-preview-reflect")
+                } else {
+                    Text("Reflection is unavailable because no fresh canonical named-model report admits the current selected loopback assignment. Practical Preview remains available.")
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("meaning-preview-reflect-unavailable")
+                }
+                if model.isMeaningPreviewReflecting {
+                    ProgressView("Checking selected context locally")
+                        .accessibilityIdentifier("meaning-preview-reflect-loading")
+                }
+                if let reflection = model.meaningPreviewReflection {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(reflection.text)
+                            .textSelection(.enabled)
+                        Text("Ephemeral · \(reflection.modelID) · support \(reflection.supportIDs.count) · counterevidence \(reflection.counterevidenceIDs.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("One ephemeral validated reflection")
+                    .accessibilityIdentifier("meaning-preview-reflection")
+                }
+                if let status = model.meaningPreviewReflectionStatus {
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("meaning-preview-reflect-status")
+                }
+                if let error = model.meaningPreviewReflectionError {
+                    Text(error).foregroundStyle(.red)
+                        .accessibilityIdentifier("meaning-preview-reflect-error")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("meaning-preview-reflective-lane")
     }
 
     private var permissionState: some View {

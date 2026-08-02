@@ -173,6 +173,91 @@ func meaningPreviewAppModelRecoveryNormalizesDisabledNavigation() async {
         == "Meaning Preview isolated state was archived and reinitialized.")
 }
 
+@MainActor
+@Test("AppModel reflection requires two to eight explicit sources and preserves practical lane")
+func meaningPreviewAppModelReflectionIsExplicitAndBounded() async {
+    let runtime = ReflectiveMeaningPreviewRuntimeSpy()
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    model.selectMeaningPreviewSource(id: "source-a")
+    await model.requestMeaningPreview()
+    #expect(model.meaningPreviewPresentation?.card != nil)
+
+    model.toggleMeaningPreviewReflectiveSource(id: "source-a")
+    #expect(!model.canRequestMeaningPreviewReflection)
+    await model.requestMeaningPreviewReflection()
+    #expect(await runtime.reflectionRequestCount == 0)
+    #expect(model.meaningPreviewReflectionStatus
+        == "Select at least two and at most eight current sources for reflection.")
+
+    model.toggleMeaningPreviewReflectiveSource(id: "source-b")
+    #expect(model.canRequestMeaningPreviewReflection)
+    await model.requestMeaningPreviewReflection()
+    #expect(await runtime.reflectionRequestCount == 1)
+    #expect(await runtime.lastReferences == ["source-a", "source-b"])
+    #expect(model.meaningPreviewReflection?.text
+        == "The outline may be ready if the schedule permits.")
+    #expect(model.meaningPreviewPresentation?.card != nil)
+    #expect(model.meaningPreviewReflection?.retention == .ephemeral)
+
+    for index in 0..<7 {
+        model.toggleMeaningPreviewReflectiveSource(id: "extra-\(index)")
+    }
+    #expect(model.meaningPreviewReflectiveSourceIDs.count == 8)
+    #expect(model.meaningPreviewReflectionError
+        == "Reflection accepts at most eight explicitly selected sources.")
+}
+
+@MainActor
+@Test("reflection failure disables only reflection and practical Preview remains available")
+func meaningPreviewAppModelReflectionFailureIsIsolated() async {
+    let runtime = ReflectiveMeaningPreviewRuntimeSpy(shouldFailReflection: true)
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    model.toggleMeaningPreviewReflectiveSource(id: "source-a")
+    model.toggleMeaningPreviewReflectiveSource(id: "source-b")
+
+    await model.requestMeaningPreviewReflection()
+
+    #expect(!model.isMeaningPreviewReflectionAvailable)
+    #expect(!model.canRequestMeaningPreviewReflection)
+    #expect(model.meaningPreviewReflection == nil)
+    #expect(model.meaningPreviewReflectionError
+        == "Selected local reflection is unavailable. No fallback occurred; practical Preview remains available.")
+    model.selectMeaningPreviewSource(id: "source-a")
+    await model.requestMeaningPreview()
+    #expect(model.meaningPreviewPresentation?.card != nil)
+}
+
+@MainActor
+@Test("selection change cancels and invalidates in-flight reflection")
+func meaningPreviewAppModelCancelsStaleReflection() async {
+    let gate = AsyncMeaningPreviewGate()
+    let runtime = ReflectiveMeaningPreviewRuntimeSpy(reflectionGate: gate)
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+    model.toggleMeaningPreviewReflectiveSource(id: "source-a")
+    model.toggleMeaningPreviewReflectiveSource(id: "source-b")
+    let request = Task { @MainActor in
+        await model.requestMeaningPreviewReflection()
+    }
+    await gate.waitUntilEntered()
+    model.toggleMeaningPreviewReflectiveSource(id: "source-c")
+    await gate.release()
+    await request.value
+
+    #expect(model.meaningPreviewReflection == nil)
+    #expect(model.meaningPreviewReflectionStatus
+        == "Selected 3 current sources for explicit reflection.")
+    #expect(!model.isMeaningPreviewReflecting)
+}
+
 private actor MeaningPreviewRuntimeSpy: MeaningPreviewRuntime {
     nonisolated let initialLifecycle: MeaningPreviewLifecycle
     private var lifecycle: MeaningPreviewLifecycle
@@ -236,6 +321,73 @@ private actor MeaningPreviewRuntimeSpy: MeaningPreviewRuntime {
     ) -> UInt64 {
         version += 1
         return version
+    }
+}
+
+private actor ReflectiveMeaningPreviewRuntimeSpy:
+    MeaningPreviewRuntime, MeaningPreviewReflectiveRuntime {
+    nonisolated let initialLifecycle: MeaningPreviewLifecycle = .ready
+    nonisolated let reflectionInitiallyAvailable = true
+    private(set) var reflectionRequestCount = 0
+    private(set) var lastReferences: [String] = []
+    private var version: UInt64 = 0
+    private var lifecycle: MeaningPreviewLifecycle = .ready
+    private let shouldFailReflection: Bool
+    private let reflectionGate: AsyncMeaningPreviewGate?
+
+    init(
+        shouldFailReflection: Bool = false,
+        reflectionGate: AsyncMeaningPreviewGate? = nil
+    ) {
+        self.shouldFailReflection = shouldFailReflection
+        self.reflectionGate = reflectionGate
+    }
+
+    func loadLifecycle() -> MeaningPreviewLifecycle { lifecycle }
+    func enable() -> MeaningPreviewLifecycle { lifecycle }
+    func grantLocalAccess() -> MeaningPreviewLifecycle { lifecycle }
+    func disable() -> MeaningPreviewLifecycle {
+        lifecycle = .disabled
+        return lifecycle
+    }
+    func recover() -> MeaningPreviewRecoveryReceipt {
+        .init(lifecycle: lifecycle, archivedPreviousState: false)
+    }
+    func request(reference: MeaningPreviewSourceReference, now: Date) async throws
+        -> MeaningPreviewAppPresentation {
+        version += 1
+        return .appFixture(version: version, text: "Prepare the bounded outline.")
+    }
+    func applyAction(
+        _ action: MeaningPreviewCardAction, memoryID: UUID,
+        expectedVersion: UInt64, at: Date
+    ) async throws -> UInt64 { expectedVersion + 1 }
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback, memoryID: UUID, domain: String,
+        expectedVersion: UInt64
+    ) async throws -> UInt64 { expectedVersion + 1 }
+
+    func requestReflection(
+        references: [MeaningPreviewSourceReference], now: Date
+    ) async throws -> MeaningPreviewReflectivePresentation? {
+        reflectionRequestCount += 1
+        lastReferences = references.map(\.id)
+        if let reflectionGate { await reflectionGate.enter() }
+        try Task.checkCancellation()
+        if shouldFailReflection {
+            throw MeaningPreviewLoopbackSupplierError.transportUnavailable
+        }
+        return MeaningPreviewReflectivePresentation(
+            text: "The outline may be ready if the schedule permits.",
+            observation: "The outline is named.",
+            interpretation: "The schedule may limit it.",
+            supportIDs: ["source-a"],
+            counterevidenceIDs: ["source-b"],
+            uncertainty: 0.4,
+            runtimeIdentity: "loopback:test",
+            modelID: "local/meaning",
+            retention: .ephemeral
+        )
     }
 }
 

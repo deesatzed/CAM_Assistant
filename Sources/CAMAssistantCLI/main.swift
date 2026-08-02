@@ -62,6 +62,67 @@ if arguments.first == "vault" {
         )
         exit(1)
     }
+} else if arguments.first == "evaluate-meaning-preview-model" {
+    do {
+        let request = try MeaningPreviewNamedModelEvaluationRequest.parse(
+            arguments: arguments
+        )
+        let manifestData = try Data(contentsOf: request.manifestURL)
+        let manifestHash = MeaningPreviewEvaluationManifest.sha256(
+            of: manifestData
+        )
+        var report = MeaningPreviewNamedModelReport.unavailable(
+            manifestHash: manifestHash,
+            modelID: "none",
+            runtimeIdentity: "none",
+            errorCode: "selected_model_unavailable"
+        )
+        do {
+            let registry = try ModelRegistry(
+                stateURL: ModelProfileStorage.defaultStateURL()
+            )
+            if let assignment = try registry.activeProfile()?
+                .assignment(for: .local) {
+                report = try await MeaningPreviewNamedModelEvaluator().evaluate(
+                    manifestURL: request.manifestURL,
+                    assignment: assignment
+                )
+            }
+        } catch {
+            report = .unavailable(
+                manifestHash: manifestHash,
+                modelID: "none",
+                runtimeIdentity: "none",
+                errorCode: "runtime_unavailable"
+            )
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try FileManager.default.createDirectory(
+            at: request.outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encoder.encode(report).write(to: request.outputURL, options: .atomic)
+        print(
+            "Meaning Preview named model runtime: \(report.runtimeAvailable ? "available" : "unavailable")\n"
+                + "frozen gates: \(report.reflectionEnabled ? "pass" : "fail")\n"
+                + "report: \(request.outputURL.path)"
+        )
+        let exitCode = MeaningPreviewNamedModelExitCode.forReport(report)
+        if exitCode != 0 { exit(exitCode) }
+    } catch MeaningPreviewNamedModelEvaluationRequestError.invalidArguments {
+        FileHandle.standardError.write(
+            Data(
+                "usage: cam-assistant evaluate-meaning-preview-model MANIFEST OUTPUT\n".utf8
+            )
+        )
+        exit(64)
+    } catch {
+        FileHandle.standardError.write(
+            Data("Meaning Preview named evaluation failed: \(error)\n".utf8)
+        )
+        exit(1)
+    }
 } else if arguments.first == "evaluate-retrieval" {
     guard arguments.count == 3 else {
         FileHandle.standardError.write(
