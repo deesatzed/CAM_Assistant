@@ -631,7 +631,7 @@ native_ax_phase capture
 wait_for_source_capture
 
 for table in ${(f)"$(ordinary_tables)"}; do
-  [[ "$table" == [A-Za-z0-9_]## ]] || fail unexpected-table-name
+  [[ "$table" =~ '^[A-Za-z0-9_]+$' ]] || fail unexpected-table-name
   ORDINARY_BEFORE[$table]="$(ordinary_table_fingerprint "$table")"
 done
 

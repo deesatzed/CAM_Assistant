@@ -540,6 +540,7 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
         "executableURL",
         "assert_ordinary_unchanged",
         "postflight_git_state",
+        "[[ \"$table\" =~ '^[A-Za-z0-9_]+$' ]]",
         "meaning-preview-sidebar",
         "meaning-preview-enable",
         "meaning-preview-grant",
@@ -564,6 +565,7 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
     #expect(!journey.contains("NSPasteboard"))
     #expect(!journey.contains("capture-sources-pane"))
     #expect(!journey.contains("Watching locally"))
+    #expect(!journey.contains("[A-Za-z0-9_]##"))
     #expect(
         !journey.contains(
             "BUILD_DIR=\"$REPOSITORY_ROOT/.swift-build\""
