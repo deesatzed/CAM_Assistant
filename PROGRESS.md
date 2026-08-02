@@ -2438,3 +2438,9 @@ blocker is asserted.
   deterministic practical Preview stays eligible.
 - Goal 40 is terminal `verified_partial`, which is an allowed autonomous result.
   Goal 50 is ready from exact prerequisite `5409c3b`; Goal 60 remains human-only.
+- Goal 50 is now dispatched in isolated worktree
+  `/private/tmp/cam-add2cam-20260731/packaged-pilot` on branch
+  `agent/add2cam-50-packaged-pilot` from exact product prerequisite `5409c3b`.
+  Its worker owns only packaging, packaged-journey/accessibility proof, containment,
+  draft protocol, and handoff files; GUI permission denial remains an honest
+  unmet gate rather than a bypass or synthetic pass.
