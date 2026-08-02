@@ -370,7 +370,10 @@ private final class Driver {
             }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
-        throw DriverError.missing("named-element")
+        let token = value.lowercased().map { character in
+            character.isLetter || character.isNumber ? String(character) : "-"
+        }.joined()
+        throw DriverError.missing("named-\(token)")
     }
 
     func waitEnabled(_ value: String) throws -> AXUIElement {
