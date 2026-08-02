@@ -96,6 +96,18 @@ trap cleanup EXIT
 
 fail() {
   print -u2 "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=fail reason=$1"
+  if [[ -f "$MODULE_STATE" ]]; then
+    local module_enabled
+    local permission_count
+    module_enabled="$(/opt/homebrew/bin/jq -r \
+      '(.enabledModuleIDs | index("cam.meaning-preview")) != null' \
+      "$MODULE_STATE" 2>/dev/null || print unknown)"
+    permission_count="$(/opt/homebrew/bin/jq -r \
+      '(.permissionGrants["cam.meaning-preview"] // []) | length' \
+      "$MODULE_STATE" 2>/dev/null || print unknown)"
+    print -u2 \
+      "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED diagnostic=module-state enabled=$module_enabled permission_count=$permission_count"
+  fi
   exit 1
 }
 
