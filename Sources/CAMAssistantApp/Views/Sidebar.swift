@@ -16,11 +16,7 @@ struct Sidebar: View {
         List(visibleSections, selection: $selection) { section in
             Label(section.rawValue, systemImage: section.systemImage)
                 .tag(section)
-                .accessibilityIdentifier(
-                    section == .meaningPreview
-                        ? "meaning-preview-sidebar"
-                        : "assistant-section-\(section.id.rawValue)"
-                )
+                .accessibilityIdentifier(section.accessibilityIdentifier)
         }
         .safeAreaInset(edge: .bottom) {
             Label(health.statusMessage, systemImage: statusSymbol)
@@ -41,6 +37,24 @@ struct Sidebar: View {
             "exclamationmark.triangle"
         case .offline:
             "wifi.slash"
+        }
+    }
+}
+
+private extension AssistantSection {
+    var accessibilityIdentifier: String {
+        switch self {
+        case .assistant: "assistant-section-assistant"
+        case .meaningPreview: "meaning-preview-sidebar"
+        case .library: "assistant-section-library"
+        case .activity: "assistant-section-activity"
+        case .tasks: "assistant-section-tasks"
+        case .modules: "assistant-section-modules"
+        case .cam: "assistant-section-cam"
+        case .research: "assistant-section-research"
+        case .repositories: "assistant-section-repositories"
+        case .macCare: "assistant-section-mac-care"
+        case .settings: "assistant-section-settings"
         }
     }
 }

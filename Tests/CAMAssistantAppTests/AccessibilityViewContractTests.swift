@@ -447,6 +447,26 @@ func meaningPreviewIsConditionalAndReducedMotionSafe() throws {
     }
 }
 
+@Test("sidebar accessibility identifiers are stable lowercase slugs")
+func sidebarAccessibilityIdentifiersAreStableLowercaseSlugs() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(path: "Sources/CAMAssistantApp/Views/Sidebar.swift"),
+        encoding: .utf8
+    )
+    let requiredIdentifiers = [
+        "assistant-section-assistant", "meaning-preview-sidebar",
+        "assistant-section-library", "assistant-section-activity",
+        "assistant-section-tasks", "assistant-section-modules",
+        "assistant-section-cam", "assistant-section-research",
+        "assistant-section-repositories", "assistant-section-mac-care",
+        "assistant-section-settings",
+    ]
+    #expect(requiredIdentifiers.allSatisfy(source.contains))
+    #expect(source.contains("section.accessibilityIdentifier"))
+    #expect(!source.contains("assistant-section-\\(section.id.rawValue)"))
+}
+
 @Test("Meaning Preview package and pilot verifier require embedded resources")
 func meaningPreviewPackageAndPilotVerifierRequireEmbeddedResources() throws {
     let root = accessibilityRepositoryRoot()
