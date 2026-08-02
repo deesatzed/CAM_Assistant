@@ -299,7 +299,14 @@ func reflectiveSupplierUsesOneHealthForAllCandidates() async throws {
 
 @Test("restricted selected context blocks before any reflective supplier call")
 func coordinatorBlocksRestrictedReflectionBeforeTransport() async throws {
-    let supplier = MeaningPreviewStaticReflectiveSupplier(candidate: .abstention(requestID: "request"))
+    let supplier = MeaningPreviewStaticReflectiveSupplier(
+        candidate: .abstention(
+            requestID: "request",
+            domain: "domain",
+            runtimeIdentity: "loopback:test",
+            modelID: "local/meaning"
+        )
+    )
     let coordinator = try MeaningPreviewCoordinator(store: ReflectionMemoryStore())
     let restricted = MeaningContextSelection(
         purpose: "explicit reflection",
