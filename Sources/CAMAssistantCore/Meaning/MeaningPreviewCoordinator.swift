@@ -198,7 +198,8 @@ public actor MeaningPreviewCoordinator {
     /// or allowed to advance the practical snapshot revision.
     public func requestReflective(
         access: MeaningPreviewAccess,
-        selection: MeaningContextSelection,
+        admission: MeaningPreviewReflectionAdmission?,
+        selection: @Sendable () async throws -> MeaningContextSelection,
         supplier: any MeaningPreviewReflectiveCandidateSupplying,
         now: Date,
         requestID: String = UUID().uuidString
@@ -206,6 +207,14 @@ public actor MeaningPreviewCoordinator {
         guard access.enabled, access.localDataGranted else {
             throw MeaningPreviewReflectionError.accessDenied
         }
+        guard let admission,
+              admission.manifestHash
+                == MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+              admission.modelID == supplier.modelID,
+              admission.runtimeIdentity == supplier.runtimeIdentity else {
+            throw MeaningPreviewReflectionError.accessDenied
+        }
+        let selection = try await selection()
         let selectedIDs = selection.selectedItems.map(\.id)
         guard (1...8).contains(selection.selectedItems.count),
               Set(selectedIDs).count == selectedIDs.count else {
@@ -247,7 +256,9 @@ public actor MeaningPreviewCoordinator {
         )
         let candidate = try await supplier.candidate(for: input)
         guard candidate.requestID == requestID,
-              candidate.domain == selection.domain else {
+              candidate.domain == selection.domain,
+              candidate.modelID == admission.modelID,
+              candidate.runtimeIdentity == admission.runtimeIdentity else {
             throw MeaningPreviewReflectionError.candidateIdentityMismatch
         }
         guard candidate.retention == .ephemeral else {
@@ -268,6 +279,14 @@ public actor MeaningPreviewCoordinator {
                 == candidate.counterevidenceIDs.count,
               Set(candidate.supportIDs).isDisjoint(
                   with: Set(candidate.counterevidenceIDs)
+              ),
+              Self.hasBoundedReflectiveProse(candidate),
+              Self.isGrounded(
+                  [observation, interpretation, opening],
+                  in: selection.selectedItems.map(\.derivedText)
+              ),
+              !Self.containsProhibitedReflectiveClaim(
+                  [observation, interpretation, opening]
               ) else {
             throw MeaningPreviewReflectionError.malformedCandidate
         }
@@ -305,6 +324,56 @@ public actor MeaningPreviewCoordinator {
             modelID: candidate.modelID,
             retention: candidate.retention
         )
+    }
+
+    private static func hasBoundedReflectiveProse(
+        _ candidate: MeaningPreviewReflectiveCandidate
+    ) -> Bool {
+        [candidate.observation, candidate.interpretation, candidate.opening]
+            .compactMap { $0 }
+            .allSatisfy {
+                let count = $0.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ).count
+                return (1...1_000).contains(count)
+            }
+    }
+
+    private static func isGrounded(
+        _ fields: [String],
+        in evidence: [String]
+    ) -> Bool {
+        let evidenceTokens = Set(evidence.flatMap(reflectiveTokens))
+        return fields.allSatisfy { field in
+            let tokens = Set(reflectiveTokens(field))
+            return !tokens.isEmpty
+                && evidenceTokens.intersection(tokens).count
+                    >= min(2, tokens.count)
+        }
+    }
+
+    private static func containsProhibitedReflectiveClaim(
+        _ fields: [String]
+    ) -> Bool {
+        let normalized = fields.joined(separator: " ").lowercased()
+        let prohibited = [
+            "selfish", "selfless", "good person", "bad person",
+            "diagnos", "destiny", "will become", "your motive",
+            "you must", "you should", "you need to", "do this now",
+        ]
+        return prohibited.contains { normalized.contains($0) }
+    }
+
+    private static func reflectiveTokens(_ text: String) -> [String] {
+        let stops: Set<String> = [
+            "and", "are", "for", "from", "into", "may", "the", "this",
+            "with", "without", "while", "that", "your", "you",
+        ]
+        return text.lowercased().split {
+            !$0.isLetter && !$0.isNumber
+        }.map(String.init).filter {
+            $0.count > 2 && !stops.contains($0)
+        }
     }
 
     @discardableResult

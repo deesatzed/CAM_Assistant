@@ -146,7 +146,7 @@ func coordinatorAdjudicatesReflectionWithoutPersistence() async throws {
             decision: .surface,
             observation: "The outline is named.",
             interpretation: "The outline may be ready to begin.",
-            opening: "Draft the outline if capacity permits.",
+            opening: "The named outline may be ready if capacity permits.",
             supportIDs: ["source-a"],
             counterevidenceIDs: ["source-b"],
             uncertainty: 0.4,
@@ -159,13 +159,14 @@ func coordinatorAdjudicatesReflectionWithoutPersistence() async throws {
 
     let result = try await coordinator.requestReflective(
         access: .init(enabled: true, localDataGranted: true),
-        selection: selection,
+        admission: reflectionAdmission(),
+        selection: { selection },
         supplier: accepted,
         now: .fixed,
         requestID: "request"
     )
 
-    #expect(result?.text == "Draft the outline if capacity permits.")
+    #expect(result?.text == "The named outline may be ready if capacity permits.")
     #expect(result?.supportIDs == ["source-a"])
     #expect(result?.counterevidenceIDs == ["source-b"])
     #expect(result?.retention == .ephemeral)
@@ -173,7 +174,8 @@ func coordinatorAdjudicatesReflectionWithoutPersistence() async throws {
 
     let single = try await coordinator.requestReflective(
         access: .init(enabled: true, localDataGranted: true),
-        selection: reflectionSelection(count: 1),
+        admission: reflectionAdmission(),
+        selection: { reflectionSelection(count: 1) },
         supplier: accepted,
         now: .fixed,
         requestID: "request"
@@ -190,7 +192,7 @@ func coordinatorBindsDomainAndUncertainty() async throws {
             requestID: "request", domain: "other", decision: .surface,
             observation: "The outline is named.",
             interpretation: "The outline may be ready to begin.",
-            opening: "Draft the outline if capacity permits.",
+            opening: "The named outline may be ready if capacity permits.",
             supportIDs: ["source-a"], counterevidenceIDs: ["source-b"],
             uncertainty: 0.2, runtimeIdentity: "loopback:test",
             modelID: "local/meaning", retention: .ephemeral
@@ -199,7 +201,8 @@ func coordinatorBindsDomainAndUncertainty() async throws {
     await #expect(throws: MeaningPreviewReflectionError.candidateIdentityMismatch) {
         _ = try await coordinator.requestReflective(
             access: .init(enabled: true, localDataGranted: true),
-            selection: reflectionSelection(count: 2), supplier: drift,
+            admission: reflectionAdmission(),
+            selection: { reflectionSelection(count: 2) }, supplier: drift,
             now: .fixed, requestID: "request"
         )
     }
@@ -209,7 +212,7 @@ func coordinatorBindsDomainAndUncertainty() async throws {
             requestID: "request", domain: "domain", decision: .surface,
             observation: "The outline is named.",
             interpretation: "The outline may be ready to begin.",
-            opening: "Draft the outline if capacity permits.",
+            opening: "The named outline may be ready if capacity permits.",
             supportIDs: ["source-a"], counterevidenceIDs: ["source-b"],
             uncertainty: 0.76, runtimeIdentity: "loopback:test",
             modelID: "local/meaning", retention: .ephemeral
@@ -217,7 +220,8 @@ func coordinatorBindsDomainAndUncertainty() async throws {
     )
     let result = try await coordinator.requestReflective(
         access: .init(enabled: true, localDataGranted: true),
-        selection: reflectionSelection(count: 2), supplier: uncertain,
+        admission: reflectionAdmission(),
+        selection: { reflectionSelection(count: 2) }, supplier: uncertain,
         now: .fixed, requestID: "request"
     )
     #expect(result == nil)
@@ -315,11 +319,36 @@ func coordinatorBlocksRestrictedReflectionBeforeTransport() async throws {
     await #expect(throws: MeaningPreviewReflectionError.restrictedContext) {
         _ = try await coordinator.requestReflective(
             access: .init(enabled: true, localDataGranted: true),
-            selection: restricted,
+            admission: reflectionAdmission(),
+            selection: { restricted },
             supplier: supplier,
             now: .fixed
         )
     }
+    #expect(await supplier.requestCount == 0)
+}
+
+@Test("absent reflection admission refuses before selection and supplier")
+func reflectionAdmissionIsRequiredBeforeLazySelection() async throws {
+    let supplier = MeaningPreviewStaticReflectiveSupplier(
+        candidate: .abstention(requestID: "request", domain: "domain")
+    )
+    let coordinator = try MeaningPreviewCoordinator(store: ReflectionMemoryStore())
+    let selected = LockedCounter()
+    await #expect(throws: MeaningPreviewReflectionError.accessDenied) {
+        _ = try await coordinator.requestReflective(
+            access: .init(enabled: true, localDataGranted: true),
+            admission: nil,
+            selection: {
+                selected.increment()
+                return reflectionSelection(count: 2)
+            },
+            supplier: supplier,
+            now: .fixed,
+            requestID: "request"
+        )
+    }
+    #expect(selected.value == 0)
     #expect(await supplier.requestCount == 0)
 }
 
@@ -346,11 +375,171 @@ func namedModelRequestAndReportAreDistinct() throws {
     #expect(MeaningPreviewNamedModelExitCode.forReport(unavailable) == 2)
 }
 
+@Test("named evaluator validates the frozen digest before transport")
+func namedEvaluatorRejectsContractDriftBeforeTransport() async throws {
+    let temporary = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: temporary) }
+    let manifestURL = temporary.appending(path: "manifest.json")
+    try Data(#"{"manifestVersion":1}"#.utf8).write(to: manifestURL)
+    let transport = RecordingMeaningPreviewTransport(responses: [])
+
+    let report = try await MeaningPreviewNamedModelEvaluator().evaluate(
+        manifestURL: manifestURL,
+        assignment: meaningPreviewAssignment(),
+        transport: transport
+    )
+
+    #expect(!report.runtimeAvailable)
+    #expect(!report.reflectionEnabled)
+    #expect(report.errorCode == "frozen_manifest_mismatch")
+    #expect(await transport.recordedRequests().isEmpty)
+}
+
+@Test("named evaluator executes canonical frozen corpus with one health and 22 candidates")
+func namedEvaluatorRunsCanonicalTransportSequence() async throws {
+    let manifestURL = meaningPreviewManifestURL()
+    let manifest = try MeaningPreviewEvaluationManifest.decode(
+        Data(contentsOf: manifestURL)
+    )
+    var responses: [LocalModelHTTPResponse] = [
+        .init(statusCode: 200, data: Data(#"{"data":[{"id":"local/meaning"}]}"#.utf8)),
+    ]
+    responses += manifest.cases.sorted { $0.id < $1.id }.map { evaluationCase in
+        let content = try! JSONSerialization.data(withJSONObject: [
+            "domain": evaluationCase.domain,
+            "decision": evaluationCase.expectedDecision.rawValue,
+            "observation": evaluationCase.referenceObservation as Any,
+            "interpretation": evaluationCase.referenceInterpretation as Any,
+            "opening": evaluationCase.referenceOpening as Any,
+            "support_ids": evaluationCase.requiredSupportIDs,
+            "counterevidence_ids": evaluationCase.requiredCounterevidenceIDs,
+            "uncertainty": evaluationCase.expectedDecision == .surface ? 0.5 : NSNull(),
+        ])
+        return .init(
+            statusCode: 200,
+            data: meaningPreviewEnvelope(
+                model: "local/meaning",
+                content: String(decoding: content, as: UTF8.self)
+            )
+        )
+    }
+    let transport = RecordingMeaningPreviewTransport(responses: responses)
+
+    let report = try await MeaningPreviewNamedModelEvaluator().evaluate(
+        manifestURL: manifestURL,
+        assignment: meaningPreviewAssignment(),
+        transport: transport
+    )
+
+    #expect(report.runtimeAvailable)
+    #expect(report.reflectionEnabled)
+    #expect(report.evaluation?.namedModelEligible == true)
+    #expect(report.manifestHash == MeaningPreviewNamedModelEvaluator.canonicalManifestHash)
+    let requests = await transport.recordedRequests()
+    #expect(requests.filter { $0.method == .get }.count == 1)
+    #expect(requests.filter { $0.method == .post }.count == 22)
+}
+
+@Test("reflection admission binds fresh canonical report to exact assignment and runtime")
+func reflectionAdmissionIsExactAndFresh() throws {
+    let assignment = try meaningPreviewAssignment()
+    let report = try namedPassingReport(
+        assignment: assignment,
+        evaluatedAt: .fixed
+    )
+    let admission = MeaningPreviewReflectionAdmission.validated(
+        report: report,
+        assignment: assignment,
+        now: .fixed
+    )
+    #expect(admission != nil)
+    let stale = MeaningPreviewReflectionAdmission.validated(
+        report: try namedPassingReport(
+            assignment: assignment,
+            evaluatedAt: .fixed.addingTimeInterval(-90_000)
+        ),
+        assignment: assignment,
+        now: .fixed
+    )
+    #expect(stale == nil)
+    let other = try ModelAssignment(
+        provider: .local,
+        modelID: "other/model",
+        localEndpoint: "http://127.0.0.1:8080/v1"
+    )
+    #expect(MeaningPreviewReflectionAdmission.validated(
+        report: report, assignment: other, now: .fixed
+    ) == nil)
+}
+
 private func meaningPreviewAssignment() throws -> ModelAssignment {
     try ModelAssignment(
         provider: .local,
         modelID: "local/meaning",
         localEndpoint: "http://127.0.0.1:8080/v1"
+    )
+}
+
+private func meaningPreviewManifestURL() -> URL {
+    URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appending(path: "Fixtures/MeaningPreview/v1/manifest.json")
+}
+
+private func namedPassingReport(
+    assignment: ModelAssignment,
+    evaluatedAt: Date
+) throws -> MeaningPreviewNamedModelReport {
+    let data = try Data(contentsOf: meaningPreviewManifestURL())
+    let manifest = try MeaningPreviewEvaluationManifest.decode(data)
+    let evaluation = MeaningPreviewEvaluationReport(
+        evaluatorVersion: "meaning-preview-evaluator-v1",
+        evaluationMode: .namedModel,
+        manifestHash: MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+        runtimeIdentity: "loopback:\(assignment.localEndpoint!)",
+        modelID: assignment.modelID,
+        caseCount: manifest.cases.count,
+        surfaceCaseCount: manifest.cases.filter { $0.expectedDecision == .surface }.count,
+        silenceCaseCount: manifest.cases.filter { $0.expectedDecision == .silence }.count,
+        decisionAccuracy: 1,
+        supportRecall: 1,
+        evidencePrecision: 1,
+        counterevidenceRecall: 1,
+        abstentionAccuracy: 1,
+        prohibitedBehaviorAccuracy: 1,
+        failedCaseIDs: [],
+        unansweredCaseIDs: [],
+        prohibitedFindings: [],
+        caseResults: manifest.cases.map { evaluationCase in
+            MeaningPreviewEvaluationCaseResult(
+                caseID: evaluationCase.id,
+                expectedDecision: evaluationCase.expectedDecision,
+                actualDecision: evaluationCase.expectedDecision,
+                selectedSupportIDs: evaluationCase.requiredSupportIDs,
+                selectedCounterevidenceIDs:
+                    evaluationCase.requiredCounterevidenceIDs,
+                prohibitedBehaviorIDs: [],
+                passed: true,
+                errorCode: nil
+            )
+        },
+        thresholds: manifest.thresholds,
+        meetsFrozenThresholds: true,
+        namedModelEligible: true
+    )
+    return MeaningPreviewNamedModelReport(
+        reportVersion: "meaning-preview-named-model-report-v1",
+        evaluatedAt: evaluatedAt,
+        manifestHash: MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+        runtimeAvailable: true,
+        reflectionEnabled: true,
+        runtimeIdentity: "loopback:\(assignment.localEndpoint!)",
+        modelID: assignment.modelID,
+        errorCode: nil,
+        evaluation: evaluation
     )
 }
 
@@ -390,13 +579,29 @@ private func reflectionSelection(count: Int) -> MeaningContextSelection {
                 id: index == 0 ? "source-a" : "source-b",
                 sourceID: index == 0 ? "source-a" : "source-b",
                 derivedText: index == 0
-                    ? "The outline is named."
-                    : "The schedule remains tight.",
+                    ? "The named outline is ready to begin."
+                    : "The schedule remains tight and capacity may be limited.",
                 observedAt: .fixed,
                 sensitivity: .ordinary
             )
         }
     )
+}
+
+private func reflectionAdmission() -> MeaningPreviewReflectionAdmission {
+    MeaningPreviewReflectionAdmission(
+        manifestHash: MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+        modelID: "local/meaning",
+        runtimeIdentity: "loopback:test",
+        evaluatedAt: .fixed
+    )
+}
+
+private final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int { lock.withLock { count } }
+    func increment() { lock.withLock { count += 1 } }
 }
 
 private final class ReflectionMemoryStore: MeaningPreviewStateStoring, @unchecked Sendable {
@@ -409,9 +614,15 @@ private final class ReflectionMemoryStore: MeaningPreviewStateStoring, @unchecke
 }
 
 private actor MeaningPreviewStaticReflectiveSupplier: MeaningPreviewReflectiveCandidateSupplying {
+    nonisolated let runtimeIdentity: String
+    nonisolated let modelID: String
     let candidateValue: MeaningPreviewReflectiveCandidate
     private(set) var requestCount = 0
-    init(candidate: MeaningPreviewReflectiveCandidate) { candidateValue = candidate }
+    init(candidate: MeaningPreviewReflectiveCandidate) {
+        candidateValue = candidate
+        runtimeIdentity = candidate.runtimeIdentity
+        modelID = candidate.modelID
+    }
     func candidate(for input: MeaningPreviewReflectiveInput) async throws
         -> MeaningPreviewReflectiveCandidate {
         requestCount += 1
