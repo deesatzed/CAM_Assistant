@@ -314,11 +314,13 @@ private struct AXIndex {
     }
 
     func identifier(_ value: String) throws -> AXUIElement? {
-        for element in elements where
-            try stringAttribute(element, kAXIdentifierAttribute as CFString) == value {
-            return element
+        try identifiers(value).first
+    }
+
+    func identifiers(_ value: String) throws -> [AXUIElement] {
+        try elements.filter {
+            try stringAttribute($0, kAXIdentifierAttribute as CFString) == value
         }
-        return nil
     }
 
     func named(_ value: String, role: String? = nil) throws -> AXUIElement? {
@@ -388,13 +390,22 @@ private final class Driver {
         throw DriverError.missing("named-\(token)")
     }
 
-    func waitEnabled(_ value: String) throws -> AXUIElement {
+    func waitEnabled(
+        _ value: String,
+        within ancestorIdentifier: String? = nil
+    ) throws -> AXUIElement {
         let deadline = Date().addingTimeInterval(12)
         repeat {
-            if let anchor = try AXIndex(application: application).identifier(value),
-               let button = try ancestor(anchor, role: kAXButtonRole as String),
-               try boolAttribute(button, kAXEnabledAttribute as CFString) == true {
-                return button
+            let anchors = try AXIndex(application: application).identifiers(value)
+            for anchor in anchors {
+                if let ancestorIdentifier,
+                   !(try hasAncestor(anchor, identifier: ancestorIdentifier)) {
+                    continue
+                }
+                if let button = try ancestor(anchor, role: kAXButtonRole as String),
+                   try boolAttribute(button, kAXEnabledAttribute as CFString) == true {
+                    return button
+                }
             }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
@@ -424,8 +435,14 @@ private final class Driver {
         guard result == .success else { throw DriverError.action(token) }
     }
 
-    func pressIdentifier(_ value: String) throws {
-        try press(try waitEnabled(value), token: value)
+    func pressIdentifier(
+        _ value: String,
+        within ancestorIdentifier: String? = nil
+    ) throws {
+        try press(
+            try waitEnabled(value, within: ancestorIdentifier),
+            token: value
+        )
     }
 
     func ancestor(_ start: AXUIElement, role: String) throws -> AXUIElement? {
@@ -443,6 +460,24 @@ private final class Driver {
             element = unsafeBitCast(parentValue, to: AXUIElement.self)
         }
         return nil
+    }
+
+    func hasAncestor(_ start: AXUIElement, identifier: String) throws -> Bool {
+        var element = start
+        for _ in 0..<12 {
+            if try stringAttribute(
+                element,
+                kAXIdentifierAttribute as CFString
+            ) == identifier { return true }
+            guard let parentValue = try copyAttribute(
+                element,
+                kAXParentAttribute as CFString
+            ), CFGetTypeID(parentValue) == AXUIElementGetTypeID() else {
+                return false
+            }
+            element = unsafeBitCast(parentValue, to: AXUIElement.self)
+        }
+        return false
     }
 
     func selectSidebar(_ identifier: String) throws {
@@ -513,7 +548,10 @@ private func exercise(_ driver: Driver) throws -> String {
     try driver.waitAbsent("meaning-preview-settings")
     try driver.selectSidebar("meaning-preview-sidebar")
     _ = try driver.waitIdentifier("meaning-preview-permission-state")
-    try driver.pressIdentifier("meaning-preview-grant")
+    try driver.pressIdentifier(
+        "meaning-preview-grant",
+        within: "meaning-preview-permission-state"
+    )
     let picker = try driver.waitIdentifier("meaning-preview-source-picker")
     try driver.press(picker, token: "source-picker")
     try driver.key(125)

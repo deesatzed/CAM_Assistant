@@ -534,6 +534,7 @@ func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
         "selectSidebar(\"assistant-section-settings\")",
         "selectSidebar(\"meaning-preview-sidebar\")",
         "waitAbsent(\"meaning-preview-settings\")",
+        "within: \"meaning-preview-permission-state\"",
         "native_ax_phase capture",
         "native_ax_phase enable",
         "wait_for_enabled_without_access",
