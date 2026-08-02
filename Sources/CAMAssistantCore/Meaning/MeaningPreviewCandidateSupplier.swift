@@ -533,10 +533,20 @@ public struct MeaningPreviewReflectionAdmission: Equatable, Sendable {
     }
 
     public static func validated(
-        report: MeaningPreviewNamedModelReport,
+        reportData: Data,
+        expectedReportHash: String,
         assignment: ModelAssignment,
         now: Date
     ) -> Self? {
+        let normalizedHash = expectedReportHash.lowercased()
+        guard normalizedHash.count == 64,
+              normalizedHash.allSatisfy({ $0.isHexDigit }),
+              MeaningPreviewEvaluationManifest.sha256(of: reportData)
+                == normalizedHash,
+              let report = try? JSONDecoder().decode(
+                  MeaningPreviewNamedModelReport.self,
+                  from: reportData
+              ) else { return nil }
         guard report.reportVersion == "meaning-preview-named-model-report-v1",
               report.runtimeAvailable,
               report.reflectionEnabled,
@@ -779,7 +789,19 @@ private struct MeaningPreviewModelOutput: Decodable {
     }
 }
 
-private struct MeaningPreviewHardenedLoopbackTransport: LocalModelTransport {
+struct MeaningPreviewHardenedLoopbackTransport: LocalModelTransport {
+    static func configuration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.connectionProxyDictionary = [:]
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.urlCache = nil
+        configuration.urlCredentialStorage = nil
+        return configuration
+    }
+
     func send(_ request: LocalModelHTTPRequest) async throws
         -> LocalModelHTTPResponse {
         var urlRequest = URLRequest(url: request.url)
@@ -790,16 +812,8 @@ private struct MeaningPreviewHardenedLoopbackTransport: LocalModelTransport {
         for (name, value) in request.headers {
             urlRequest.setValue(value, forHTTPHeaderField: name)
         }
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.connectionProxyDictionary = [:]
-        configuration.httpCookieAcceptPolicy = .never
-        configuration.httpCookieStorage = nil
-        configuration.httpShouldSetCookies = false
-        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        configuration.urlCache = nil
-        configuration.urlCredentialStorage = nil
         let session = URLSession(
-            configuration: configuration,
+            configuration: Self.configuration(),
             delegate: MeaningPreviewURLSessionDelegate(),
             delegateQueue: nil
         )
@@ -812,8 +826,15 @@ private struct MeaningPreviewHardenedLoopbackTransport: LocalModelTransport {
     }
 }
 
-private final class MeaningPreviewURLSessionDelegate: NSObject,
+final class MeaningPreviewURLSessionDelegate: NSObject,
     URLSessionTaskDelegate, @unchecked Sendable {
+    static func redirectDecision() -> URLRequest? { nil }
+
+    static func authenticationDecision()
+        -> URLSession.AuthChallengeDisposition {
+        .cancelAuthenticationChallenge
+    }
+
     func urlSession(
         _: URLSession,
         task _: URLSessionTask,
@@ -821,7 +842,7 @@ private final class MeaningPreviewURLSessionDelegate: NSObject,
         newRequest _: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        completionHandler(nil)
+        completionHandler(Self.redirectDecision())
     }
 
     func urlSession(
@@ -833,6 +854,6 @@ private final class MeaningPreviewURLSessionDelegate: NSObject,
             URLCredential?
         ) -> Void
     ) {
-        completionHandler(.cancelAuthenticationChallenge, nil)
+        completionHandler(Self.authenticationDecision(), nil)
     }
 }

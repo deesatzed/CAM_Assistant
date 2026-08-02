@@ -64,6 +64,24 @@ func reflectiveSupplierUsesExactLoopbackSequence() async throws {
     ])
 }
 
+@Test("production reflective transport disables ambient authority and refuses handoffs")
+func productionReflectiveTransportIsHardened() {
+    let configuration = MeaningPreviewHardenedLoopbackTransport.configuration()
+
+    #expect(configuration.connectionProxyDictionary?.isEmpty == true)
+    #expect(configuration.httpCookieAcceptPolicy == .never)
+    #expect(configuration.httpCookieStorage == nil)
+    #expect(!configuration.httpShouldSetCookies)
+    #expect(configuration.requestCachePolicy == .reloadIgnoringLocalAndRemoteCacheData)
+    #expect(configuration.urlCache == nil)
+    #expect(configuration.urlCredentialStorage == nil)
+    #expect(MeaningPreviewURLSessionDelegate.redirectDecision() == nil)
+    #expect(
+        MeaningPreviewURLSessionDelegate.authenticationDecision()
+            == .cancelAuthenticationChallenge
+    )
+}
+
 @Test("reflective supplier rejects identity drift, malformed structure, and reuse without fallback")
 func reflectiveSupplierFailsClosedWithoutFallback() async throws {
     let drift = RecordingMeaningPreviewTransport(responses: [
@@ -554,16 +572,23 @@ func reflectionAdmissionIsExactAndFresh() throws {
         assignment: assignment,
         evaluatedAt: .fixed
     )
+    let reportData = try JSONEncoder().encode(report)
+    let reportHash = MeaningPreviewEvaluationManifest.sha256(of: reportData)
     let admission = MeaningPreviewReflectionAdmission.validated(
-        report: report,
+        reportData: reportData,
+        expectedReportHash: reportHash,
         assignment: assignment,
         now: .fixed
     )
     #expect(admission != nil)
+    let staleReportData = try JSONEncoder().encode(namedPassingReport(
+        assignment: assignment,
+        evaluatedAt: .fixed.addingTimeInterval(-90_000)
+    ))
     let stale = MeaningPreviewReflectionAdmission.validated(
-        report: try namedPassingReport(
-            assignment: assignment,
-            evaluatedAt: .fixed.addingTimeInterval(-90_000)
+        reportData: staleReportData,
+        expectedReportHash: MeaningPreviewEvaluationManifest.sha256(
+            of: staleReportData
         ),
         assignment: assignment,
         now: .fixed
@@ -575,7 +600,16 @@ func reflectionAdmissionIsExactAndFresh() throws {
         localEndpoint: "http://127.0.0.1:8080/v1"
     )
     #expect(MeaningPreviewReflectionAdmission.validated(
-        report: report, assignment: other, now: .fixed
+        reportData: reportData,
+        expectedReportHash: reportHash,
+        assignment: other,
+        now: .fixed
+    ) == nil)
+    #expect(MeaningPreviewReflectionAdmission.validated(
+        reportData: reportData,
+        expectedReportHash: String(repeating: "0", count: 64),
+        assignment: assignment,
+        now: .fixed
     ) == nil)
 }
 

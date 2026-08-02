@@ -1308,12 +1308,16 @@ func appModelRecognizesAdmittedLiveReflection() throws {
     let fixture = try LiveRuntimeFixture()
     defer { fixture.remove() }
     let reportURL = fixture.root.appending(path: "named-report.json")
-    try writePassingReflectionReport(to: reportURL, evaluatedAt: Date())
+    let reportHash = try writePassingReflectionReport(
+        to: reportURL,
+        evaluatedAt: Date()
+    )
     let runtime = MeaningPreviewLiveRuntime(
         root: fixture.root,
         manifestDirectory: fixture.manifests,
         sourceResolver: MeaningPreviewStaticSourceResolver(),
         reflectionReportURL: reportURL,
+        reflectionReportHash: reportHash,
         reflectionAssignmentProvider: { try reflectionAssignmentFixture() }
     )
 
@@ -1330,13 +1334,17 @@ func liveReflectionDisableWinsAfterModelAwait() async throws {
     let fixture = try LiveRuntimeFixture()
     defer { fixture.remove() }
     let reportURL = fixture.root.appending(path: "named-report.json")
-    try writePassingReflectionReport(to: reportURL, evaluatedAt: .fixtureNow)
+    let reportHash = try writePassingReflectionReport(
+        to: reportURL,
+        evaluatedAt: .fixtureNow
+    )
     let transport = GatedReflectionTransport()
     let runtime = MeaningPreviewLiveRuntime(
         root: fixture.root,
         manifestDirectory: fixture.manifests,
         sourceResolver: MeaningPreviewStaticSourceResolver(),
         reflectionReportURL: reportURL,
+        reflectionReportHash: reportHash,
         reflectionAssignmentProvider: { try reflectionAssignmentFixture() },
         reflectionTransport: transport
     )
@@ -1371,7 +1379,54 @@ private func reflectionAssignmentFixture() throws -> ModelAssignment {
     )
 }
 
-private func writePassingReflectionReport(to url: URL, evaluatedAt: Date) throws {
+@MainActor
+@Test("live reflection rejects a passing report changed after its build-bound digest")
+func liveReflectionRejectsTamperedAdmittedReport() async throws {
+    let fixture = try LiveRuntimeFixture()
+    defer { fixture.remove() }
+    let reportURL = fixture.root.appending(path: "named-report.json")
+    let reportHash = try writePassingReflectionReport(
+        to: reportURL,
+        evaluatedAt: Date()
+    )
+    _ = try writePassingReflectionReport(
+        to: reportURL,
+        evaluatedAt: Date().addingTimeInterval(1)
+    )
+    let reads = ReadCounter()
+    let transport = UnexpectedReflectionTransport()
+    let runtime = MeaningPreviewLiveRuntime(
+        root: fixture.root,
+        manifestDirectory: fixture.manifests,
+        sourceResolver: reads,
+        reflectionReportURL: reportURL,
+        reflectionReportHash: reportHash,
+        reflectionAssignmentProvider: { try reflectionAssignmentFixture() },
+        reflectionTransport: transport
+    )
+
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+
+    #expect(!model.isMeaningPreviewReflectionAvailable)
+    _ = try await runtime.enable()
+    _ = try await runtime.grantLocalAccess()
+    await #expect(throws: MeaningPreviewRuntimeError.accessDenied) {
+        _ = try await runtime.requestReflection(
+            references: [.init(id: "source-a"), .init(id: "source-b")],
+            now: Date()
+        )
+    }
+    #expect(await reads.count == 0)
+    #expect(await transport.requestCount == 0)
+}
+
+private func writePassingReflectionReport(
+    to url: URL,
+    evaluatedAt: Date
+) throws -> String {
     let manifestURL = URL(filePath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
@@ -1425,7 +1480,9 @@ private func writePassingReflectionReport(to url: URL, evaluatedAt: Date) throws
         errorCode: nil,
         evaluation: evaluation
     )
-    try JSONEncoder().encode(report).write(to: url, options: .atomic)
+    let data = try JSONEncoder().encode(report)
+    try data.write(to: url, options: .atomic)
+    return MeaningPreviewEvaluationManifest.sha256(of: data)
 }
 
 private actor GatedReflectionTransport: LocalModelTransport {
@@ -1459,6 +1516,16 @@ private actor GatedReflectionTransport: LocalModelTransport {
     func resumeCandidate() {
         continuation?.resume()
         continuation = nil
+    }
+}
+
+private actor UnexpectedReflectionTransport: LocalModelTransport {
+    private(set) var requestCount = 0
+
+    func send(_ request: LocalModelHTTPRequest) async throws
+        -> LocalModelHTTPResponse {
+        requestCount += 1
+        throw LocalModelInferenceError.transportUnavailable
     }
 }
 

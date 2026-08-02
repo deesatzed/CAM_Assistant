@@ -323,6 +323,7 @@ actor MeaningPreviewLiveRuntime:
     private let sourceResolver: any MeaningPreviewSourceResolving
     private let beforePreviewSave: @Sendable () -> Void
     private let reflectionReportURL: URL
+    private let reflectionReportHash: String
     private let reflectionAssignmentProvider:
         @Sendable () throws -> ModelAssignment
     private let reflectionTransport: (any LocalModelTransport)?
@@ -337,6 +338,7 @@ actor MeaningPreviewLiveRuntime:
         manifestDirectory: URL? = nil,
         sourceResolver: (any MeaningPreviewSourceResolving)? = nil,
         reflectionReportURL: URL? = nil,
+        reflectionReportHash: String? = nil,
         reflectionAssignmentProvider:
             @escaping @Sendable () throws -> ModelAssignment = {
                 try MeaningPreviewLiveRuntime.activeLocalAssignment()
@@ -352,6 +354,8 @@ actor MeaningPreviewLiveRuntime:
         self.beforePreviewSave = beforePreviewSave
         self.reflectionReportURL = reflectionReportURL
             ?? Self.defaultReflectionReportURL()
+        self.reflectionReportHash = reflectionReportHash
+            ?? Self.packagedReflectionReportHash
         self.reflectionAssignmentProvider = reflectionAssignmentProvider
         self.reflectionTransport = reflectionTransport
         self.initialLifecycle = (
@@ -362,6 +366,7 @@ actor MeaningPreviewLiveRuntime:
         ) ?? .unavailable
         self.reflectionInitiallyAvailable = Self.hasCurrentReflectionAdmission(
             reportURL: self.reflectionReportURL,
+            reportHash: self.reflectionReportHash,
             assignmentProvider: reflectionAssignmentProvider,
             now: Date()
         )
@@ -549,12 +554,10 @@ actor MeaningPreviewLiveRuntime:
         }
         let requestGeneration = generation
         let assignment = try reflectionAssignmentProvider()
-        let report = try JSONDecoder().decode(
-            MeaningPreviewNamedModelReport.self,
-            from: Data(contentsOf: reflectionReportURL)
-        )
+        let reportData = try Data(contentsOf: reflectionReportURL)
         guard let admission = MeaningPreviewReflectionAdmission.validated(
-            report: report,
+            reportData: reportData,
+            expectedReportHash: reflectionReportHash,
             assignment: assignment,
             now: now
         ) else {
@@ -876,6 +879,13 @@ actor MeaningPreviewLiveRuntime:
             .appending(path: "named-model-report.json")
     }
 
+    // SHA-256 of the exact Goal 40 report approved for this build. Keeping the
+    // digest in executable code prevents editing bundled JSON into an
+    // admission. Goal 50 must update this value only when it packages a newly
+    // generated, reviewed report.
+    private static let packagedReflectionReportHash =
+        "7d7237367d93d8f00b90e4f60dfcdbdd1d0e97cad0cba5716355653fc843011d"
+
     private static func activeLocalAssignment() throws -> ModelAssignment {
         let registry = try ModelRegistry(
             stateURL: ModelProfileStorage.defaultStateURL()
@@ -889,17 +899,15 @@ actor MeaningPreviewLiveRuntime:
 
     private static func hasCurrentReflectionAdmission(
         reportURL: URL,
+        reportHash: String,
         assignmentProvider: @Sendable () throws -> ModelAssignment,
         now: Date
     ) -> Bool {
         guard let assignment = try? assignmentProvider(),
-              let data = try? Data(contentsOf: reportURL),
-              let report = try? JSONDecoder().decode(
-                  MeaningPreviewNamedModelReport.self,
-                  from: data
-              ) else { return false }
+              let data = try? Data(contentsOf: reportURL) else { return false }
         return MeaningPreviewReflectionAdmission.validated(
-            report: report,
+            reportData: data,
+            expectedReportHash: reportHash,
             assignment: assignment,
             now: now
         ) != nil
