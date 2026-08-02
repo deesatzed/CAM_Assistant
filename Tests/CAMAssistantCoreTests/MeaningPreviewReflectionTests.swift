@@ -145,7 +145,7 @@ func coordinatorAdjudicatesReflectionWithoutPersistence() async throws {
             domain: "domain",
             decision: .surface,
             observation: "The outline is named.",
-            interpretation: "The outline may be ready to begin.",
+            interpretation: "The named outline may be ready, while the schedule remains tight.",
             opening: "The named outline may be ready if capacity permits.",
             supportIDs: ["source-a"],
             counterevidenceIDs: ["source-b"],
@@ -166,7 +166,8 @@ func coordinatorAdjudicatesReflectionWithoutPersistence() async throws {
         requestID: "request"
     )
 
-    #expect(result?.text == "The named outline may be ready if capacity permits.")
+    #expect(result?.text
+        == "One possibility: The named outline may be ready, while the schedule remains tight.")
     #expect(result?.supportIDs == ["source-a"])
     #expect(result?.counterevidenceIDs == ["source-b"])
     #expect(result?.retention == .ephemeral)
@@ -191,7 +192,7 @@ func coordinatorBindsDomainAndUncertainty() async throws {
         candidate: .init(
             requestID: "request", domain: "other", decision: .surface,
             observation: "The outline is named.",
-            interpretation: "The outline may be ready to begin.",
+            interpretation: "The named outline may be ready, while the schedule remains tight.",
             opening: "The named outline may be ready if capacity permits.",
             supportIDs: ["source-a"], counterevidenceIDs: ["source-b"],
             uncertainty: 0.2, runtimeIdentity: "loopback:test",
@@ -211,7 +212,7 @@ func coordinatorBindsDomainAndUncertainty() async throws {
         candidate: .init(
             requestID: "request", domain: "domain", decision: .surface,
             observation: "The outline is named.",
-            interpretation: "The outline may be ready to begin.",
+            interpretation: "The named outline may be ready, while the schedule remains tight.",
             opening: "The named outline may be ready if capacity permits.",
             supportIDs: ["source-a"], counterevidenceIDs: ["source-b"],
             uncertainty: 0.76, runtimeIdentity: "loopback:test",
@@ -225,6 +226,54 @@ func coordinatorBindsDomainAndUncertainty() async throws {
         now: .fixed, requestID: "request"
     )
     #expect(result == nil)
+}
+
+@Test("runtime reflection rejects pressure, token salad, polarity reversal, and unrelated prose")
+func coordinatorRejectsAdversarialRuntimeProse() async throws {
+    let candidates: [(String, String)] = [
+        (
+            "The named outline may be ready, while the schedule remains tight.",
+            "You have to delete the named outline right away."
+        ),
+        (
+            "Named schedule outline remains ready tight.",
+            "The named outline may be ready if capacity permits."
+        ),
+        (
+            "The named outline may not be ready, while the schedule remains tight.",
+            "The named outline may be ready if capacity permits."
+        ),
+        (
+            "The weather may improve while the music remains quiet.",
+            "The named outline may be ready if capacity permits."
+        ),
+    ]
+    for (interpretation, opening) in candidates {
+        let supplier = MeaningPreviewStaticReflectiveSupplier(
+            candidate: .init(
+                requestID: "request", domain: "domain", decision: .surface,
+                observation: "The outline is named.",
+                interpretation: interpretation,
+                opening: opening,
+                supportIDs: ["source-a"], counterevidenceIDs: ["source-b"],
+                uncertainty: 0.4, runtimeIdentity: "loopback:test",
+                modelID: "local/meaning", retention: .ephemeral
+            )
+        )
+        let coordinator = try MeaningPreviewCoordinator(
+            store: ReflectionMemoryStore()
+        )
+        await #expect(throws: MeaningPreviewReflectionError.malformedCandidate) {
+            _ = try await coordinator.requestReflective(
+                access: .init(enabled: true, localDataGranted: true),
+                admission: reflectionAdmission(),
+                selection: { reflectionSelection(count: 2) },
+                supplier: supplier,
+                now: .fixed,
+                requestID: "request"
+            )
+        }
+    }
 }
 
 @Test("supplier binds exact domain and strict assistant message structure")
@@ -359,6 +408,41 @@ func reflectionAdmissionIsRequiredBeforeLazySelection() async throws {
     #expect(await supplier.requestCount == 0)
 }
 
+@Test("expired reflection admission refuses before selection and supplier")
+func expiredReflectionAdmissionIsRejectedAtRequestTime() async throws {
+    let supplier = MeaningPreviewStaticReflectiveSupplier(
+        candidate: .abstention(
+            requestID: "request", domain: "domain",
+            runtimeIdentity: "loopback:test", modelID: "local/meaning"
+        )
+    )
+    let selected = LockedCounter()
+    let coordinator = try MeaningPreviewCoordinator(store: ReflectionMemoryStore())
+    let expired = MeaningPreviewReflectionAdmission(
+        manifestHash: MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+        modelID: "local/meaning",
+        runtimeIdentity: "loopback:test",
+        evaluatedAt: .fixed.addingTimeInterval(
+            -MeaningPreviewReflectionAdmission.maximumAge - 1
+        )
+    )
+    await #expect(throws: MeaningPreviewReflectionError.accessDenied) {
+        _ = try await coordinator.requestReflective(
+            access: .init(enabled: true, localDataGranted: true),
+            admission: expired,
+            selection: {
+                selected.increment()
+                return reflectionSelection(count: 2)
+            },
+            supplier: supplier,
+            now: .fixed,
+            requestID: "request"
+        )
+    }
+    #expect(selected.value == 0)
+    #expect(await supplier.requestCount == 0)
+}
+
 @Test("named model request is distinct from replay and report records runtime availability")
 func namedModelRequestAndReportAreDistinct() throws {
     let request = try MeaningPreviewNamedModelEvaluationRequest.parse(arguments: [
@@ -406,9 +490,18 @@ func namedEvaluatorRejectsContractDriftBeforeTransport() async throws {
 
 @Test("named evaluator executes canonical frozen corpus with one health and 22 candidates")
 func namedEvaluatorRunsCanonicalTransportSequence() async throws {
-    let manifestURL = meaningPreviewManifestURL()
+    let temporary = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(
+        at: temporary, withIntermediateDirectories: true
+    )
+    defer { try? FileManager.default.removeItem(at: temporary) }
+    let canonicalData = try Data(contentsOf: meaningPreviewManifestURL())
+    let manifestURL = temporary.appending(path: "manifest.json")
+    try canonicalData.write(to: manifestURL)
+    let replacement = Data(#"{"manifestVersion":1}"#.utf8)
     let manifest = try MeaningPreviewEvaluationManifest.decode(
-        Data(contentsOf: manifestURL)
+        canonicalData
     )
     var responses: [LocalModelHTTPResponse] = [
         .init(statusCode: 200, data: Data(#"{"data":[{"id":"local/meaning"}]}"#.utf8)),
@@ -432,7 +525,11 @@ func namedEvaluatorRunsCanonicalTransportSequence() async throws {
             )
         )
     }
-    let transport = RecordingMeaningPreviewTransport(responses: responses)
+    let transport = SwappingMeaningPreviewTransport(
+        manifestURL: manifestURL,
+        replacement: replacement,
+        responses: responses
+    )
 
     let report = try await MeaningPreviewNamedModelEvaluator().evaluate(
         manifestURL: manifestURL,
@@ -444,6 +541,7 @@ func namedEvaluatorRunsCanonicalTransportSequence() async throws {
     #expect(report.reflectionEnabled)
     #expect(report.evaluation?.namedModelEligible == true)
     #expect(report.manifestHash == MeaningPreviewNamedModelEvaluator.canonicalManifestHash)
+    #expect(try Data(contentsOf: manifestURL) == replacement)
     let requests = await transport.recordedRequests()
     #expect(requests.filter { $0.method == .get }.count == 1)
     #expect(requests.filter { $0.method == .post }.count == 22)
@@ -646,5 +744,38 @@ private actor RecordingMeaningPreviewTransport: LocalModelTransport {
         guard !responses.isEmpty else { throw LocalModelInferenceError.transportUnavailable }
         return responses.removeFirst()
     }
+    func recordedRequests() -> [LocalModelHTTPRequest] { requests }
+}
+
+private actor SwappingMeaningPreviewTransport: LocalModelTransport {
+    private let manifestURL: URL
+    private let replacement: Data
+    private var responses: [LocalModelHTTPResponse]
+    private var requests: [LocalModelHTTPRequest] = []
+    private var didSwap = false
+
+    init(
+        manifestURL: URL,
+        replacement: Data,
+        responses: [LocalModelHTTPResponse]
+    ) {
+        self.manifestURL = manifestURL
+        self.replacement = replacement
+        self.responses = responses
+    }
+
+    func send(_ request: LocalModelHTTPRequest) async throws
+        -> LocalModelHTTPResponse {
+        requests.append(request)
+        if !didSwap {
+            didSwap = true
+            try replacement.write(to: manifestURL, options: .atomic)
+        }
+        guard !responses.isEmpty else {
+            throw LocalModelInferenceError.transportUnavailable
+        }
+        return responses.removeFirst()
+    }
+
     func recordedRequests() -> [LocalModelHTTPRequest] { requests }
 }

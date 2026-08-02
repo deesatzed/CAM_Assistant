@@ -210,6 +210,7 @@ public actor MeaningPreviewCoordinator {
         guard let admission,
               admission.manifestHash
                 == MeaningPreviewNamedModelEvaluator.canonicalManifestHash,
+              admission.isCurrent(at: now),
               admission.modelID == supplier.modelID,
               admission.runtimeIdentity == supplier.runtimeIdentity else {
             throw MeaningPreviewReflectionError.accessDenied
@@ -281,10 +282,6 @@ public actor MeaningPreviewCoordinator {
                   with: Set(candidate.counterevidenceIDs)
               ),
               Self.hasBoundedReflectiveProse(candidate),
-              Self.isGrounded(
-                  [observation, interpretation, opening],
-                  in: selection.selectedItems.map(\.derivedText)
-              ),
               !Self.containsProhibitedReflectiveClaim(
                   [observation, interpretation, opening]
               ) else {
@@ -295,8 +292,21 @@ public actor MeaningPreviewCoordinator {
         for id in allCandidateIDs where uuidByOwner[id] == nil {
             throw MeaningPreviewReflectionError.unknownEvidence(id)
         }
+        let selectedByID = Dictionary(
+            uniqueKeysWithValues: selection.selectedItems.map { ($0.id, $0) }
+        )
+        guard Self.isRuntimeGrounded(
+            observation: observation,
+            interpretation: interpretation,
+            supportIDs: candidate.supportIDs,
+            counterevidenceIDs: candidate.counterevidenceIDs,
+            selectedByID: selectedByID
+        ) else {
+            throw MeaningPreviewReflectionError.malformedCandidate
+        }
+        let groundedOpening = "One possibility: \(interpretation)"
         let inference = InferenceCandidate(
-            claim: opening,
+            claim: groundedOpening,
             observation: observation,
             interpretation: interpretation,
             support: candidate.supportIDs.compactMap { uuidByOwner[$0] },
@@ -339,29 +349,81 @@ public actor MeaningPreviewCoordinator {
             }
     }
 
-    private static func isGrounded(
-        _ fields: [String],
-        in evidence: [String]
+    private static func isRuntimeGrounded(
+        observation: String,
+        interpretation: String,
+        supportIDs: [String],
+        counterevidenceIDs: [String],
+        selectedByID: [String: MeaningContextItem]
     ) -> Bool {
-        let evidenceTokens = Set(evidence.flatMap(reflectiveTokens))
-        return fields.allSatisfy { field in
-            let tokens = Set(reflectiveTokens(field))
-            return !tokens.isEmpty
-                && evidenceTokens.intersection(tokens).count
-                    >= min(2, tokens.count)
+        let support = supportIDs.compactMap { selectedByID[$0]?.derivedText }
+        let counter = counterevidenceIDs.compactMap {
+            selectedByID[$0]?.derivedText
         }
+        guard support.count == supportIDs.count,
+              counter.count == counterevidenceIDs.count else { return false }
+
+        let observationTokens = reflectiveTokens(observation)
+        let supportTokens = support.flatMap(reflectiveTokens)
+        guard isExtractivelyGrounded(
+            fieldTokens: observationTokens,
+            evidenceTokens: supportTokens
+        ) else { return false }
+
+        let interpretationTokens = reflectiveTokens(interpretation)
+        let counterTokens = counter.flatMap(reflectiveTokens)
+        let allEvidenceTokens = supportTokens + counterTokens
+        let interpretationSet = Set(interpretationTokens)
+        let allEvidenceSet = Set(allEvidenceTokens)
+        guard interpretationTokens.count >= 4,
+              Double(interpretationSet.intersection(allEvidenceSet).count)
+                / Double(interpretationSet.count) >= 0.75,
+              interpretationSet.intersection(Set(supportTokens)).count >= 2,
+              interpretationSet.intersection(Set(counterTokens)).count >= 2,
+              hasSharedBigram(interpretationTokens, supportTokens),
+              hasSharedBigram(interpretationTokens, counterTokens) else {
+            return false
+        }
+
+        let polarity: Set<String> = ["never", "no", "not", "only", "without"]
+        let interpretationPolarity = Set(
+            rawReflectiveTokens(interpretation).filter(polarity.contains)
+        )
+        let evidencePolarity = Set(
+            (support + counter).flatMap(rawReflectiveTokens)
+                .filter(polarity.contains)
+        )
+        return interpretationPolarity.isSubset(of: evidencePolarity)
+    }
+
+    private static func isExtractivelyGrounded(
+        fieldTokens: [String],
+        evidenceTokens: [String]
+    ) -> Bool {
+        let field = Set(fieldTokens)
+        guard !field.isEmpty else { return false }
+        let overlap = field.intersection(Set(evidenceTokens)).count
+        return Double(overlap) / Double(field.count) >= 0.75
+            && (fieldTokens.count <= 2
+                || hasSharedBigram(fieldTokens, evidenceTokens))
+    }
+
+    private static func hasSharedBigram(_ lhs: [String], _ rhs: [String]) -> Bool {
+        guard lhs.count >= 2, rhs.count >= 2 else { return false }
+        let left = Set(zip(lhs, lhs.dropFirst()).map { "\($0)-\($1)" })
+        let right = Set(zip(rhs, rhs.dropFirst()).map { "\($0)-\($1)" })
+        return !left.isDisjoint(with: right)
     }
 
     private static func containsProhibitedReflectiveClaim(
         _ fields: [String]
     ) -> Bool {
         let normalized = fields.joined(separator: " ").lowercased()
-        let prohibited = [
-            "selfish", "selfless", "good person", "bad person",
-            "diagnos", "destiny", "will become", "your motive",
-            "you must", "you should", "you need to", "do this now",
-        ]
-        return prohibited.contains { normalized.contains($0) }
+        return reflectiveProhibitedPhrases.contains {
+            normalized.contains($0)
+        } || reflectiveSemanticProhibitions.contains { pattern in
+            pattern.allSatisfy { normalized.contains($0) }
+        }
     }
 
     private static func reflectiveTokens(_ text: String) -> [String] {
@@ -375,6 +437,40 @@ public actor MeaningPreviewCoordinator {
             $0.count > 2 && !stops.contains($0)
         }
     }
+
+    private static func rawReflectiveTokens(_ text: String) -> [String] {
+        text.lowercased().split { !$0.isLetter && !$0.isNumber }
+            .map(String.init)
+    }
+
+    private static let reflectiveProhibitedPhrases = [
+        "good person", "better person", "bad person", "prove your worth",
+        "you have anxiety", "you are depressed", "this is a disorder",
+        "you are broken", "you are destined", "you were meant to",
+        "this is your destiny", "best self", "highest self", "ideal self",
+        "you secretly", "you are avoiding this because", "deep down you",
+        "optimize your productivity", "be more productive", "maximize output",
+        "choose happiness", "look on the bright side", "just be grateful",
+        "you owe them", "pay them back", "repay the favor", "you must",
+        "you should", "do it now", "no excuses", "daily challenge",
+        "homework", "keep your streak", "check in tomorrow",
+        "give up on them", "abandon them", "walk away forever",
+        "you need to", "do this now", "delete", "erase", "destroy",
+    ]
+
+    private static let reflectiveSemanticProhibitions = [
+        ["moral", "failing"], ["worthy", "action"],
+        ["suffering", "anxiety"], ["clinically", "depressed"],
+        ["fated", "to"], ["inevitable", "path"],
+        ["perfect", "version", "yourself"], ["hidden", "motive"],
+        ["really", "avoiding"], ["increase", "output"],
+        ["efficiency", "hack"], ["force", "positive"],
+        ["decide", "happy"], ["return", "the", "favor"],
+        ["indebted", "to"], ["have", "to"], ["right", "away"],
+        ["cannot", "delay"], ["complete", "each", "day"],
+        ["maintain", "streak"], ["cut", "them", "off"],
+        ["end", "relationship"],
+    ]
 
     @discardableResult
     public func mutate(

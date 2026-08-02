@@ -579,6 +579,19 @@ public struct MeaningPreviewEvaluator: Sendable {
         supplier: any MeaningPreviewEvaluationCandidateSupplying
     ) async throws -> MeaningPreviewEvaluationReport {
         let data = try Data(contentsOf: manifestURL)
+        return try await evaluate(
+            manifestData: data,
+            supplier: supplier
+        )
+    }
+
+    /// Evaluates one immutable, already-captured manifest byte sequence.
+    /// Callers that gate transport on a digest use this overload so a file
+    /// cannot be swapped between validation and candidate generation.
+    public func evaluate(
+        manifestData data: Data,
+        supplier: any MeaningPreviewEvaluationCandidateSupplying
+    ) async throws -> MeaningPreviewEvaluationReport {
         let manifest = try MeaningPreviewEvaluationManifest.decode(data)
         try manifest.validate()
         return try await evaluate(

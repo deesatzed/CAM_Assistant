@@ -527,6 +527,11 @@ public struct MeaningPreviewReflectionAdmission: Equatable, Sendable {
     public let runtimeIdentity: String
     public let evaluatedAt: Date
 
+    public func isCurrent(at now: Date) -> Bool {
+        let age = now.timeIntervalSince(evaluatedAt)
+        return age >= -300 && age <= Self.maximumAge
+    }
+
     public static func validated(
         report: MeaningPreviewNamedModelReport,
         assignment: ModelAssignment,
@@ -543,8 +548,12 @@ public struct MeaningPreviewReflectionAdmission: Equatable, Sendable {
               let endpoint = assignment.localEndpoint,
               report.runtimeIdentity == "loopback:" + endpoint
                 .trimmingCharacters(in: CharacterSet(charactersIn: "/")),
-              now.timeIntervalSince(report.evaluatedAt) >= -300,
-              now.timeIntervalSince(report.evaluatedAt) <= maximumAge,
+              Self(
+                  manifestHash: report.manifestHash,
+                  modelID: report.modelID,
+                  runtimeIdentity: report.runtimeIdentity,
+                  evaluatedAt: report.evaluatedAt
+              ).isCurrent(at: now),
               let evaluation = report.evaluation,
               evaluation.evaluatorVersion == "meaning-preview-evaluator-v1",
               evaluation.evaluationMode == .namedModel,
@@ -643,7 +652,7 @@ public struct MeaningPreviewNamedModelEvaluator: Sendable {
             _ = try await supplier.health()
             let adapter = MeaningPreviewEvaluationLoopbackSupplier(supplier: supplier)
             let evaluation = try await MeaningPreviewEvaluator().evaluate(
-                manifestURL: manifestURL,
+                manifestData: manifestData,
                 supplier: adapter
             )
             return MeaningPreviewNamedModelReport(
