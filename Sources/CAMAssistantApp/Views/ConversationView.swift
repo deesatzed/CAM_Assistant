@@ -38,6 +38,21 @@ struct ConversationView: View {
                 )
                 .accessibilityHint("Uses the health-checked loopback model with retrieved local citations. It never falls back to cloud, web, or CAM.")
             }
+            Button(
+                model.isGeneratingOpenRouterAnswer
+                    ? "Generating via OpenRouter…"
+                    : "Ask OpenRouter"
+            ) {
+                model.sendOpenRouterQuestion()
+            }
+            .disabled(
+                !model.openRouterEnabled
+                    || model.openRouterHealth == nil
+                    || model.isGeneratingOpenRouterAnswer
+            )
+            .accessibilityHint(
+                "Sends only the current local evidence and question to OpenRouter using your saved Keychain API key. No other provider fallback."
+            )
             Button("Capture Clipboard Locally", action: model.captureCurrentClipboard)
                 .accessibilityHint("Captures plain-text clipboard content into the local vault and indexes it without a network request.")
             if let captureMessage = model.captureMessage {

@@ -72,7 +72,7 @@ public struct ModelAssignment: Codable, Equatable, Sendable {
         )
     }
 
-    static func isSafeLocalEndpoint(_ value: String) -> Bool {
+    public static func isSafeLocalEndpoint(_ value: String) -> Bool {
         guard let components = URLComponents(string: value),
               components.scheme == "http" || components.scheme == "https",
               let host = components.host?.lowercased(),

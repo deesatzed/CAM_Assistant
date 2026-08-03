@@ -1112,6 +1112,26 @@ final class AppModel: ObservableObject {
     @Published private(set) var localModelHealth: LocalModelHealth?
     @Published private(set) var localModelHealthError: String?
     @Published private(set) var isCheckingLocalModel = false
+    @Published var localEndpointPreset: LocalEndpointPreset = .lmStudio
+    @Published var localEndpointDraft = LocalModelCatalog.lmStudioDefaultEndpoint
+    @Published private(set) var localCatalogModelIDs: [String] = []
+    @Published var selectedLocalCatalogModelID = ""
+    @Published private(set) var isRefreshingLocalCatalog = false
+    @Published private(set) var localCatalogError: String?
+    @Published private(set) var localCatalogStatus: String?
+    @Published var openRouterAPIKeyDraft = ""
+    @Published var openRouterEndpointDraft =
+        LocalModelCatalog.openRouterDefaultEndpoint
+    @Published private(set) var openRouterCatalogModelIDs: [String] = []
+    @Published var selectedOpenRouterModelID = ""
+    @Published var openRouterEnabled = false
+    @Published private(set) var isRefreshingOpenRouterCatalog = false
+    @Published private(set) var isCheckingOpenRouter = false
+    @Published private(set) var openRouterKeyStatus: String?
+    @Published private(set) var openRouterError: String?
+    @Published private(set) var openRouterStatus: String?
+    @Published private(set) var openRouterHealth: LocalModelHealth?
+    @Published private(set) var isGeneratingOpenRouterAnswer = false
     @Published private(set) var isGeneratingLocalModelAnswer = false
     @Published private(set) var pendingActionCard: ActionCard?
     @Published private(set) var camStatus = CAMIntegrationStatus.unavailableCAMv1
@@ -2509,6 +2529,292 @@ final class AppModel: ObservableObject {
                 )
             }
             self?.isCheckingLocalModel = false
+        }
+    }
+
+    func applyLocalEndpointPreset(_ preset: LocalEndpointPreset) {
+        localEndpointPreset = preset
+        switch preset {
+        case .lmStudio:
+            localEndpointDraft = LocalModelCatalog.lmStudioDefaultEndpoint
+        case .ollama:
+            localEndpointDraft = LocalModelCatalog.ollamaDefaultEndpoint
+        case .custom:
+            break
+        }
+    }
+
+    func refreshLocalModelCatalog() {
+        let endpoint = localEndpointDraft
+        guard ModelAssignment.isSafeLocalEndpoint(endpoint) else {
+            localCatalogError =
+                "Local endpoint must be http://127.0.0.1 or localhost only."
+            return
+        }
+        isRefreshingLocalCatalog = true
+        localCatalogError = nil
+        localCatalogStatus = nil
+        Task { [weak self] in
+            do {
+                let ids = try await LocalModelCatalog.listModelIDs(
+                    endpoint: endpoint
+                )
+                self?.localCatalogModelIDs = ids
+                if let selected = self?.selectedLocalCatalogModelID,
+                   !ids.contains(selected) {
+                    self?.selectedLocalCatalogModelID = ids.first ?? ""
+                } else if self?.selectedLocalCatalogModelID.isEmpty == true {
+                    self?.selectedLocalCatalogModelID = ids.first ?? ""
+                }
+                self?.localCatalogStatus =
+                    ids.isEmpty
+                    ? "Server responded but listed no models."
+                    : "Loaded \(ids.count) model(s) from the local server."
+            } catch {
+                self?.localCatalogModelIDs = []
+                self?.localCatalogError =
+                    "Could not list models. Is LM Studio or Ollama serving on that endpoint?"
+            }
+            self?.isRefreshingLocalCatalog = false
+        }
+    }
+
+    func applySelectedLocalModelFromCatalog() {
+        let modelID = selectedLocalCatalogModelID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let endpoint = localEndpointDraft
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !modelID.isEmpty else {
+            localCatalogError = "Choose a model from the server list first."
+            return
+        }
+        guard ModelAssignment.isSafeLocalEndpoint(endpoint) else {
+            localCatalogError =
+                "Local endpoint must be http://127.0.0.1 or localhost only."
+            return
+        }
+        do {
+            let stateURL = try ModelProfileStorage.defaultStateURL()
+            _ = try ModelProfileApplicator.applyLocalSelection(
+                stateURL: stateURL,
+                modelID: modelID,
+                endpoint: endpoint
+            )
+            reloadModelSettings()
+            localCatalogStatus =
+                "Applied \(modelID). Run Health-check next."
+            localCatalogError = nil
+            localModelHealth = nil
+            checkSelectedLocalModel()
+        } catch {
+            localCatalogError =
+                "Could not save the local model selection to the profile."
+        }
+    }
+
+    func reloadOpenRouterSettings() {
+        do {
+            let settings = try OpenRouterSettings.load(
+                from: OpenRouterSettings.defaultStateURL()
+            )
+            openRouterEndpointDraft = settings.endpoint
+            selectedOpenRouterModelID = settings.modelID
+            openRouterEnabled = settings.isEnabled
+            openRouterError = nil
+            if (try OpenRouterCredentialStore.loadAPIKey()) != nil {
+                openRouterKeyStatus = "API key is saved in Keychain on this Mac."
+            } else {
+                openRouterKeyStatus = "No API key saved yet."
+            }
+        } catch {
+            openRouterError = "OpenRouter settings could not be read."
+        }
+    }
+
+    func saveOpenRouterAPIKey() {
+        do {
+            try OpenRouterCredentialStore.saveAPIKey(openRouterAPIKeyDraft)
+            openRouterAPIKeyDraft = ""
+            openRouterKeyStatus = "API key saved in Keychain on this Mac."
+            openRouterError = nil
+        } catch {
+            openRouterError = "API key could not be saved to Keychain."
+        }
+    }
+
+    func clearOpenRouterAPIKey() {
+        do {
+            try OpenRouterCredentialStore.deleteAPIKey()
+            openRouterKeyStatus = "API key removed from Keychain."
+            openRouterHealth = nil
+            openRouterError = nil
+        } catch {
+            openRouterError = "API key could not be removed from Keychain."
+        }
+    }
+
+    func setOpenRouterEnabled(_ enabled: Bool) {
+        openRouterEnabled = enabled
+        persistOpenRouterSettings()
+    }
+
+    func refreshOpenRouterCatalog() {
+        let endpoint = openRouterEndpointDraft
+        guard OpenRouterSettings.isAllowedEndpoint(endpoint) else {
+            openRouterError =
+                "OpenRouter endpoint must be https://openrouter.ai/… only."
+            return
+        }
+        isRefreshingOpenRouterCatalog = true
+        openRouterError = nil
+        openRouterStatus = nil
+        Task { [weak self] in
+            do {
+                guard let key = try OpenRouterCredentialStore.loadAPIKey() else {
+                    self?.openRouterError = "Save an OpenRouter API key first."
+                    self?.isRefreshingOpenRouterCatalog = false
+                    return
+                }
+                let ids = try await LocalModelCatalog.listModelIDs(
+                    endpoint: endpoint,
+                    authorizationBearer: key
+                )
+                self?.openRouterCatalogModelIDs = ids
+                if let selected = self?.selectedOpenRouterModelID,
+                   !selected.isEmpty,
+                   !ids.contains(selected) {
+                    self?.selectedOpenRouterModelID = ""
+                }
+                self?.openRouterStatus =
+                    "Loaded \(ids.count) OpenRouter model(s)."
+            } catch {
+                self?.openRouterCatalogModelIDs = []
+                self?.openRouterError =
+                    "Could not list OpenRouter models. Check the API key and network."
+            }
+            self?.isRefreshingOpenRouterCatalog = false
+        }
+    }
+
+    func applySelectedOpenRouterModel() {
+        let modelID = selectedOpenRouterModelID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !modelID.isEmpty else {
+            openRouterError = "Choose an OpenRouter model first."
+            return
+        }
+        guard OpenRouterSettings.isAllowedEndpoint(openRouterEndpointDraft)
+        else {
+            openRouterError =
+                "OpenRouter endpoint must be https://openrouter.ai/… only."
+            return
+        }
+        openRouterEnabled = true
+        persistOpenRouterSettings()
+        openRouterStatus = "OpenRouter model \(modelID) selected. Health-check next."
+        openRouterError = nil
+        openRouterHealth = nil
+        checkOpenRouterModel()
+    }
+
+    func checkOpenRouterModel() {
+        let modelID = selectedOpenRouterModelID
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let endpoint = openRouterEndpointDraft
+        guard !modelID.isEmpty else {
+            openRouterError = "Choose an OpenRouter model first."
+            return
+        }
+        guard OpenRouterSettings.isAllowedEndpoint(endpoint) else {
+            openRouterError =
+                "OpenRouter endpoint must be https://openrouter.ai/… only."
+            return
+        }
+        isCheckingOpenRouter = true
+        openRouterError = nil
+        Task { [weak self] in
+            do {
+                guard let key = try OpenRouterCredentialStore.loadAPIKey() else {
+                    self?.openRouterError = "Save an OpenRouter API key first."
+                    self?.isCheckingOpenRouter = false
+                    return
+                }
+                let health = try await LocalModelClient(
+                    modelID: modelID,
+                    endpoint: endpoint,
+                    authorizationBearer: key,
+                    relaxModelIdentity: true
+                ).health()
+                self?.openRouterHealth = health
+                self?.openRouterStatus =
+                    "\(health.modelID) is available via OpenRouter."
+            } catch {
+                self?.openRouterHealth = nil
+                self?.openRouterError =
+                    "OpenRouter health-check failed. Check key, model id, and network."
+            }
+            self?.isCheckingOpenRouter = false
+        }
+    }
+
+    func sendOpenRouterQuestion() {
+        guard openRouterEnabled, openRouterHealth != nil else {
+            conversationError =
+                "Enable OpenRouter, select a model, and health-check it first."
+            return
+        }
+        let modelID = selectedOpenRouterModelID
+        let endpoint = openRouterEndpointDraft
+        let question = conversationQuestion
+        isGeneratingOpenRouterAnswer = true
+        conversationError = nil
+        Task { [weak self] in
+            do {
+                guard let key = try OpenRouterCredentialStore.loadAPIKey() else {
+                    self?.conversationError =
+                        "OpenRouter API key is missing from Keychain."
+                    self?.isGeneratingOpenRouterAnswer = false
+                    return
+                }
+                let databaseURL = try LocalConversationContextProvider
+                    .defaultDatabaseURL()
+                let context = try await Task.detached {
+                    try LocalConversationContextProvider(
+                        databaseURL: databaseURL
+                    ).context(for: question)
+                }.value
+                let generated = try await LocalModelClient(
+                    modelID: modelID,
+                    endpoint: endpoint,
+                    authorizationBearer: key,
+                    relaxModelIdentity: true
+                ).generate(question: question, context: context)
+                self?.conversationResponse = try ConversationCoordinator()
+                    .respond(question: question, generated: generated)
+                self?.conversationRecord = nil
+                self?.conversationError = nil
+            } catch LocalModelInferenceError.missingContext {
+                self?.conversationError =
+                    "No matching local evidence is available. Capture a source, then ask again."
+            } catch {
+                self?.conversationError =
+                    "OpenRouter could not produce a citation-grounded answer from local evidence. No other fallback was used."
+            }
+            self?.isGeneratingOpenRouterAnswer = false
+        }
+    }
+
+    private func persistOpenRouterSettings() {
+        do {
+            var settings = try OpenRouterSettings.load(
+                from: OpenRouterSettings.defaultStateURL()
+            )
+            settings.endpoint = openRouterEndpointDraft
+            settings.modelID = selectedOpenRouterModelID
+            settings.isEnabled = openRouterEnabled
+            try settings.save(to: OpenRouterSettings.defaultStateURL())
+        } catch {
+            openRouterError = "OpenRouter settings could not be saved."
         }
     }
 

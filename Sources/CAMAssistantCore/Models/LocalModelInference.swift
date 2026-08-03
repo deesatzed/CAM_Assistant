@@ -125,27 +125,68 @@ public struct LocalModelClient: Sendable {
     private let endpointIdentity: String
     private let baseURL: URL
     private let transport: any LocalModelTransport
+    private let authorizationBearer: String?
+    private let relaxModelIdentity: Bool
 
     public init(
         assignment: ModelAssignment,
         transport: any LocalModelTransport = URLSessionLocalModelTransport()
     ) throws {
         guard assignment.provider == .local,
-              let endpoint = assignment.localEndpoint,
+              let endpoint = assignment.localEndpoint else {
+            throw LocalModelInferenceError.invalidAssignment
+        }
+        try self.init(
+            modelID: assignment.modelID,
+            endpoint: endpoint,
+            authorizationBearer: nil,
+            relaxModelIdentity: false,
+            transport: transport
+        )
+    }
+
+    /// OpenAI-compatible client for loopback (LM Studio/Ollama) or OpenRouter.
+    public init(
+        modelID: String,
+        endpoint: String,
+        authorizationBearer: String? = nil,
+        relaxModelIdentity: Bool = false,
+        transport: any LocalModelTransport = URLSessionLocalModelTransport()
+    ) throws {
+        let trimmedModel = modelID.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !trimmedModel.isEmpty,
               let baseURL = URL(string: endpoint) else {
             throw LocalModelInferenceError.invalidAssignment
         }
-        modelID = assignment.modelID
-        endpointIdentity = endpoint.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if authorizationBearer == nil {
+            guard ModelAssignment.isSafeLocalEndpoint(endpoint) else {
+                throw LocalModelInferenceError.invalidAssignment
+            }
+        } else {
+            guard OpenRouterSettings.isAllowedEndpoint(endpoint) else {
+                throw LocalModelInferenceError.invalidAssignment
+            }
+        }
+        self.modelID = trimmedModel
+        endpointIdentity = endpoint.trimmingCharacters(
+            in: CharacterSet(charactersIn: "/")
+        )
         self.baseURL = baseURL
         self.transport = transport
+        self.authorizationBearer = authorizationBearer?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.relaxModelIdentity = relaxModelIdentity
+            || authorizationBearer != nil
     }
 
     public func health() async throws -> LocalModelHealth {
         let response = try await perform(
             LocalModelHTTPRequest(
                 method: .get,
-                url: baseURL.appending(path: "models")
+                url: baseURL.appending(path: "models"),
+                headers: authHeaders()
             )
         )
         let catalog: ModelListEnvelope
@@ -182,6 +223,8 @@ public struct LocalModelClient: Sendable {
         }
         let validPassageIDs = context.passages.map(\.passageID)
 
+        var headers = authHeaders()
+        headers["Content-Type"] = "application/json"
         let requestBody = try JSONEncoder().encode(
             ChatCompletionRequest(
                 model: modelID,
@@ -211,7 +254,7 @@ public struct LocalModelClient: Sendable {
             LocalModelHTTPRequest(
                 method: .post,
                 url: baseURL.appending(path: "chat/completions"),
-                headers: ["Content-Type": "application/json"],
+                headers: headers,
                 body: requestBody
             )
         )
@@ -225,7 +268,7 @@ public struct LocalModelClient: Sendable {
         } catch {
             throw LocalModelInferenceError.invalidResponse
         }
-        guard envelope.model == modelID else {
+        if !modelIdentityMatches(expected: modelID, actual: envelope.model) {
             throw LocalModelInferenceError.modelIdentityMismatch(
                 expected: modelID,
                 actual: envelope.model
@@ -297,6 +340,27 @@ public struct LocalModelClient: Sendable {
             throw LocalModelInferenceError.httpStatus(response.statusCode)
         }
         return response
+    }
+
+    private func authHeaders() -> [String: String] {
+        guard let authorizationBearer, !authorizationBearer.isEmpty else {
+            return [:]
+        }
+        return [
+            "Authorization": "Bearer \(authorizationBearer)",
+            "HTTP-Referer": "https://github.com/deesatzed/cam_wiki",
+            "X-Title": "CAM Assistant",
+        ]
+    }
+
+    private func modelIdentityMatches(expected: String, actual: String) -> Bool {
+        if actual == expected { return true }
+        if !relaxModelIdentity { return false }
+        // OpenRouter may prefix or alias returned model ids.
+        return actual.hasSuffix(expected)
+            || expected.hasSuffix(actual)
+            || actual.contains(expected)
+            || expected.contains(actual)
     }
 }
 

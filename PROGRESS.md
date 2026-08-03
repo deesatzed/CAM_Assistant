@@ -2459,6 +2459,19 @@ blocker is asserted.
 - Handoff: `docs/handoffs/2026-08-03-phase-b-finish-wiki.md`.
 - Live named-model v2 runs still require user-selected model lists (Decision 4).
 
+### Model Settings: live server model pick + OpenRouter — 2026-08-03
+
+- Settings → Models now refreshes model ids from a loopback OpenAI-compatible
+  server (LM Studio/Ollama presets or custom loopback URL), lets the user pick
+  the running model, and applies it to the active local profile (creates
+  `default-local` if needed). No Terminal required.
+- OpenRouter section: Keychain API key, list models from
+  `https://openrouter.ai/api/v1`, select model, enable, health-check, and
+  **Ask OpenRouter** on Assistant (still citation-grounded on local evidence).
+- Core: `LocalModelCatalog`, `ModelProfileApplicator`, `OpenRouterSettings` +
+  Keychain store; `LocalModelClient` supports optional bearer auth.
+- Tests: `ModelSelectionUXTests` + existing model suites pass (17 focused).
+
 ### Integration tip aggregate + packaged journey re-proof — 2026-08-03
 
 - `./scripts/verify.sh all` on `e1c34a2`: **exit 0** — 445 tests; package

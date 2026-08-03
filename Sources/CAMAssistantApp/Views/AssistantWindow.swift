@@ -101,15 +101,7 @@ private struct SettingsWorkspace: View {
 
             switch selectedPane {
             case .models:
-                ModelProfilesView(
-                    settings: model.modelSettings,
-                    errorMessage: model.modelSettingsError,
-                    localHealth: model.localModelHealth,
-                    localHealthError: model.localModelHealthError,
-                    isChecking: model.isCheckingLocalModel,
-                    reload: model.reloadModelSettings,
-                    checkLocalModel: model.checkSelectedLocalModel
-                )
+                ModelProfilesView(model: model)
             case .hotkeys:
                 HotkeySettingsView(model: model)
             case .captureSources:
