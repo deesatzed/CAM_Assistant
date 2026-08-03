@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import Testing
 @testable import CAMAssistantCore
@@ -11,14 +12,47 @@ func meaningPreviewAppModelOptInIsSeparateFromGrant() async {
         initializeFullWorkspace: false,
         meaningPreviewRuntime: runtime
     )
+    var publishedEnabledWhileWorking = false
+    let lifecycleObservation = model.$meaningPreviewLifecycle
+        .combineLatest(model.$isMeaningPreviewWorking)
+        .sink { lifecycle, isWorking in
+            if lifecycle == .enabledWithoutLocalRead && isWorking {
+                publishedEnabledWhileWorking = true
+            }
+        }
+    defer { withExtendedLifetime(lifecycleObservation) {} }
 
     #expect(!model.isMeaningPreviewVisible)
     #expect(await runtime.requestCount == 0)
     await model.enableMeaningPreview()
     #expect(model.isMeaningPreviewVisible)
     #expect(model.meaningPreviewLifecycle == .enabledWithoutLocalRead)
+    #expect(!publishedEnabledWhileWorking)
     #expect(!model.canRequestMeaningPreview)
     #expect(await runtime.requestCount == 0)
+}
+
+@MainActor
+@Test("Meaning Preview ignores duplicate lifecycle activation while one is in flight")
+func meaningPreviewAppModelIgnoresDuplicateLifecycleActivation() async {
+    let gate = AsyncMeaningPreviewGate()
+    let runtime = GatedEnableMeaningPreviewRuntime(gate: gate)
+    let model = AppModel(
+        initializeFullWorkspace: false,
+        meaningPreviewRuntime: runtime
+    )
+
+    let first = Task { @MainActor in await model.enableMeaningPreview() }
+    await gate.waitUntilEntered()
+    let duplicate = Task { @MainActor in await model.enableMeaningPreview() }
+    await Task.yield()
+
+    #expect(await runtime.enableCount == 1)
+    await gate.release()
+    await first.value
+    await duplicate.value
+    #expect(!model.isMeaningPreviewWorking)
+    #expect(model.meaningPreviewLifecycle == .enabledWithoutLocalRead)
 }
 
 @MainActor
@@ -413,6 +447,65 @@ private actor AsyncMeaningPreviewGate {
     func release() {
         continuation?.resume()
         continuation = nil
+    }
+}
+
+private actor GatedEnableMeaningPreviewRuntime: MeaningPreviewRuntime {
+    nonisolated let initialLifecycle: MeaningPreviewLifecycle = .disabled
+    private var lifecycle: MeaningPreviewLifecycle = .disabled
+    private let gate: AsyncMeaningPreviewGate
+    private(set) var enableCount = 0
+
+    init(gate: AsyncMeaningPreviewGate) {
+        self.gate = gate
+    }
+
+    func loadLifecycle() -> MeaningPreviewLifecycle { lifecycle }
+
+    func enable() async throws -> MeaningPreviewLifecycle {
+        enableCount += 1
+        await gate.enter()
+        lifecycle = .enabledWithoutLocalRead
+        return lifecycle
+    }
+
+    func grantLocalAccess() async throws -> MeaningPreviewLifecycle {
+        lifecycle = .ready
+        return lifecycle
+    }
+
+    func disable() async throws -> MeaningPreviewLifecycle {
+        lifecycle = .disabled
+        return lifecycle
+    }
+
+    func recover() async throws -> MeaningPreviewRecoveryReceipt {
+        .init(lifecycle: lifecycle, archivedPreviousState: false)
+    }
+
+    func request(
+        reference: MeaningPreviewSourceReference,
+        now: Date
+    ) async throws -> MeaningPreviewAppPresentation {
+        throw MeaningPreviewRuntimeError.accessDenied
+    }
+
+    func applyAction(
+        _ action: MeaningPreviewCardAction,
+        memoryID: UUID,
+        expectedVersion: UInt64,
+        at: Date
+    ) async throws -> UInt64 {
+        throw MeaningPreviewRuntimeError.accessDenied
+    }
+
+    func recordFeedback(
+        _ feedback: MeaningPreviewFeedback,
+        memoryID: UUID,
+        domain: String,
+        expectedVersion: UInt64
+    ) async throws -> UInt64 {
+        throw MeaningPreviewRuntimeError.accessDenied
     }
 }
 

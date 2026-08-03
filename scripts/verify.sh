@@ -93,6 +93,9 @@ case "$suite" in
       Tests/Fixtures/MeaningPreview/v1/manifest.json \
       "$meaning_preview_output"
     ;;
+  meaning-preview-packaged)
+    "$REPOSITORY_ROOT/Tests/ReleaseProofTests/meaning-preview-packaged-journey-tests.sh"
+    ;;
   retrieval-report)
     swift run --disable-sandbox --scratch-path .swift-build cam-assistant evaluate-retrieval \
       Tests/Fixtures/Retrieval/v2/manifest.json \
@@ -138,7 +141,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|meaning-preview|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|meaning-preview|meaning-preview-packaged|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|package-reproducibility|all]"
     exit 64
     ;;
 esac

@@ -411,12 +411,20 @@ func meaningPreviewSurfacesExposeExplicitPilotJourney() throws {
     #expect(inspectContracts.allSatisfy(inspect.contains))
     let settingsContracts = [
         "meaning-preview-settings", "meaning-preview-enable",
-        "meaning-preview-grant", "meaning-preview-settings-disable",
+        "meaning-preview-settings-disable",
+        "meaning-preview-enable-control",
+        "meaning-preview-settings-needs-workspace-grant",
+        "meaning-preview-settings-close",
         "meaning-preview-recover", "Enablement grants no data access",
         "local read and isolated write access",
         "Ordinary Assistant remains unchanged", "corrupted", "incompatible",
+        "use Grant in the Meaning Preview workspace",
     ]
     #expect(settingsContracts.allSatisfy(settings.contains))
+    #expect(
+        !settings.contains("accessibilityIdentifier(\"meaning-preview-grant\")"),
+        "Settings must not host Grant; grant is workspace-only to prevent Enable AX double-activation."
+    )
 
     let workspaceDisable = try #require(
         workspace.range(of: "Button(\"Disable\")")
@@ -474,6 +482,146 @@ func meaningPreviewIsConditionalAndReducedMotionSafe() throws {
     ] {
         #expect(!(sidebar + window + preview).contains(forbiddenMotion))
     }
+}
+
+@Test("sidebar accessibility identifiers are stable lowercase slugs")
+func sidebarAccessibilityIdentifiersAreStableLowercaseSlugs() throws {
+    let source = try String(
+        contentsOf: accessibilityRepositoryRoot()
+            .appending(path: "Sources/CAMAssistantApp/Views/Sidebar.swift"),
+        encoding: .utf8
+    )
+    let requiredIdentifiers = [
+        "assistant-section-assistant", "meaning-preview-sidebar",
+        "assistant-section-library", "assistant-section-activity",
+        "assistant-section-tasks", "assistant-section-modules",
+        "assistant-section-cam", "assistant-section-research",
+        "assistant-section-repositories", "assistant-section-mac-care",
+        "assistant-section-settings",
+    ]
+    #expect(requiredIdentifiers.allSatisfy(source.contains))
+    #expect(source.contains("section.accessibilityIdentifier"))
+    #expect(!source.contains("assistant-section-\\(section.id.rawValue)"))
+}
+
+@Test("Meaning Preview package and pilot verifier require embedded resources")
+func meaningPreviewPackageAndPilotVerifierRequireEmbeddedResources() throws {
+    let root = accessibilityRepositoryRoot()
+    let packageScript = try String(
+        contentsOf: root.appending(path: "scripts/package-app.sh"),
+        encoding: .utf8
+    )
+    let verifyScript = try String(
+        contentsOf: root.appending(path: "scripts/verify.sh"),
+        encoding: .utf8
+    )
+    let requiredPackageContracts = [
+        "Contents/Resources/Modules/Core",
+        "Modules/Core/meaning-preview.json",
+        "\"$APP_DIR/CAMAssistant_CAMAssistantCore.bundle\"",
+        "Contents/Resources/MeaningPreview",
+        "docs/evidence/add2cam-09-named-model-report.json",
+        "git -C \"$ROOT\" ls-files --error-unmatch",
+    ]
+    #expect(
+        requiredPackageContracts.allSatisfy(packageScript.contains),
+        "The app package must carry exact committed Meaning Preview resources without a source/build-tree runtime fallback."
+    )
+    #expect(
+        !packageScript.contains(
+            "\"$RESOURCES_DIR/CAMAssistant_CAMAssistantCore.bundle\""
+        ),
+        "SwiftPM Bundle.module resolves the core resource bundle at the app root, not Contents/Resources."
+    )
+    #expect(
+        verifyScript.contains("meaning-preview-packaged)")
+            && verifyScript.contains(
+                "meaning-preview-packaged-journey-tests.sh"
+            ),
+        "The GUI-sensitive packaged pilot must remain an explicit suite separate from aggregate verification."
+    )
+}
+
+@Test("Meaning Preview packaged journey preserves the native safety boundary")
+func meaningPreviewPackagedJourneyPreservesNativeSafetyBoundary() throws {
+    let journeyURL = accessibilityRepositoryRoot().appending(
+        path: "Tests/ReleaseProofTests/meaning-preview-packaged-journey-tests.sh"
+    )
+    #expect(FileManager.default.fileExists(atPath: journeyURL.path))
+    guard FileManager.default.fileExists(atPath: journeyURL.path) else {
+        return
+    }
+    let journey = try String(contentsOf: journeyURL, encoding: .utf8)
+    let requiredContracts = [
+        "pgrep -x CAMAssistant",
+        "git clone --quiet --local --no-hardlinks",
+        "[[ -d \"$CLONE_ROOT/.git\" ]]",
+        "open -n \"$PILOT_APP\" --env",
+        "CAM_ASSISTANT_APPLICATION_SUPPORT_ROOT=$SUPPORT_ROOT",
+        "chmod 000 \"$BUILD_DIR\"",
+        "chmod 000 \"$SOURCE_MANIFEST_DIRECTORY\"",
+        "alarm shift; exec @ARGV",
+        "AXIsProcessTrusted()",
+        "AXUIElementCreateApplication",
+        "kAXChildrenAttribute",
+        "AXUIElementPerformAction",
+        "AXUIElementIsAttributeSettable",
+        "kAXSelectedAttribute",
+        "selectSidebar(\"assistant-section-settings\")",
+        "selectSidebar(\"meaning-preview-sidebar\")",
+        "waitAbsent(\"meaning-preview-settings\")",
+        "within: \"meaning-preview-permission-state\"",
+        "native_ax_phase capture",
+        "native_ax_phase enable",
+        "wait_for_enabled_without_access",
+        "enable-granted-access",
+        "watched-sources.json",
+        "Thread.sleep(forTimeInterval: 1)",
+        "Watched folder captured and indexed content locally.",
+        "CGPreflightPostEventAccess()",
+        "kAXVisibleChildrenAttribute",
+        "kAXRowsAttribute",
+        "kAXContentsAttribute",
+        "AXChildrenInNavigationOrder",
+        "executableURL",
+        "assert_ordinary_unchanged",
+        "postflight_git_state",
+        "[[ \"$table\" =~ '^[A-Za-z0-9_]+$' ]]",
+        "meaning-preview-sidebar",
+        "meaning-preview-enable",
+        "meaning-preview-grant",
+        "meaning-preview-source-picker",
+        "meaning-preview-request",
+        "meaning-preview-inspect",
+        "meaning-preview-disable",
+        "meaning-preview-reflect-unavailable",
+        "readLocal",
+        "writeLocal",
+        "outbound_byte_count",
+        "/usr/sbin/lsof -nP -a -p",
+        "exit 77",
+    ]
+    #expect(requiredContracts.allSatisfy(journey.contains))
+    #expect(!journey.contains("kill "))
+    #expect(!journey.contains("pkill"))
+    #expect(!journey.contains("tccutil"))
+    #expect(!journey.contains("codesign"))
+    #expect(!journey.contains("CAM_ASSISTANT_SKIP_FRESH_CLONE"))
+    #expect(!journey.contains("tell application \"System Events\""))
+    #expect(!journey.contains("NSPasteboard"))
+    #expect(!journey.contains("capture-sources-pane"))
+    #expect(!journey.contains("Watching locally"))
+    #expect(!journey.contains("[A-Za-z0-9_]##"))
+    #expect(
+        !journey.contains(
+            "BUILD_DIR=\"$REPOSITORY_ROOT/.swift-build\""
+        )
+    )
+    #expect(
+        !journey.contains(
+            "SOURCE_MANIFEST_DIRECTORY=\"$REPOSITORY_ROOT/Modules/Core\""
+        )
+    )
 }
 
 private struct AccessibilitySourceContract {

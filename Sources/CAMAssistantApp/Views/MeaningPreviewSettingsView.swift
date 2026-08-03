@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MeaningPreviewSettingsView: View {
     @ObservedObject var model: AppModel
+    @Environment(\.dismiss) private var dismissSettings
 
     var body: some View {
         Form {
@@ -37,6 +38,15 @@ struct MeaningPreviewSettingsView: View {
                 Text("A separate grant is required for local read and isolated write access. No network, notification, cloud, CAM execution, or web authority is granted.")
                 Text("Ordinary Assistant remains unchanged when Meaning Preview is disabled or unavailable.")
             }
+
+            Section {
+                Button("Close") {
+                    dismissSettings()
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("meaning-preview-settings-close")
+                .accessibilityHint("Closes Meaning Preview settings without changing enablement or grants.")
+            }
         }
         .formStyle(.grouped)
         .accessibilityElement(children: .contain)
@@ -51,16 +61,14 @@ struct MeaningPreviewSettingsView: View {
             Button("Enable Meaning Preview") {
                 Task { await model.enableMeaningPreview() }
             }
+            .id("meaning-preview-enable-control")
             .disabled(model.isMeaningPreviewWorking)
             .accessibilityIdentifier("meaning-preview-enable")
             .accessibilityHint("Reveals the optional workspace but grants no local data access.")
         case .enabledWithoutLocalRead:
-            Button("Grant Local Read & Isolated Write") {
-                Task { await model.grantMeaningPreviewLocalRead() }
-            }
-            .disabled(model.isMeaningPreviewWorking)
-            .accessibilityIdentifier("meaning-preview-grant")
-            .accessibilityHint("Grants access only to one explicitly selected active derived local source and Meaning Preview's isolated state.")
+            Text("Enabled without local access. Close this sheet and use Grant in the Meaning Preview workspace. Enablement never grants permissions.")
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("meaning-preview-settings-needs-workspace-grant")
             disableButton
         case .ready:
             Text("Access is ready. Choose an active derived source in the Meaning Preview workspace before requesting a Preview.")

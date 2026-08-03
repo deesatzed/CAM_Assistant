@@ -2470,3 +2470,11 @@ blocker is asserted.
   clean.
 - Phase A complete for shared foundation. Next: Phase B dual track (ADD2CAM-50
   stop rule + at most one finish-wiki slice).
+
+### ADD2CAM-50 integrated onto integration branch — 2026-08-03
+
+- Merged `agent/add2cam-50-packaged-pilot` into `agent/add2cam-integration-20260731`
+  after committing Phase A shared foundation first.
+- Packaged Enable→Grant→use journey evidence and draft human protocol are on
+  the integration tip. ADD2CAM-50 marked complete in `goals/add2cam/run-state.json`.
+- ADD2CAM-60 remains pending human evidence only.

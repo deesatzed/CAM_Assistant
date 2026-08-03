@@ -12,6 +12,8 @@ struct MeaningInspectView: View {
                 Spacer()
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .accessibilityIdentifier("meaning-preview-inspect-close")
+                    .accessibilityHint("Closes the inspection sheet without changing Preview disposition.")
             }
 
             Text(presentation.summary)

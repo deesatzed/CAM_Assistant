@@ -126,18 +126,27 @@ struct MeaningPreviewView: View {
     }
 
     private var permissionState: some View {
-        ContentUnavailableView {
+        // Prefer an explicit VStack over ContentUnavailableView actions so the
+        // grant control keeps a stable accessibility identifier and button role
+        // for packaged AX journeys.
+        VStack(spacing: 12) {
             Label("Local access is not granted", systemImage: "lock")
-        } description: {
+                .font(.title3)
             Text("Enablement alone grants no access. Grant local read and isolated write access before selecting and requesting a Preview.")
-        } actions: {
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
             Button("Grant Local Read & Isolated Write") {
                 Task { await model.grantMeaningPreviewLocalRead() }
             }
             .disabled(model.isMeaningPreviewWorking)
             .accessibilityIdentifier("meaning-preview-grant")
+            .accessibilityHint("Grants local read and isolated write only after explicit confirmation. Enablement never grants this.")
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("meaning-preview-permission-state")
+        .accessibilityLabel("Local access is not granted")
     }
 
     private var requestControls: some View {

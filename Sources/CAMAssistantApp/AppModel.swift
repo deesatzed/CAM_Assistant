@@ -1358,6 +1358,7 @@ final class AppModel: ObservableObject {
     }
 
     func selectMeaningPreviewSource(id: String) {
+        guard !id.isEmpty else { return }
         meaningPreviewOperationGeneration = UUID()
         isMeaningPreviewWorking = false
         meaningPreviewSelectedSource = .init(id: id)
@@ -1591,10 +1592,12 @@ final class AppModel: ObservableObject {
         failure: String,
         operation: () async throws -> MeaningPreviewLifecycle
     ) async {
+        guard !isMeaningPreviewWorking else { return }
         let operationID = beginMeaningPreviewOperation()
         do {
             let lifecycle = try await operation()
             guard isCurrentMeaningPreviewOperation(operationID) else { return }
+            finishMeaningPreviewOperation(operationID)
             meaningPreviewLifecycle = lifecycle
             meaningPreviewPresentation = nil
             meaningPreviewError = nil
@@ -1610,11 +1613,23 @@ final class AppModel: ObservableObject {
                 "Meaning Preview isolated state is incompatible and requires recovery."
             case .unavailable: nil
             }
+            preferSoleMeaningPreviewSourceIfNeeded()
         } catch {
             guard isCurrentMeaningPreviewOperation(operationID) else { return }
+            finishMeaningPreviewOperation(operationID)
             meaningPreviewError = failure
         }
-        finishMeaningPreviewOperation(operationID)
+    }
+
+    /// When access is ready and exactly one active derived source exists, select
+    /// it automatically so Request is usable without fragile Picker AX. Multiple
+    /// sources still require an explicit user choice.
+    private func preferSoleMeaningPreviewSourceIfNeeded() {
+        guard meaningPreviewLifecycle == .ready,
+              meaningPreviewSelectedSource == nil else { return }
+        let rows = libraryPresentation.rows
+        guard rows.count == 1, let only = rows.first else { return }
+        selectMeaningPreviewSource(id: only.id)
     }
 
     private func beginMeaningPreviewOperation() -> UUID {
