@@ -2459,6 +2459,17 @@ blocker is asserted.
 - Handoff: `docs/handoffs/2026-08-03-phase-b-finish-wiki.md`.
 - Live named-model v2 runs still require user-selected model lists (Decision 4).
 
+### Integration tip aggregate + packaged journey re-proof — 2026-08-03
+
+- `./scripts/verify.sh all` on `e1c34a2`: **exit 0** — 445 tests; package
+  reproducibility `manifest_sha256=5c05553d3367385f83da70302b8e336546999b6ee1a35ee1fd2ed4f02fa42b07`;
+  privacy scan 73 files / 0 findings; fresh-clone pass (workspace
+  `source_dirty=true` only from untracked user ReAgent/pendoleum files).
+- Packaged Meaning Preview journey re-run from a temporary clean clone of
+  `e1c34a2`: **status=pass** (Enable→Grant→card→Now→Helpful→Disable→restart).
+- No local loopback model endpoints responded on 11434/1234; live v2 evaluation
+  waits on user model selection.
+
 ### Stage 3 hybrid plan + Phase A shared foundation — 2026-08-03
 
 - Locked decisions (see `DECISIONS.md` and

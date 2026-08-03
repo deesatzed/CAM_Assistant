@@ -56,21 +56,41 @@ Key merge commits:
 |---|---|
 | `swift test --filter GeneratedAnswerEvaluationTests` | 6/6 |
 | Prior merge focused suite (MacCare + Meaning Preview + Approvals) | 63/63 |
-| Goal 50 packaged journey (on pilot branch, before merge) | pass |
+| Goal 50 packaged journey (pilot branch) | pass at `65e6e3d` |
+| `./scripts/verify.sh all` on integration tip `e1c34a2` | **pass** — 445 tests; package repro; privacy findings=0; fresh-clone pass (`source_dirty=true` from untracked ReAgent/pendoleum trees only) |
+| Packaged Meaning Preview journey re-run on clean clone of `e1c34a2` | **pass** — Enable→Grant→card→Now→Helpful→Disable→restart |
 
-## Not run / optional next
+### Aggregate verify receipt (2026-08-03)
 
-- Live named-model evaluation against generated-v2 (needs Decision 4 model lists from user)
-- `./scripts/verify.sh all` + fresh-clone on integration tip
-- Re-run packaged Meaning Preview journey on merge tip (recommended once before human pilot)
+```
+445 tests pass
+CAM_ASSISTANT_PACKAGE_REPRODUCIBILITY status=pass
+  manifest_sha256=5c05553d3367385f83da70302b8e336546999b6ee1a35ee1fd2ed4f02fa42b07
+CAM_ASSISTANT_PACKAGE_IDENTITY status=pass commit=e1c34a2… build=181 dirty=false (fresh-clone package)
+CAM_ASSISTANT_PRIVACY_SCAN status=pass scanned_files=73 findings=0
+CAM_ASSISTANT_FRESH_CLONE commit=e1c34a2… source_dirty=true tests=pass package=pass smoke=pass
+CAM_ASSISTANT_SMOKE mode=offline capture=true local_search=true cloud_auto=false
+```
 
-## How to continue
+### Integration tip packaged journey (2026-08-03)
 
-1. **If running live models:** user supplies chat/v2 list; run  
+Ran from a temporary clean clone of `e1c34a2` (workspace had untracked files that
+would trip `source-not-clean`). Result:
+
+```
+CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED status=pass commit=e1c34a28e412412ccdd6bee9dfff60eb38137400
+result=card action=now feedback=helpful permissions=exact audit=status-only
+restart=disabled
+```
+
+## Remaining next steps
+
+1. **Live named-model v2 hunt** — user supplies Decision 4 model lists; run  
    `cam-assistant evaluate-generated Tests/Fixtures/Conversation/generated-v2/manifest.json <report> <model> <loopback>`  
-   Preserve every fail report; do not edit frozen manifest.
-2. **If release hardening:** one finish-wiki slice only (e.g. GUI harness skeleton or a11y expansion) — hybrid plan still forbids multi-front thrash.
-3. **If human pilot:** approve `docs/pilots/meaning-preview-v1-protocol.md`; agents do not recruit or fabricate ADD2CAM-60 evidence.
+   Preserve every fail report; do not edit frozen manifest.  
+   (No local Ollama/LM Studio endpoints responded on 11434/1234 at last check.)
+2. **Human pilot** — approve `docs/pilots/meaning-preview-v1-protocol.md`; agents do not recruit or fabricate ADD2CAM-60 evidence.
+3. **Further finish-wiki** — one slice at a time (e.g. GUI harness, a11y matrix).
 
 ## Protected surfaces
 
@@ -84,6 +104,7 @@ Key merge commits:
 - [x] Phase A committed and on integration  
 - [x] ADD2CAM-50 merged  
 - [x] generated-v2 frozen + tests  
+- [x] Aggregate verify on tip (`e1c34a2`)  
+- [x] Packaged Meaning Preview journey re-run on merge tip (clean clone)  
 - [ ] Live v2 model hunt (user models required)  
-- [ ] Aggregate verify on tip  
 - [ ] Human pilot protocol approval  

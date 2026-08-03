@@ -19,6 +19,9 @@ finish-wiki generated-v2 slice.
    errors; privacy scan under `artifacts/`; Approvals workspace  
 2. ADD2CAM-50 packaged Enable→Grant→use journey green and merged  
 3. Finish-wiki Phase B slice: **generated-v2** split latency contract  
+4. Aggregate `./scripts/verify.sh all` **pass** on `e1c34a2` (445 tests,
+   package repro, privacy 0 findings, fresh-clone pass)  
+5. Packaged Meaning Preview journey **re-pass** on clean clone of `e1c34a2`  
 
 ## Controlling docs
 
@@ -33,6 +36,11 @@ finish-wiki generated-v2 slice.
 - Start ADD2CAM-60  
 - Edit generated-v1 frozen thresholds/reports  
 - Open multiple finish-wiki fronts without a new user decision  
+
+## Blocked without user input
+
+- Live generated-v2 model evaluation (Decision 4 model lists; no loopback
+  models responded on :11434 / :1234 at last probe)
 
 ## Next resume command
 
