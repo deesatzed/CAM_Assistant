@@ -257,14 +257,15 @@ private func stringAttribute(
     _ element: AXUIElement,
     _ attribute: CFString
 ) throws -> String? {
-    try copyAttribute(element, attribute) as? String
+    // Incomplete AX during SwiftUI rebuilds: treat as absent, not hard failure.
+    try copyAttribute(element, attribute, allowIncomplete: true) as? String
 }
 
 private func boolAttribute(
     _ element: AXUIElement,
     _ attribute: CFString
 ) throws -> Bool? {
-    try copyAttribute(element, attribute) as? Bool
+    try copyAttribute(element, attribute, allowIncomplete: true) as? Bool
 }
 
 private func elementsAttribute(
@@ -868,6 +869,7 @@ done
 native_ax_phase enable
 wait_for_enabled_without_access
 trace_module_state
+/bin/sleep 0.5
 native_ax_phase close-settings
 assert_permission_count 0
 native_ax_phase select-preview
