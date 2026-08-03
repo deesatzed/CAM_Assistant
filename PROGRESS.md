@@ -2445,6 +2445,20 @@ blocker is asserted.
   draft protocol, and handoff files; GUI permission denial remains an honest
   unmet gate rather than a bypass or synthetic pass.
 
+### Finish-wiki Phase B slice: generated-v2 latency contract — 2026-08-03
+
+- Implemented split latency measurement in `GeneratedAnswerEvaluator`:
+  retrieval vs generation distributions, `environmentClass`,
+  `meetsQualityThresholds` / `meetsLatencyThresholds`.
+- Frozen fixture `Tests/Fixtures/Conversation/generated-v2/manifest.json`
+  SHA-256 `a5be6bef00b6b5f796608979c78b994fa5ad9fdcbee4707531e20b2d044de0fc`.
+  Quality bars match v1; generation p95 budget 2500 ms; retrieval p95 50 ms.
+- v1 fixture and e2e gate remain immutable.
+- Verification: `GeneratedAnswerEvaluationTests` 6/6 pass.
+- Evidence: `docs/evidence/task-13-generated-answer-v2-latency-contract.md`.
+- Handoff: `docs/handoffs/2026-08-03-phase-b-finish-wiki.md`.
+- Live named-model v2 runs still require user-selected model lists (Decision 4).
+
 ### Stage 3 hybrid plan + Phase A shared foundation — 2026-08-03
 
 - Locked decisions (see `DECISIONS.md` and

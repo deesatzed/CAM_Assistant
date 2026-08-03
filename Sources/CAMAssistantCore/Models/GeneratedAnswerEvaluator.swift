@@ -65,13 +65,34 @@ public enum GeneratedAnswerExpectedOutcome: String, Codable, Equatable, Sendable
     case abstain
 }
 
+/// Latency gate shape for a frozen generated-answer corpus.
+public enum GeneratedAnswerLatencyContract: String, Codable, Equatable, Sendable {
+    /// v1: single warm end-to-end p95 gate (retrieve + generate).
+    case endToEndV1 = "end-to-end-v1"
+    /// v2: separate warm retrieval p95 and warm generation p95 gates.
+    case splitV2 = "split-v2"
+}
+
 public struct GeneratedAnswerEvaluationThresholds:
     Codable, Equatable, Sendable {
     public let recallAt10: Double
     public let meanReciprocalRank: Double
     public let citedClaimSupport: Double
     public let abstentionAccuracy: Double
-    public let warmEndToEndP95Milliseconds: Double
+    /// Required for `end-to-end-v1`. Optional informational field for `split-v2`.
+    public let warmEndToEndP95Milliseconds: Double?
+    /// Required for `split-v2`.
+    public let warmRetrievalP95Milliseconds: Double?
+    /// Required for `split-v2`.
+    public let warmGenerationP95Milliseconds: Double?
+
+    public var latencyContract: GeneratedAnswerLatencyContract {
+        if warmRetrievalP95Milliseconds != nil,
+           warmGenerationP95Milliseconds != nil {
+            return .splitV2
+        }
+        return .endToEndV1
+    }
 }
 
 public struct GeneratedAnswerEvaluationPassage:
@@ -118,7 +139,7 @@ public struct GeneratedAnswerEvaluationManifest:
     }
 
     public func validate() throws {
-        guard manifestVersion == 1 else {
+        guard manifestVersion == 1 || manifestVersion == 2 else {
             throw GeneratedAnswerEvaluationManifestError.unsupportedVersion(
                 manifestVersion
             )
@@ -128,7 +149,7 @@ public struct GeneratedAnswerEvaluationManifest:
         ).isEmpty else {
             throw GeneratedAnswerEvaluationManifestError.blankCorpusPurpose
         }
-        try Self.validate(thresholds)
+        try Self.validate(thresholds, forManifestVersion: manifestVersion)
 
         let sourceIDs = sources.map(\.id)
         guard Set(sourceIDs).count == sourceIDs.count else {
@@ -245,7 +266,8 @@ public struct GeneratedAnswerEvaluationManifest:
     }
 
     private static func validate(
-        _ thresholds: GeneratedAnswerEvaluationThresholds
+        _ thresholds: GeneratedAnswerEvaluationThresholds,
+        forManifestVersion version: Int
     ) throws {
         let rates = [
             thresholds.recallAt10,
@@ -253,10 +275,33 @@ public struct GeneratedAnswerEvaluationManifest:
             thresholds.citedClaimSupport,
             thresholds.abstentionAccuracy,
         ]
-        guard rates.allSatisfy({ $0.isFinite && (0...1).contains($0) }),
-              thresholds.warmEndToEndP95Milliseconds.isFinite,
-              thresholds.warmEndToEndP95Milliseconds > 0 else {
+        guard rates.allSatisfy({ $0.isFinite && (0...1).contains($0) }) else {
             throw GeneratedAnswerEvaluationManifestError.invalidThresholds
+        }
+        switch version {
+        case 1:
+            guard let endToEnd = thresholds.warmEndToEndP95Milliseconds,
+                  endToEnd.isFinite, endToEnd > 0,
+                  thresholds.warmRetrievalP95Milliseconds == nil,
+                  thresholds.warmGenerationP95Milliseconds == nil else {
+                throw GeneratedAnswerEvaluationManifestError.invalidThresholds
+            }
+        case 2:
+            guard let retrieval = thresholds.warmRetrievalP95Milliseconds,
+                  let generation = thresholds.warmGenerationP95Milliseconds,
+                  retrieval.isFinite, retrieval > 0,
+                  generation.isFinite, generation > 0 else {
+                throw GeneratedAnswerEvaluationManifestError.invalidThresholds
+            }
+            if let endToEnd = thresholds.warmEndToEndP95Milliseconds {
+                guard endToEnd.isFinite, endToEnd > 0 else {
+                    throw GeneratedAnswerEvaluationManifestError.invalidThresholds
+                }
+            }
+        default:
+            throw GeneratedAnswerEvaluationManifestError.unsupportedVersion(
+                version
+            )
         }
     }
 }
@@ -315,6 +360,8 @@ public struct GeneratedAnswerCaseResult: Codable, Equatable, Sendable {
 public struct GeneratedAnswerEvaluationReport:
     Codable, Equatable, Sendable {
     public let evaluatorVersion: String
+    public let latencyContract: GeneratedAnswerLatencyContract
+    public let environmentClass: String
     public let manifestHash: String
     public let indexFingerprint: String
     public let runtimeIdentity: String
@@ -332,12 +379,18 @@ public struct GeneratedAnswerEvaluationReport:
     public let citedClaimSupport: Double
     public let abstentionAccuracy: Double
     public let warmEndToEndP95Milliseconds: Double
+    public let warmRetrievalP95Milliseconds: Double
+    public let warmGenerationP95Milliseconds: Double
     public let latencyDistribution: GeneratedAnswerLatencyDistribution
+    public let retrievalLatencyDistribution: GeneratedAnswerLatencyDistribution
+    public let generationLatencyDistribution: GeneratedAnswerLatencyDistribution
     public let unansweredCaseIDs: [String]
     public let failedCaseIDs: [String]
     public let caseResults: [GeneratedAnswerCaseResult]
     public let thresholds: GeneratedAnswerEvaluationThresholds
     public let meetsFrozenThresholds: Bool
+    public let meetsQualityThresholds: Bool
+    public let meetsLatencyThresholds: Bool
 }
 
 public enum GeneratedAnswerEvaluationExitCode {
@@ -396,7 +449,9 @@ public struct GeneratedAnswerEvaluator: Sendable {
         var supportedClaimCount = 0
         var expectedAbstentions = 0
         var correctAbstentions = 0
-        var latencies: [Double] = []
+        var endToEndLatencies: [Double] = []
+        var retrievalLatencies: [Double] = []
+        var generationLatencies: [Double] = []
         var caseResults: [GeneratedAnswerCaseResult] = []
         var unanswered: [String] = []
         var failures: Set<String> = []
@@ -434,29 +489,36 @@ public struct GeneratedAnswerEvaluator: Sendable {
             var firstResult: GeneratedAnswerCaseResult?
             for _ in 0..<benchmark.measuredRunsPerCase {
                 let started = ContinuousClock.now
-                let result: GeneratedAnswerCaseResult
+                let timed: TimedGeneratedAnswerCaseResult
                 do {
-                    result = try await run(
+                    timed = try await run(
                         evaluationCase,
                         retriever: retriever,
                         client: client
                     )
                 } catch {
-                    result = GeneratedAnswerCaseResult(
-                        caseID: evaluationCase.id,
-                        expectedOutcome: evaluationCase.expectedOutcome,
-                        retrievedPassageIDs: initialRetrieval.map(\.passageID),
-                        generatedText: nil,
-                        generatedPassageIDs: [],
-                        claimSupport: 0,
-                        abstained: false,
-                        passed: false,
-                        errorCode: String(describing: error)
+                    timed = TimedGeneratedAnswerCaseResult(
+                        result: GeneratedAnswerCaseResult(
+                            caseID: evaluationCase.id,
+                            expectedOutcome: evaluationCase.expectedOutcome,
+                            retrievedPassageIDs: initialRetrieval.map(\.passageID),
+                            generatedText: nil,
+                            generatedPassageIDs: [],
+                            claimSupport: 0,
+                            abstained: false,
+                            passed: false,
+                            errorCode: String(describing: error)
+                        ),
+                        retrievalMilliseconds: 0,
+                        generationMilliseconds: 0
                     )
                 }
-                latencies.append(
+                let result = timed.result
+                endToEndLatencies.append(
                     Self.milliseconds(started.duration(to: .now))
                 )
+                retrievalLatencies.append(timed.retrievalMilliseconds)
+                generationLatencies.append(timed.generationMilliseconds)
                 firstResult = firstResult ?? result
                 if evaluationCase.expectedOutcome == .answer {
                     expectedClaimCount += evaluationCase.expectedClaims.count
@@ -481,7 +543,9 @@ public struct GeneratedAnswerEvaluator: Sendable {
             }
         }
 
-        let distribution = Self.distribution(latencies)
+        let distribution = Self.distribution(endToEndLatencies)
+        let retrievalDistribution = Self.distribution(retrievalLatencies)
+        let generationDistribution = Self.distribution(generationLatencies)
         let recallAt10 = Self.mean(recalls)
         let meanReciprocalRank = Self.mean(reciprocalRanks)
         let citedClaimSupport = expectedClaimCount == 0
@@ -491,16 +555,37 @@ public struct GeneratedAnswerEvaluator: Sendable {
             ? 1
             : Double(correctAbstentions) / Double(expectedAbstentions)
         let failedCaseIDs = failures.sorted()
-        let meetsFrozenThresholds =
+        let meetsQualityThresholds =
             recallAt10 >= manifest.thresholds.recallAt10
             && meanReciprocalRank >= manifest.thresholds.meanReciprocalRank
             && citedClaimSupport >= manifest.thresholds.citedClaimSupport
             && abstentionAccuracy >= manifest.thresholds.abstentionAccuracy
-            && distribution.p95Milliseconds
-                < manifest.thresholds.warmEndToEndP95Milliseconds
             && failedCaseIDs.isEmpty
+        let latencyContract = manifest.thresholds.latencyContract
+        let meetsLatencyThresholds: Bool
+        switch latencyContract {
+        case .endToEndV1:
+            let limit = manifest.thresholds.warmEndToEndP95Milliseconds ?? 0
+            meetsLatencyThresholds = distribution.p95Milliseconds < limit
+        case .splitV2:
+            let retrievalLimit =
+                manifest.thresholds.warmRetrievalP95Milliseconds ?? 0
+            let generationLimit =
+                manifest.thresholds.warmGenerationP95Milliseconds ?? 0
+            meetsLatencyThresholds =
+                retrievalDistribution.p95Milliseconds < retrievalLimit
+                && generationDistribution.p95Milliseconds < generationLimit
+        }
+        let meetsFrozenThresholds =
+            meetsQualityThresholds && meetsLatencyThresholds
+        let evaluatorVersion = switch latencyContract {
+        case .endToEndV1: "generated-answer-evaluator-v1"
+        case .splitV2: "generated-answer-evaluator-v2"
+        }
         return GeneratedAnswerEvaluationReport(
-            evaluatorVersion: "generated-answer-evaluator-v1",
+            evaluatorVersion: evaluatorVersion,
+            latencyContract: latencyContract,
+            environmentClass: Self.environmentClass(),
             manifestHash: manifestHash,
             indexFingerprint: fingerprint.digest,
             runtimeIdentity:
@@ -520,23 +605,40 @@ public struct GeneratedAnswerEvaluator: Sendable {
             citedClaimSupport: citedClaimSupport,
             abstentionAccuracy: abstentionAccuracy,
             warmEndToEndP95Milliseconds: distribution.p95Milliseconds,
+            warmRetrievalP95Milliseconds: retrievalDistribution.p95Milliseconds,
+            warmGenerationP95Milliseconds:
+                generationDistribution.p95Milliseconds,
             latencyDistribution: distribution,
+            retrievalLatencyDistribution: retrievalDistribution,
+            generationLatencyDistribution: generationDistribution,
             unansweredCaseIDs: unanswered.sorted(),
             failedCaseIDs: failedCaseIDs,
             caseResults: caseResults,
             thresholds: manifest.thresholds,
-            meetsFrozenThresholds: meetsFrozenThresholds
+            meetsFrozenThresholds: meetsFrozenThresholds,
+            meetsQualityThresholds: meetsQualityThresholds,
+            meetsLatencyThresholds: meetsLatencyThresholds
         )
+    }
+
+    private struct TimedGeneratedAnswerCaseResult: Sendable {
+        let result: GeneratedAnswerCaseResult
+        let retrievalMilliseconds: Double
+        let generationMilliseconds: Double
     }
 
     private func run(
         _ evaluationCase: GeneratedAnswerEvaluationCase,
         retriever: HybridRetriever,
         client: LocalModelClient
-    ) async throws -> GeneratedAnswerCaseResult {
+    ) async throws -> TimedGeneratedAnswerCaseResult {
+        let retrievalStarted = ContinuousClock.now
         let results = try retriever.retrieve(
             query: evaluationCase.question,
             limit: 10
+        )
+        let retrievalMilliseconds = Self.milliseconds(
+            retrievalStarted.duration(to: .now)
         )
         let context = ContextAssembler().assemble(
             results,
@@ -546,9 +648,13 @@ public struct GeneratedAnswerEvaluator: Sendable {
                 maxPassages: 10
             )
         )
+        let generationStarted = ContinuousClock.now
         let answer = try await client.generate(
             question: evaluationCase.question,
             context: context
+        )
+        let generationMilliseconds = Self.milliseconds(
+            generationStarted.duration(to: .now)
         )
         let support = Self.claimSupport(
             expectedClaims: evaluationCase.expectedClaims,
@@ -562,17 +668,29 @@ public struct GeneratedAnswerEvaluator: Sendable {
         case .abstain:
             passed = answer.didAbstain
         }
-        return GeneratedAnswerCaseResult(
-            caseID: evaluationCase.id,
-            expectedOutcome: evaluationCase.expectedOutcome,
-            retrievedPassageIDs: results.map(\.passageID),
-            generatedText: answer.text,
-            generatedPassageIDs: answer.citations.map(\.passageID),
-            claimSupport: support,
-            abstained: answer.didAbstain,
-            passed: passed,
-            errorCode: nil
+        return TimedGeneratedAnswerCaseResult(
+            result: GeneratedAnswerCaseResult(
+                caseID: evaluationCase.id,
+                expectedOutcome: evaluationCase.expectedOutcome,
+                retrievedPassageIDs: results.map(\.passageID),
+                generatedText: answer.text,
+                generatedPassageIDs: answer.citations.map(\.passageID),
+                claimSupport: support,
+                abstained: answer.didAbstain,
+                passed: passed,
+                errorCode: nil
+            ),
+            retrievalMilliseconds: retrievalMilliseconds,
+            generationMilliseconds: generationMilliseconds
         )
+    }
+
+    private static func environmentClass() -> String {
+        #if arch(arm64)
+        "apple-silicon-\(ProcessInfo.processInfo.processorCount)cpu"
+        #else
+        "non-arm-\(ProcessInfo.processInfo.processorCount)cpu"
+        #endif
     }
 
     private static func claimSupport(

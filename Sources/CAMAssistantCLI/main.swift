@@ -320,7 +320,13 @@ if arguments.first == "vault" {
             """
             generated cited-claim support: \(report.citedClaimSupport)
             abstention accuracy: \(report.abstentionAccuracy)
+            latency contract: \(report.latencyContract.rawValue)
+            environment class: \(report.environmentClass)
             warm end-to-end p95 ms: \(report.warmEndToEndP95Milliseconds)
+            warm retrieval p95 ms: \(report.warmRetrievalP95Milliseconds)
+            warm generation p95 ms: \(report.warmGenerationP95Milliseconds)
+            quality gates: \(report.meetsQualityThresholds ? "pass" : "fail")
+            latency gates: \(report.meetsLatencyThresholds ? "pass" : "fail")
             frozen gates: \(report.meetsFrozenThresholds ? "pass" : "fail")
             report: \(request.outputURL.path)
             """
