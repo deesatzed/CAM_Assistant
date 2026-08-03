@@ -382,13 +382,20 @@ func meaningPreviewSurfacesExposeExplicitPilotJourney() throws {
     #expect(inspectContracts.allSatisfy(inspect.contains))
     let settingsContracts = [
         "meaning-preview-settings", "meaning-preview-enable",
-        "meaning-preview-grant", "meaning-preview-settings-disable",
-        "meaning-preview-enable-control", "meaning-preview-grant-control",
+        "meaning-preview-settings-disable",
+        "meaning-preview-enable-control",
+        "meaning-preview-settings-needs-workspace-grant",
+        "meaning-preview-settings-close",
         "meaning-preview-recover", "Enablement grants no data access",
         "local read and isolated write access",
         "Ordinary Assistant remains unchanged", "corrupted", "incompatible",
+        "use Grant in the Meaning Preview workspace",
     ]
     #expect(settingsContracts.allSatisfy(settings.contains))
+    #expect(
+        !settings.contains("accessibilityIdentifier(\"meaning-preview-grant\")"),
+        "Settings must not host Grant; grant is workspace-only to prevent Enable AX double-activation."
+    )
 
     let workspaceDisable = try #require(
         workspace.range(of: "Button(\"Disable\")")

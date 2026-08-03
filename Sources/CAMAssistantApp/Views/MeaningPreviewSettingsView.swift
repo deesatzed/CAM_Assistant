@@ -66,13 +66,9 @@ struct MeaningPreviewSettingsView: View {
             .accessibilityIdentifier("meaning-preview-enable")
             .accessibilityHint("Reveals the optional workspace but grants no local data access.")
         case .enabledWithoutLocalRead:
-            Button("Grant Local Read & Isolated Write") {
-                Task { await model.grantMeaningPreviewLocalRead() }
-            }
-            .id("meaning-preview-grant-control")
-            .disabled(model.isMeaningPreviewWorking)
-            .accessibilityIdentifier("meaning-preview-grant")
-            .accessibilityHint("Grants access only to one explicitly selected active derived local source and Meaning Preview's isolated state.")
+            Text("Enabled without local access. Close this sheet and use Grant in the Meaning Preview workspace. Enablement never grants permissions.")
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("meaning-preview-settings-needs-workspace-grant")
             disableButton
         case .ready:
             Text("Access is ready. Choose an active derived source in the Meaning Preview workspace before requesting a Preview.")
