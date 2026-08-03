@@ -578,11 +578,22 @@ private func grant(_ driver: Driver) throws {
 }
 
 private func exercise(_ driver: Driver) throws -> String {
-    let picker = try driver.waitIdentifier("meaning-preview-source-picker")
-    try driver.press(picker, token: "source-picker")
-    try driver.key(125)
-    try driver.key(36)
-    try driver.press(try driver.waitEnabled("meaning-preview-request"), token: "request")
+    // Prefer Request already enabled (sole-source auto-select after grant).
+    // Fall back to Picker navigation if still disabled.
+    let requestButton: AXUIElement
+    if let enabled = try? driver.waitEnabled("meaning-preview-request") {
+        requestButton = enabled
+    } else {
+        let picker = try driver.waitIdentifier("meaning-preview-source-picker")
+        try driver.press(picker, token: "source-picker")
+        Thread.sleep(forTimeInterval: 0.3)
+        try driver.key(125)
+        Thread.sleep(forTimeInterval: 0.2)
+        try driver.key(36)
+        Thread.sleep(forTimeInterval: 0.3)
+        requestButton = try driver.waitEnabled("meaning-preview-request")
+    }
+    try driver.press(requestButton, token: "request")
     _ = try driver.waitIdentifier("meaning-preview-reflect-unavailable")
 
     let deadline = Date().addingTimeInterval(12)
