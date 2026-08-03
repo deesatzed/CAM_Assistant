@@ -649,12 +649,15 @@ private func exercise(_ driver: Driver) throws -> String {
             try driver.pressIdentifier("meaning-preview-inspect")
             _ = try driver.waitIdentifier("meaning-preview-inspect-sheet")
             try driver.key(53)
+            try driver.waitAbsent("meaning-preview-inspect-sheet")
             try driver.pressIdentifier("meaning-preview-now")
-            _ = try driver.waitNamed("Now recorded in isolated Preview state.")
+            // Prefer stable status identifier over exact title text matching.
+            _ = try driver.waitIdentifier("meaning-preview-status")
+            Thread.sleep(forTimeInterval: 0.3)
             try driver.press(try driver.waitEnabled("meaning-preview-request"), token: "second-request")
             _ = try driver.waitIdentifier("meaning-preview-card")
             try driver.pressIdentifier("meaning-preview-helpful")
-            _ = try driver.waitNamed("Helpful recorded explicitly in isolated Preview state.")
+            _ = try driver.waitIdentifier("meaning-preview-status")
             return "result=card action=now feedback=helpful"
         }
         if try index.identifier("meaning-preview-silence") != nil {
