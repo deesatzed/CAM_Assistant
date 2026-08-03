@@ -648,7 +648,7 @@ private func exercise(_ driver: Driver) throws -> String {
             ] { _ = try driver.waitIdentifier(identifier) }
             try driver.pressIdentifier("meaning-preview-inspect")
             _ = try driver.waitIdentifier("meaning-preview-inspect-sheet")
-            try driver.key(53)
+            try driver.pressIdentifier("meaning-preview-inspect-close")
             try driver.waitAbsent("meaning-preview-inspect-sheet")
             try driver.pressIdentifier("meaning-preview-now")
             // Prefer stable status identifier over exact title text matching.
@@ -663,7 +663,8 @@ private func exercise(_ driver: Driver) throws -> String {
         if try index.identifier("meaning-preview-silence") != nil {
             try driver.pressIdentifier("meaning-preview-inspect")
             _ = try driver.waitIdentifier("meaning-preview-inspect-sheet")
-            try driver.key(53)
+            try driver.pressIdentifier("meaning-preview-inspect-close")
+            try driver.waitAbsent("meaning-preview-inspect-sheet")
             return "result=silence action=not-applicable feedback=not-applicable"
         }
         Thread.sleep(forTimeInterval: 0.1)
