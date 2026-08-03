@@ -837,12 +837,22 @@ decoded_preview_digest() {
 
 assert_ordinary_unchanged() {
   local after_tables="$(ordinary_tables)"
-  [[ "$after_tables" == "${(j:\n:)${(ok)ORDINARY_BEFORE}}" ]] \
-    || fail ordinary-table-set-changed
+  local before_tables="${(j:\n:)${(ok)ORDINARY_BEFORE}}"
+  if [[ "$after_tables" != "$before_tables" ]]; then
+    print -u2 "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED diagnostic=ordinary-tables-before"
+    print -u2 "$before_tables"
+    print -u2 "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED diagnostic=ordinary-tables-after"
+    print -u2 "$after_tables"
+    fail ordinary-table-set-changed
+  fi
   for table in ${(f)after_tables}; do
-    [[ "$(ordinary_table_fingerprint "$table")" \
-        == "$ORDINARY_BEFORE[$table]" ]] \
-      || fail ordinary-table-content-changed
+    local before_fp="$ORDINARY_BEFORE[$table]"
+    local after_fp="$(ordinary_table_fingerprint "$table")"
+    if [[ "$after_fp" != "$before_fp" ]]; then
+      print -u2 \
+        "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED diagnostic=ordinary-table-drift table=$table"
+      fail ordinary-table-content-changed
+    fi
   done
 }
 
