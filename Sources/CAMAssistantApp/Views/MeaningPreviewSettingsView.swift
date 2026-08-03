@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MeaningPreviewSettingsView: View {
     @ObservedObject var model: AppModel
+    @Environment(\.dismiss) private var dismissSettings
 
     var body: some View {
         Form {
@@ -36,6 +37,15 @@ struct MeaningPreviewSettingsView: View {
             Section("Boundary") {
                 Text("A separate grant is required for local read and isolated write access. No network, notification, cloud, CAM execution, or web authority is granted.")
                 Text("Ordinary Assistant remains unchanged when Meaning Preview is disabled or unavailable.")
+            }
+
+            Section {
+                Button("Close") {
+                    dismissSettings()
+                }
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("meaning-preview-settings-close")
+                .accessibilityHint("Closes Meaning Preview settings without changing enablement or grants.")
             }
         }
         .formStyle(.grouped)

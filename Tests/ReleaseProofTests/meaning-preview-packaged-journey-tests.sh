@@ -549,7 +549,16 @@ private func enable(_ driver: Driver) throws {
 }
 
 private func closeSettings(_ driver: Driver) throws {
-    try driver.key(53)
+    // Prefer an explicit Close control. Escape alone is unreliable after
+    // lifecycle button replacement on the same sheet (Enable -> Grant).
+    if let close = try? driver.waitEnabled(
+        "meaning-preview-settings-close",
+        within: "meaning-preview-settings"
+    ) {
+        try driver.press(close, token: "meaning-preview-settings-close")
+    } else {
+        try driver.key(53)
+    }
     try driver.waitAbsent("meaning-preview-settings")
     print("settings=closed")
 }
