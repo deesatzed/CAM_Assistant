@@ -497,6 +497,7 @@ func sidebarAccessibilityIdentifiersAreStableLowercaseSlugs() throws {
         "assistant-section-tasks", "assistant-section-modules",
         "assistant-section-cam", "assistant-section-research",
         "assistant-section-repositories", "assistant-section-mac-care",
+        "assistant-section-approvals",
         "assistant-section-settings",
     ]
     #expect(requiredIdentifiers.allSatisfy(source.contains))

@@ -54,6 +54,7 @@ private extension AssistantSection {
         case .research: "assistant-section-research"
         case .repositories: "assistant-section-repositories"
         case .macCare: "assistant-section-mac-care"
+        case .approvals: "assistant-section-approvals"
         case .settings: "assistant-section-settings"
         }
     }
