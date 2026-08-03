@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-01",
+  "updatedAt": "2026-08-03",
   "integrationBranch": "agent/add2cam-integration-20260731",
   "acceptedCommit": "c0dbe01",
   "terminalTarget": "READY_FOR_HUMAN_PILOT",
@@ -85,15 +85,20 @@
     },
     {
       "id": "ADD2CAM-50",
-      "status": "pending",
+      "status": "complete",
       "dependencies": ["ADD2CAM-40"],
-      "prerequisiteCommit": null,
+      "prerequisiteCommit": "5409c3b",
       "branch": "agent/add2cam-50-packaged-pilot",
       "worktree": "/private/tmp/cam-add2cam-20260731/packaged-pilot",
-      "attempts": 0,
-      "terminalCommit": null,
+      "attempts": 1,
+      "terminalCommit": "c63d999",
       "handoff": "docs/handoffs/add2cam/20260731/50_PACKAGED_PILOT.md",
-      "evidence": [],
+      "evidence": [
+        "docs/evidence/add2cam-10-packaged-pilot.md",
+        "docs/evidence/add2cam-11-final-containment.md",
+        "docs/pilots/meaning-preview-v1-protocol.md",
+        "docs/handoffs/add2cam/20260731/50_PACKAGED_PILOT.md"
+      ],
       "blockers": []
     },
     {
