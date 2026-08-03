@@ -232,7 +232,8 @@ private func finish(_ code: Int32, _ token: String) -> Never {
 
 private func copyAttribute(
     _ element: AXUIElement,
-    _ attribute: CFString
+    _ attribute: CFString,
+    allowIncomplete: Bool = false
 ) throws -> CFTypeRef? {
     var value: CFTypeRef?
     let result = AXUIElementCopyAttributeValue(element, attribute, &value)
@@ -242,10 +243,12 @@ private func copyAttribute(
     case .apiDisabled:
         throw AXAccessError.denied
     case .cannotComplete, .invalidUIElement:
+        if allowIncomplete { return nil }
         throw DriverError.action("ax-index-incomplete")
     case .attributeUnsupported, .noValue:
         return nil
     default:
+        if allowIncomplete { return nil }
         throw DriverError.action("ax-index-incomplete")
     }
 }
@@ -266,9 +269,11 @@ private func boolAttribute(
 
 private func elementsAttribute(
     _ element: AXUIElement,
-    _ attribute: CFString
+    _ attribute: CFString,
+    allowIncomplete: Bool = false
 ) throws -> [AXUIElement] {
-    (try copyAttribute(element, attribute) as? [AXUIElement]) ?? []
+    (try copyAttribute(element, attribute, allowIncomplete: allowIncomplete)
+        as? [AXUIElement]) ?? []
 }
 
 private struct AXIndex {
@@ -282,8 +287,32 @@ private struct AXIndex {
             kAXContentsAttribute as CFString,
             "AXChildrenInNavigationOrder" as CFString,
         ]
-        var queue = try elementsAttribute(application, kAXWindowsAttribute as CFString)
-            .map { ($0, 0) }
+        // Retry transient cannotComplete while SwiftUI rebuilds after grant/request.
+        var lastError: Error?
+        for attempt in 0..<8 {
+            do {
+                elements = try Self.build(
+                    application: application,
+                    relationAttributes: relationAttributes
+                )
+                return
+            } catch {
+                lastError = error
+                Thread.sleep(forTimeInterval: 0.15 + (0.05 * Double(attempt)))
+            }
+        }
+        throw lastError ?? DriverError.action("ax-index-incomplete")
+    }
+
+    private static func build(
+        application: AXUIElement,
+        relationAttributes: [CFString]
+    ) throws -> [AXUIElement] {
+        var queue = try elementsAttribute(
+            application,
+            kAXWindowsAttribute as CFString,
+            allowIncomplete: true
+        ).map { ($0, 0) }
         var cursor = 0
         var seen: [CFHashCode: [AXUIElement]] = [:]
         var result: [AXUIElement] = []
@@ -298,7 +327,13 @@ private struct AXIndex {
             result.append(element)
             var descendants: [AXUIElement] = []
             for relation in relationAttributes {
-                descendants.append(contentsOf: try elementsAttribute(element, relation))
+                descendants.append(
+                    contentsOf: try elementsAttribute(
+                        element,
+                        relation,
+                        allowIncomplete: true
+                    )
+                )
             }
             if depth >= 24 && !descendants.isEmpty {
                 throw DriverError.action("ax-depth-cap")
@@ -310,7 +345,10 @@ private struct AXIndex {
         if cursor < queue.count {
             throw DriverError.action("ax-node-cap")
         }
-        elements = result
+        if result.isEmpty {
+            throw DriverError.action("ax-index-incomplete")
+        }
+        return result
     }
 
     func identifier(_ value: String) throws -> AXUIElement? {
@@ -580,6 +618,7 @@ private func grant(_ driver: Driver) throws {
 private func exercise(_ driver: Driver) throws -> String {
     // Prefer Request already enabled (sole-source auto-select after grant).
     // Fall back to Picker navigation if still disabled.
+    Thread.sleep(forTimeInterval: 0.4)
     let requestButton: AXUIElement
     if let enabled = try? driver.waitEnabled("meaning-preview-request") {
         requestButton = enabled
@@ -594,6 +633,7 @@ private func exercise(_ driver: Driver) throws -> String {
         requestButton = try driver.waitEnabled("meaning-preview-request")
     }
     try driver.press(requestButton, token: "request")
+    Thread.sleep(forTimeInterval: 0.3)
     _ = try driver.waitIdentifier("meaning-preview-reflect-unavailable")
 
     let deadline = Date().addingTimeInterval(12)
