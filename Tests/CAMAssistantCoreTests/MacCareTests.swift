@@ -70,7 +70,8 @@ func macCarePresentationReportsOnlyReadOnlyAssessmentFacts() throws {
     let presentation = MacCarePresentation(assessment: assessment)
     #expect(presentation.storageLabel == "100 bytes free of 1000 bytes")
     #expect(presentation.applicationLabel == "1 application")
-    #expect(presentation.mutationStatus == "Apply and undo are unavailable")
+    #expect(presentation.mutationStatus.contains("Apply and undo are unavailable"))
+    #expect(presentation.mutationStatus.contains("does not move files"))
 }
 
 @Test("Mac Care presentation offers bounded read-only storage and inventory review findings")
@@ -140,8 +141,8 @@ func macCareOrganizationPlanBindsOneRegularFixtureFileInsideOneRoot() throws {
     }
 }
 
-@Test("Mac Care organization move consumes exact approval and verifies the planned file")
-func macCareOrganizationMoveConsumesExactApprovalAndVerifiesPlannedFile() throws {
+@Test("Mac Care organization executor refuses app-owned mutation and leaves files untouched")
+func macCareOrganizationExecutorRefusesAppOwnedMutationAndLeavesFilesUntouched() throws {
     let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: root) }
     let inbox = root.appending(path: "Inbox", directoryHint: .isDirectory)
@@ -157,13 +158,39 @@ func macCareOrganizationMoveConsumesExactApprovalAndVerifiesPlannedFile() throws
     let approvals = try ApprovalStore(stateURL: root.appending(path: "approvals.json"))
     let approval = try approvals.approve(card, source: "user", now: Date(timeIntervalSince1970: 10))
 
-    let result = try MacCareOrganizationExecutor().execute(
-        plan: plan, rootURL: root, approvalID: approval.id,
-        approvalStore: approvals, card: card, now: Date(timeIntervalSince1970: 20)
+    #expect(throws: MacCareOrganizationExecutorError.appOwnedMutationUnavailable) {
+        _ = try MacCareOrganizationExecutor().execute(
+            plan: plan, rootURL: root, approvalID: approval.id,
+            approvalStore: approvals, card: card, now: Date(timeIntervalSince1970: 20)
+        )
+    }
+
+    #expect(FileManager.default.fileExists(atPath: source.path))
+    #expect(!FileManager.default.fileExists(atPath: archive.appending(path: "notes.txt").path))
+    #expect(try approvals.approvals().count == 1)
+}
+
+@Test("Mac Care organization manual guide emits user-run shell and Finder steps")
+func macCareOrganizationManualGuideEmitsUserRunShellAndFinderSteps() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let inbox = root.appending(path: "Inbox", directoryHint: .isDirectory)
+    let archive = root.appending(path: "Archive", directoryHint: .isDirectory)
+    try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: true)
+    let source = inbox.appending(path: "notes.txt")
+    try Data("local notes".utf8).write(to: source)
+    let plan = try MacCareOrganizationPlanner().propose(
+        rootURL: root, sourceURL: source, destinationDirectoryURL: archive
     )
 
-    #expect(result.status == .verified)
-    #expect(!FileManager.default.fileExists(atPath: source.path))
-    #expect(FileManager.default.fileExists(atPath: archive.appending(path: "notes.txt").path))
-    #expect(result.approvalID == approval.id)
+    let guide = MacCareOrganizationManualGuide.make(plan: plan, rootURL: root)
+
+    #expect(guide.notice == MacCareOrganizationManualGuide.userResponsibilityNotice)
+    #expect(guide.shellCommand.contains("mv "))
+    #expect(guide.shellCommand.contains("Inbox/notes.txt"))
+    #expect(guide.shellCommand.contains("Archive/notes.txt"))
+    #expect(guide.inverseShellCommand.contains("mv "))
+    #expect(guide.finderSteps.count == 4)
+    #expect(FileManager.default.fileExists(atPath: source.path))
 }

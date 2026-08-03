@@ -30,7 +30,8 @@ func workspaceAccessibilityContainersPreserveChildren() throws {
             requiredStateText: [
                 "Mac Care is read-only",
                 "Assess Standard Locations",
-                "Any maintenance plan needs exact approval",
+                "Mutations are unavailable in this milestone",
+                "Manual reorganization",
             ]
         ),
     ]
@@ -67,6 +68,34 @@ func workspaceAccessibilityContractRejectsUnrelatedContainment() {
     """
 
     #expect(!contract.isSatisfied(by: unrelatedContainment))
+}
+
+@Test("approvals workspace is the action-card dispatch surface")
+func approvalsWorkspaceIsActionCardDispatchSurface() throws {
+    let root = accessibilityRepositoryRoot()
+    let approvals = try String(
+        contentsOf: root
+            .appending(path: "Sources/CAMAssistantApp/Views/ApprovalsView.swift"),
+        encoding: .utf8
+    )
+    let activity = try String(
+        contentsOf: root
+            .appending(path: "Sources/CAMAssistantApp/Views/ActivityView.swift"),
+        encoding: .utf8
+    )
+    let actionCard = try String(
+        contentsOf: root
+            .appending(path: "Sources/CAMAssistantApp/Views/ActionCardView.swift"),
+        encoding: .utf8
+    )
+
+    #expect(approvals.contains("Approve & Acquire"))
+    #expect(approvals.contains("approvals-workspace"))
+    #expect(activity.contains("Open Approvals"))
+    #expect(activity.contains("activity-open-approvals"))
+    #expect(!activity.contains("ActionCardView("))
+    #expect(actionCard.contains("onApprove"))
+    #expect(actionCard.contains("approvals-approve"))
 }
 
 @Test("modules workspace exposes an explicit no-authority lifecycle")

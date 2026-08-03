@@ -2444,3 +2444,29 @@ blocker is asserted.
   Its worker owns only packaging, packaged-journey/accessibility proof, containment,
   draft protocol, and handoff files; GUI permission denial remains an honest
   unmet gate rather than a bypass or synthetic pass.
+
+### Stage 3 hybrid plan + Phase A shared foundation — 2026-08-03
+
+- Locked decisions (see `DECISIONS.md` and
+  `docs/plans/2026-08-03-stage3-hybrid-phase-a.md`): hybrid track strategy with
+  ADD2CAM-50 stop rule; Mac Care app-owned mutation gated + manual user guide;
+  generated-v2 latency later; three user-owned model lists before hunts.
+- Phase A implemented:
+  1. `MacCareOrganizationExecutor` always throws
+     `appOwnedMutationUnavailable` without moving files or consuming approvals;
+     `MacCareOrganizationManualGuide` emits copyable `mv` / inverse / Finder
+     steps; Mac Care UI and `mac-care.json` advertise read-only + manual guide
+     only (no write/execute/delete/apply/undo capabilities).
+  2. Watched capture failures set `watchedSourceError` and `captureMessage`
+     with a stable status string (no empty `catch {}`).
+  3. Live release privacy scan writes only
+     `artifacts/release-privacy-scan.json`; committed
+     `docs/evidence/task-18-release-privacy-scan.json` is historical and stays
+     clean under `verify.sh release-privacy`.
+  4. Approvals workspace dispatches research `Approve & Acquire` / cancel;
+     Activity points to Approvals instead of a read-only dead-end card.
+- Verification: `./scripts/verify.sh mac-care` 8/8; `./scripts/verify.sh app`
+  68/68; `./scripts/verify.sh release-privacy` pass with historical evidence
+  clean.
+- Phase A complete for shared foundation. Next: Phase B dual track (ADD2CAM-50
+  stop rule + at most one finish-wiki slice).

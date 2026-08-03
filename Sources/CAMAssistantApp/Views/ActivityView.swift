@@ -7,8 +7,27 @@ struct ActivityView: View {
     var body: some View {
         VStack(spacing: 0) {
             if model.pendingActionCard != nil {
-                ActionCardView(card: model.pendingActionCard)
-                    .frame(minHeight: 260)
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "checkmark.shield")
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Action awaiting exact approval")
+                            .font(.headline)
+                        Text(
+                            model.pendingActionCard?.goal
+                                ?? "Review the pending card in Approvals to approve or cancel."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        Button("Open Approvals", action: model.openApprovalsWorkspace)
+                            .accessibilityIdentifier("activity-open-approvals")
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Action awaiting exact approval. Open Approvals to dispatch.")
                 Divider()
             }
 

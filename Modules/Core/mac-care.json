@@ -3,23 +3,18 @@
   "id": "cam.mac-care",
   "version": "1.0.0",
   "owner": "CAM Assistant",
-  "purpose": "Read-only Mac audit plus separately approved supported maintenance actions.",
+  "purpose": "Read-only Mac audit. Organization plans emit manual user steps only; app-owned apply and undo remain unavailable.",
   "isCore": false,
   "entryPoint": "cli:macwise",
   "transport": "cli",
   "permissions": [
-    "readLocal",
-    "writeLocal",
-    "execute",
-    "delete"
+    "readLocal"
   ],
   "acceptedDataClasses": [
     "localSystemMetadata"
   ],
   "emittedDataClasses": [
-    "maintenancePlan",
-    "actionReceipt",
-    "undoReceipt"
+    "maintenancePlan"
   ],
   "requirements": {
     "local": true,
@@ -39,15 +34,14 @@
     "timeoutSeconds": 10
   },
   "supportsCancellation": true,
-  "degradedMode": "Keep scan results read-only and disable apply or undo.",
+  "degradedMode": "Keep scan results read-only. Never apply, undo, or execute filesystem mutation from the app.",
   "auditReceiptSchema": "cam.audit.status.v1",
-  "rollback": "Use only action-specific undo receipts after exact approval.",
+  "rollback": "No app-owned mutation. Users who move files manually use their own inverse steps.",
   "license": "License pending",
   "provenance": "Adapter manifest for the separately owned MacWise runtime",
   "capabilities": [
     "mac-care.scan",
     "mac-care.plan",
-    "mac-care.apply",
-    "mac-care.undo"
+    "mac-care.manual-guide"
   ]
 }

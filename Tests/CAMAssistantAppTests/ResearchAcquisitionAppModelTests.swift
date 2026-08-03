@@ -573,3 +573,39 @@ private func waitForResearchStateReload(_ model: AppModel) async {
         await Task.yield()
     }
 }
+
+@MainActor
+@Test("app model opens Approvals as the pending research dispatch workspace")
+func appModelOpensApprovalsAsPendingResearchDispatchWorkspace() async throws {
+    let root = URL(filePath: "/tmp/ResearchApprovalsVault")
+    let proposal = try makeResearchAppProposal(stateVersion: 0)
+    let operations = ResearchAcquisitionOperations(
+        prepare: { _, _, _, _ in proposal },
+        execute: { _, _ in try makeResearchAppResult(proposal: proposal) },
+        resume: { _, _ in proposal },
+        cancel: { _, _ in },
+        recoverAndLoadJobs: { _ in [] },
+        loadJobs: { _ in [] },
+        keep: { _, packet in [packet.retained()] },
+        loadPackets: { _ in [] }
+    )
+    let model = AppModel(
+        repositorySourceService: nil,
+        repositoryJobStore: nil,
+        initializeFullWorkspace: false,
+        researchAcquisitionOperations: operations,
+        vaultRootProvider: { root }
+    )
+    model.researchQuery = "PUBLIC: What does HTTP define?"
+    model.researchSourceURL =
+        "https://www.rfc-editor.org/rfc/rfc9110.txt"
+
+    model.prepareResearchAcquisition()
+    await waitForResearchPreparation(model)
+    #expect(model.canApprovePendingResearchAcquisition)
+    #expect(model.pendingActionCard == proposal.actionCard)
+
+    model.openApprovalsWorkspace()
+    #expect(model.selection == .approvals)
+    #expect(AppModel.watchedCaptureFailureMessage.contains("watched folder"))
+}

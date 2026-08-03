@@ -37,29 +37,79 @@ public struct MacCareOrganizationPlan: Codable, Equatable, Sendable {
             target: "Mac Care organization action \(id.uuidString)",
             accessedResources: [sourceRelativePath, destinationRelativePath],
             excludedResources: ["vault", "CAM", "repositories", "credentials"],
-            riskReason: "Moves one selected local file and requires verified undo.",
+            riskReason: "Describes one selected local move for the user to perform manually. CAM Assistant will not move the file.",
             outboundManifest: OutboundManifest(operation: actionID, requestedRole: nil, stateVersion: stateRevision, riskClass: .generic, redactedPayload: payload, payloadSHA256: GoldenRetrievalManifest.sha256(of: data), outboundByteCount: data.count),
             expiresAt: expiresAt,
-            rollbackDescription: "Move the verified destination file back to its original vacant path."
+            rollbackDescription: "If you moved the file yourself, move it back with an inverse mv or Finder drag. The app has no undo executor."
         )
     }
 }
 
 public enum MacCareOrganizationActionStatus: String, Codable, Equatable, Sendable { case verified }
 public struct MacCareOrganizationActionResult: Equatable, Sendable { public let status: MacCareOrganizationActionStatus; public let approvalID: UUID }
+
+/// App-owned organization mutation is gated closed until a complete reversible
+/// design (verified undo, durable receipts, postconditions) is approved.
+/// Callers must use ``MacCareOrganizationManualGuide`` so the user moves files.
+public enum MacCareOrganizationExecutorError: Error, Equatable, Sendable {
+    case appOwnedMutationUnavailable
+}
+
 public struct MacCareOrganizationExecutor: Sendable {
     public init() {}
-    public func execute(plan: MacCareOrganizationPlan, rootURL: URL, approvalID: UUID, approvalStore: ApprovalStore, card: ActionCard, now: Date = Date()) throws -> MacCareOrganizationActionResult {
-        let receipt = try approvalStore.consume(approvalID: approvalID, for: card, now: now)
+
+    /// Always refuses. Does not consume approvals, open paths, or move files.
+    public func execute(
+        plan: MacCareOrganizationPlan,
+        rootURL: URL,
+        approvalID: UUID,
+        approvalStore: ApprovalStore,
+        card: ActionCard,
+        now: Date = Date()
+    ) throws -> MacCareOrganizationActionResult {
+        _ = plan
+        _ = rootURL
+        _ = approvalID
+        _ = approvalStore
+        _ = card
+        _ = now
+        throw MacCareOrganizationExecutorError.appOwnedMutationUnavailable
+    }
+}
+
+/// Copyable manual steps for a planned organization move. The user runs these
+/// outside the app; the assistant never executes them.
+public struct MacCareOrganizationManualGuide: Equatable, Sendable {
+    public let notice: String
+    public let shellCommand: String
+    public let finderSteps: [String]
+    public let inverseShellCommand: String
+
+    public static let userResponsibilityNotice =
+        "CAM Assistant will not move, rename, or delete this file. Copy the command and run it yourself if you choose."
+
+    public static func make(
+        plan: MacCareOrganizationPlan,
+        rootURL: URL
+    ) -> MacCareOrganizationManualGuide {
         let root = rootURL.standardizedFileURL
-        let source = root.appending(path: plan.sourceRelativePath)
-        let destination = root.appending(path: plan.destinationRelativePath)
-        let data = try Data(contentsOf: source)
-        guard Int64(data.count) == plan.sourceByteCount, GoldenRetrievalManifest.sha256(of: data) == plan.sourceSHA256, !FileManager.default.fileExists(atPath: destination.path) else { throw MacCareOrganizationPlanError.sourceReadFailed }
-        try FileManager.default.moveItem(at: source, to: destination)
-        let moved = try Data(contentsOf: destination)
-        guard GoldenRetrievalManifest.sha256(of: moved) == plan.sourceSHA256 else { throw MacCareOrganizationPlanError.sourceReadFailed }
-        return MacCareOrganizationActionResult(status: .verified, approvalID: receipt.approvalID)
+        let source = root.appending(path: plan.sourceRelativePath).path
+        let destination = root.appending(path: plan.destinationRelativePath).path
+        return MacCareOrganizationManualGuide(
+            notice: userResponsibilityNotice,
+            shellCommand: "mv \(shellQuote(source)) \(shellQuote(destination))",
+            finderSteps: [
+                "Open the organization root in Finder.",
+                "Locate \(plan.sourceRelativePath).",
+                "Move or drag it to \(plan.destinationRelativePath) only if you intend the change.",
+                "Confirm the destination path is vacant before replacing anything.",
+            ],
+            inverseShellCommand: "mv \(shellQuote(destination)) \(shellQuote(source))"
+        )
+    }
+
+    private static func shellQuote(_ path: String) -> String {
+        "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }
 

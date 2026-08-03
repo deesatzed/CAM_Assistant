@@ -56,7 +56,14 @@ struct AssistantWindow: View {
         case .repositories:
             RepositoryView(model: model)
         case .macCare:
-            MacCareView(presentation: model.macCarePresentation, errorMessage: model.macCareError, isAssessing: model.isMacCareAssessing, assess: model.assessMacCareReadOnly)
+            MacCareView(
+                presentation: model.macCarePresentation,
+                errorMessage: model.macCareError,
+                isAssessing: model.isMacCareAssessing,
+                assess: model.assessMacCareReadOnly
+            )
+        case .approvals:
+            ApprovalsView(model: model)
         case .meaningPreview:
             if model.isMeaningPreviewVisible {
                 MeaningPreviewView(model: model)

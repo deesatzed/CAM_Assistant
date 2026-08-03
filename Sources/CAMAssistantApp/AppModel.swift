@@ -13,6 +13,7 @@ enum AssistantSection: String, CaseIterable, Identifiable {
     case research = "Research"
     case repositories = "Repositories"
     case macCare = "Mac Care"
+    case approvals = "Approvals"
     case settings = "Settings"
 
     var id: Self { self }
@@ -39,6 +40,8 @@ enum AssistantSection: String, CaseIterable, Identifiable {
             "folder.badge.gearshape"
         case .macCare:
             "desktopcomputer"
+        case .approvals:
+            "checkmark.shield"
         case .settings:
             "gearshape"
         }
@@ -1224,12 +1227,20 @@ final class AppModel: ObservableObject {
         }
     )
     private lazy var watchedSourceService: WatchedSourceService? =
-        Self.makeWatchedSourceService { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.watchedSourceCaptureRefresh.perform()
-                self?.reloadIngestJobs()
+        Self.makeWatchedSourceService(
+            onCapture: { [weak self] in
+                Task { @MainActor [weak self] in
+                    self?.watchedSourceCaptureRefresh.perform()
+                    self?.reloadIngestJobs()
+                }
+            },
+            onCaptureFailure: { [weak self] message in
+                Task { @MainActor [weak self] in
+                    self?.watchedSourceError = message
+                    self?.captureMessage = message
+                }
             }
-        }
+        )
     private let repositorySourceService: RepositorySourceService?
     private let repositoryJobStore: RepositoryJobStore?
     private let repositorySemanticOperations: RepositorySemanticOperations
@@ -2490,6 +2501,14 @@ final class AppModel: ObservableObject {
         pendingActionCard = card
     }
 
+    func openApprovalsWorkspace() {
+        selection = .approvals
+    }
+
+    var canApprovePendingResearchAcquisition: Bool {
+        researchAcquisitionProposal != nil && !isResearchAcquiring
+    }
+
     func sendLocalQuestion() {
         do {
             let databaseURL = try LocalConversationContextProvider.defaultDatabaseURL()
@@ -3039,9 +3058,14 @@ final class AppModel: ObservableObject {
         }
     }
 
+    nonisolated static let watchedCaptureFailureMessage =
+        "A watched folder capture could not be stored or indexed locally."
+
     private nonisolated static func makeWatchedSourceService(
-        onCapture: @escaping @Sendable () -> Void
+        onCapture: @escaping @Sendable () -> Void,
+        onCaptureFailure: @escaping @Sendable (String) -> Void
     ) -> WatchedSourceService? {
+        let failureMessage = watchedCaptureFailureMessage
         do {
             let store = WatchedSourceConfigurationStore(
                 url: try LocalVaultPaths.rootURL().appending(path: "watched-sources.json")
@@ -3057,7 +3081,9 @@ final class AppModel: ObservableObject {
                     _ = try queue.processNext()
                     try queue.close()
                     onCapture()
-                } catch {}
+                } catch {
+                    onCaptureFailure(failureMessage)
+                }
             }
             return WatchedSourceService(store: store, manager: manager)
         } catch {

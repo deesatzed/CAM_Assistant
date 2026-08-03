@@ -113,8 +113,9 @@ case "$suite" in
     "$REPOSITORY_ROOT/Tests/ReleaseProofTests/scan-release-privacy-tests.sh"
     "$SCRIPT_DIR/package-app.sh"
     "$REPOSITORY_ROOT/Tests/ReleaseProofTests/package-build-identity-tests.sh"
+    mkdir -p "$REPOSITORY_ROOT/artifacts"
     "$SCRIPT_DIR/scan-release-privacy.sh" \
-      "$REPOSITORY_ROOT/docs/evidence/task-18-release-privacy-scan.json" \
+      "$REPOSITORY_ROOT/artifacts/release-privacy-scan.json" \
       "$REPOSITORY_ROOT/artifacts/CAM Assistant.app" \
       "$REPOSITORY_ROOT/docs/evidence"
     ;;

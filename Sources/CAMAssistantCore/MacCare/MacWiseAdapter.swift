@@ -49,7 +49,8 @@ public struct MacCarePresentation: Equatable, Sendable {
             findings.append("Review the \(assessment.applicationCount)-application inventory; usage and removal recommendations are unavailable.")
         }
         reviewFindings = findings
-        mutationStatus = "Apply and undo are unavailable"
+        mutationStatus =
+            "Apply and undo are unavailable. CAM Assistant does not move files; use copyable manual steps if you reorganize yourself."
     }
 }
 

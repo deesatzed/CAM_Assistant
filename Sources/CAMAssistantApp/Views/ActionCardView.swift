@@ -3,6 +3,13 @@ import SwiftUI
 
 struct ActionCardView: View {
     let card: ActionCard?
+    var onApprove: (() -> Void)? = nil
+    var approveTitle: String = "Approve"
+    var isApproving: Bool = false
+    var approveDisabled: Bool = false
+    var onCancel: (() -> Void)? = nil
+    var cancelTitle: String = "Cancel"
+    var isCancelling: Bool = false
 
     var body: some View {
         Group {
@@ -24,8 +31,26 @@ struct ActionCardView: View {
                         LabeledContent("Required", value: "Exact approval")
                         LabeledContent("Expires", value: card.expiresAt.formatted())
                         LabeledContent("Rollback", value: card.rollbackDescription)
-                        Text("This screen is read-only. No action is dispatched from this card.")
+                        if let onApprove {
+                            Button(approveTitle, action: onApprove)
+                                .disabled(approveDisabled || isApproving)
+                                .accessibilityIdentifier("approvals-approve")
+                            if isApproving {
+                                ProgressView("Working…")
+                                    .controlSize(.small)
+                            }
+                        } else if onCancel == nil {
+                            Text(
+                                "Open Approvals to approve or cancel this action. "
+                                    + "This card alone does not dispatch work."
+                            )
                             .foregroundStyle(.secondary)
+                        }
+                        if let onCancel {
+                            Button(cancelTitle, action: onCancel)
+                                .disabled(isCancelling)
+                                .accessibilityIdentifier("approvals-cancel")
+                        }
                     }
                 }
                 .formStyle(.grouped)
@@ -33,10 +58,13 @@ struct ActionCardView: View {
                 ContentUnavailableView(
                     "No action awaiting approval",
                     systemImage: "checklist",
-                    description: Text("Local reads can run within enabled modules. External or mutating requests appear here first as exact, reviewable action cards.")
+                    description: Text(
+                        "Local reads can run within enabled modules. External or mutating requests appear here first as exact, reviewable action cards."
+                    )
                 )
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Action proposals")
     }
 }
