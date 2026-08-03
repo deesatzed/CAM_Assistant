@@ -837,15 +837,19 @@ decoded_preview_digest() {
 
 assert_ordinary_unchanged() {
   local after_tables="$(ordinary_tables)"
-  local before_tables="${(j:\n:)${(ok)ORDINARY_BEFORE}}"
-  if [[ "$after_tables" != "$before_tables" ]]; then
+  # Normalize order and trailing newlines so the set compare is order-stable.
+  local before_sorted after_sorted
+  before_sorted="$(print -rl -- ${(ok)ORDINARY_BEFORE} | /usr/bin/sort)"
+  after_sorted="$(print -rl -- ${(f)after_tables} | /usr/bin/sort)"
+  if [[ "$after_sorted" != "$before_sorted" ]]; then
     print -u2 "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED diagnostic=ordinary-tables-before"
-    print -u2 "$before_tables"
+    print -u2 "$before_sorted"
     print -u2 "CAM_ASSISTANT_MEANING_PREVIEW_PACKAGED diagnostic=ordinary-tables-after"
-    print -u2 "$after_tables"
+    print -u2 "$after_sorted"
     fail ordinary-table-set-changed
   fi
-  for table in ${(f)after_tables}; do
+  for table in ${(f)after_sorted}; do
+    [[ -n "$table" ]] || continue
     local before_fp="$ORDINARY_BEFORE[$table]"
     local after_fp="$(ordinary_table_fingerprint "$table")"
     if [[ "$after_fp" != "$before_fp" ]]; then
