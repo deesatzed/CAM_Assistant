@@ -4,10 +4,11 @@ import SwiftUI
 struct Sidebar: View {
     @Binding var selection: AssistantSection
     let health: AppHealth
+    let experience: AppExperience
     let meaningPreviewVisible: Bool
 
     private var visibleSections: [AssistantSection] {
-        AssistantSection.allCases.filter {
+        experience.visibleSections.filter {
             meaningPreviewVisible || $0 != .meaningPreview
         }
     }
@@ -44,6 +45,7 @@ struct Sidebar: View {
 private extension AssistantSection {
     var accessibilityIdentifier: String {
         switch self {
+        case .home: "assistant-section-home"
         case .assistant: "assistant-section-assistant"
         case .meaningPreview: "meaning-preview-sidebar"
         case .library: "assistant-section-library"

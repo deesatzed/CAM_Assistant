@@ -40,6 +40,11 @@ only after a milestone is verified; early scaffolding is not product readiness.
   user-outcome gates; `scripts/verify.sh barebones-goal` reports
   `CAM_ASSISTANT_BAREBONES_GOAL status=pass gates=7`, and portability plus
   `git diff --check` pass. The broader goal remains preserved as parked history.
+- Barebones Task 2 is green after an observed compile-red test: production now
+  defaults to an injected `.primary` experience containing only Home, Library,
+  and Settings. The complete specialist interface remains available only by
+  explicit `.developer` injection. All 76 app tests and offline smoke pass;
+  model, cloud, CAM, and specialist authority were unchanged.
 
 ## Current Assumptions
 

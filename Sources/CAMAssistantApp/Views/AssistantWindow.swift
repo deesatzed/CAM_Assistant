@@ -27,6 +27,7 @@ struct AssistantWindow: View {
             Sidebar(
                 selection: $model.selection,
                 health: model.health,
+                experience: model.experience,
                 meaningPreviewVisible: model.isMeaningPreviewVisible
             )
         } detail: {
@@ -39,6 +40,8 @@ struct AssistantWindow: View {
     @ViewBuilder
     private var detail: some View {
         switch model.selection {
+        case .home:
+            ConversationView(model: model)
         case .assistant:
             ConversationView(model: model)
         case .library:

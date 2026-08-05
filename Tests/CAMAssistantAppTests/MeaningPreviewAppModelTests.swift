@@ -103,7 +103,7 @@ func meaningPreviewAppModelTerminalActionsAndDisable() async {
     #expect(model.meaningPreviewStatus?.hasPrefix("Helpful recorded") == true)
 
     await model.disableMeaningPreview()
-    #expect(model.selection == .assistant)
+    #expect(model.selection == model.experience.rootSection)
     #expect(!model.isMeaningPreviewVisible)
     #expect(model.meaningPreviewSelectedSource == nil)
     #expect(await runtime.disableCount == 1)
@@ -200,7 +200,7 @@ func meaningPreviewAppModelRecoveryNormalizesDisabledNavigation() async {
 
     await model.recoverMeaningPreview()
     #expect(model.meaningPreviewLifecycle == .disabled)
-    #expect(model.selection == .assistant)
+    #expect(model.selection == model.experience.rootSection)
     #expect(model.meaningPreviewPresentation == nil)
     #expect(model.meaningPreviewSelectedSource == nil)
     #expect(model.meaningPreviewStatus

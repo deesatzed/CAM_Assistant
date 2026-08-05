@@ -3,6 +3,7 @@ import AppKit
 import SwiftUI
 
 enum AssistantSection: String, CaseIterable, Identifiable {
+    case home = "Home"
     case assistant = "Assistant"
     case meaningPreview = "Meaning Preview"
     case library = "Library"
@@ -20,6 +21,8 @@ enum AssistantSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .home:
+            "house"
         case .assistant:
             "sparkles"
         case .meaningPreview:
@@ -1105,7 +1108,8 @@ struct ResearchAcquisitionOperations: Sendable {
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var selection: AssistantSection = .assistant
+    @Published var selection: AssistantSection
+    let experience: AppExperience
     @Published private(set) var health: AppHealth
     @Published private(set) var modelSettings: ModelSettingsState?
     @Published private(set) var modelSettingsError: String?
@@ -1292,6 +1296,7 @@ final class AppModel: ObservableObject {
         Task<MeaningPreviewReflectivePresentation?, Error>?
 
     init(
+        experience: AppExperience = .productionDefault,
         health: AppHealth = .evaluate(
             localModelAvailable: false,
             camRuntimeAvailable: false,
@@ -1311,6 +1316,8 @@ final class AppModel: ObservableObject {
             try LocalVaultPaths.rootURL()
         }
     ) {
+        self.experience = experience
+        selection = experience.rootSection
         self.health = health
         self.foregroundActivation = foregroundActivation
         self.repositorySourceService = repositorySourceService
@@ -1478,7 +1485,7 @@ final class AppModel: ObservableObject {
             meaningPreviewError = nil
             if receipt.lifecycle == .disabled
                 || receipt.lifecycle == .unavailable {
-                selection = .assistant
+                selection = experience.rootSection
             }
             meaningPreviewStatus = receipt.archivedPreviousState
                 ? "Meaning Preview isolated state was archived and reinitialized."
@@ -1507,7 +1514,7 @@ final class AppModel: ObservableObject {
             let lifecycle = try await meaningPreviewRuntime.disable()
             guard isCurrentMeaningPreviewOperation(operation) else { return }
             meaningPreviewLifecycle = lifecycle
-            selection = .assistant
+            selection = experience.rootSection
             meaningPreviewStatus = "Meaning Preview disabled. Ordinary Assistant is unchanged."
             meaningPreviewError = nil
         } catch {
@@ -3281,7 +3288,7 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 switch action {
                 case .openAssistant:
-                    self.selection = .assistant
+                    self.selection = self.experience.rootSection
                     self.foregroundActivation.perform()
                 case .captureClipboard:
                     self.captureCurrentClipboard()

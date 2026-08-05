@@ -5,7 +5,7 @@
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
 | BARE-001 | Controlling user-first contract | Complete | `GOAL_BAREBONES.md` and repository verifier pass |
-| BARE-002 | Three-place primary shell | Pending | Fresh production profile exposes only Home, Library, Settings |
+| BARE-002 | Three-place primary shell | Complete | Fresh production profile exposes only Home, Library, Settings |
 | BARE-003 | Friendly Home capture | Pending | One obvious Save and Ask path with ordinary-language status |
 | BARE-004 | Recognizable searchable Library | Pending | Titles, dates, previews, search, citation navigation, Details |
 | BARE-005 | One local Ask path | Pending | Local-model cited answer or visible model-free matches; no fallback |
