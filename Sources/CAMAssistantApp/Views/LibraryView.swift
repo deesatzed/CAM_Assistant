@@ -3,195 +3,232 @@ import SwiftUI
 
 struct LibraryView: View {
     @ObservedObject var model: AppModel
+    @State private var searchText = ""
+    @State private var selectedType = "All"
+
+    private var activeItems: [LibraryItemPresentation] {
+        let items = model.libraryPresentation.rows.map(LibraryItemPresentation.init)
+        return LibraryItemPresentation.filter(items, query: searchText)
+            .filter { selectedType == "All" || $0.type == selectedType }
+    }
+
+    private var availableTypes: [String] {
+        ["All"] + Set(
+            model.libraryPresentation.rows.map(\.modalityLabel)
+        ).sorted()
+    }
 
     private var selectedRow: LibrarySourceRow? {
-        guard let selectedID = model.selectedLibrarySourceID else {
-            return nil
-        }
-        return (model.libraryPresentation.rows
-            + model.libraryPresentation.hiddenRows)
+        guard let selectedID = model.selectedLibrarySourceID else { return nil }
+        return (model.libraryPresentation.rows + model.libraryPresentation.hiddenRows)
             .first { $0.id == selectedID }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("\(model.libraryPresentation.documentCount) active indexed local sources").font(.title3)
-                Spacer()
-                Button("Refresh", action: model.reloadLibrary).disabled(model.isRefreshingWorkspace)
-            }
-            if model.isRefreshingWorkspace { ProgressView("Refreshing local library") }
-            if model.isUpdatingLibraryLifecycle {
-                ProgressView("Updating local source visibility")
-            }
-            if model.libraryPresentation.documentCount == 0
-                && model.libraryPresentation.hiddenCount == 0 {
-                ContentUnavailableView("Your local library is empty", systemImage: "books.vertical", description: Text("Capture the clipboard or index a selected repository to add local sources."))
-            } else {
-                ForEach(DocumentModality.allCases, id: \.self) { modality in
-                    if let count = model.libraryPresentation.modalityCounts[modality], count > 0 { LabeledContent(modality.rawValue.capitalized, value: "\(count)") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                if model.isRefreshingWorkspace {
+                    ProgressView("Refreshing your Library")
                 }
-                Divider()
-                Text("Local sources").font(.headline)
-                ForEach(model.libraryPresentation.rows) { row in
+                if model.libraryPresentation.documentCount == 0 {
+                    emptyState
+                } else {
+                    searchAndFilter
+                    itemList
+                }
+                if let selectedRow {
+                    itemDetail(selectedRow)
+                }
+                hiddenItems
+                if let error = model.libraryError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                }
+            }
+            .frame(maxWidth: 820, alignment: .leading)
+            .padding()
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Library. \(model.libraryPresentation.documentCount) saved items.")
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Library")
+                    .font(.largeTitle.bold())
+                Text(
+                    "\(model.libraryPresentation.documentCount) "
+                        + (model.libraryPresentation.documentCount == 1
+                            ? "saved item" : "saved items")
+                )
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Refresh", action: model.reloadLibrary)
+                .disabled(model.isRefreshingWorkspace)
+        }
+    }
+
+    private var emptyState: some View {
+        ContentUnavailableView(
+            "Nothing saved yet",
+            systemImage: "books.vertical",
+            description: Text("Use Save Clipboard on Home to add your first item.")
+        )
+    }
+
+    private var searchAndFilter: some View {
+        HStack {
+            TextField("Search your Library", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Search your Library")
+            Picker("Type", selection: $selectedType) {
+                ForEach(availableTypes, id: \.self) { type in
+                    Text(type).tag(type)
+                }
+            }
+            .frame(maxWidth: 180)
+        }
+    }
+
+    @ViewBuilder
+    private var itemList: some View {
+        if activeItems.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+        } else {
+            LazyVStack(spacing: 8) {
+                ForEach(activeItems) { item in
                     Button {
-                        model.selectLibrarySource(row.id)
+                        model.selectLibrarySource(item.sourceID)
                     } label: {
-                        HStack {
-                            Text(row.modalityLabel)
-                            Text(row.id).font(.caption).foregroundStyle(.secondary)
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: icon(for: item.type))
+                                .font(.title2)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.title)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text("\(item.dateText) · \(item.type)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(item.preview.isEmpty ? "No preview available" : item.preview)
+                                    .lineLimit(2)
+                                    .foregroundStyle(.secondary)
+                            }
                             Spacer()
-                            Text("\(row.captures.count) \(row.captures.count == 1 ? "capture" : "captures")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
                         }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Open local \(row.modalityLabel) source \(row.id)")
+                    .accessibilityLabel(item.accessibilityLabel)
+                    .accessibilityHint("Opens this saved item")
                 }
-                if let row = selectedRow {
-                    Divider()
-                    Text("Source detail").font(.headline)
-                    LabeledContent("Source ID", value: row.id)
-                    LabeledContent("Citation passage", value: row.passageID)
-                    LabeledContent("Modality", value: row.modalityLabel)
-                    LabeledContent("Extractor", value: row.extractorID)
-                    LabeledContent(
-                        "Visibility",
-                        value: row.lifecycle.rawValue.capitalized
-                    )
-                    Text(row.preview)
-                        .textSelection(.enabled)
-                        .accessibilityLabel("Derived local text preview. \(row.preview)")
-                    Button("Inspect Immutable Source") {
-                        model.inspectRawLibrarySource(row.id)
-                    }
-                    .disabled(model.isInspectingRawSource)
-                    .accessibilityHint(
-                        "Verifies the local SHA-256 identity, then shows a bounded text preview or metadata only for binary content. It does not change the source."
-                    )
-                    if model.isInspectingRawSource {
-                        ProgressView("Verifying immutable local source")
-                    }
-                    if let inspection = model.rawSourceInspection,
-                       inspection.sourceID.rawValue == row.id {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Verified immutable source")
-                                .font(.subheadline)
-                            LabeledContent(
-                                "SHA-256",
-                                value: inspection.verifiedSHA256
-                            )
-                            LabeledContent(
-                                "Bytes",
-                                value: "\(inspection.byteCount)"
-                            )
-                            LabeledContent(
-                                "Content type",
-                                value: inspection.contentType
-                            )
-                            LabeledContent(
-                                "Original name",
-                                value: inspection.sourceName
-                            )
-                            if let preview = inspection.preview {
-                                Text(preview)
-                                    .textSelection(.enabled)
-                                    .accessibilityLabel(
-                                        "Verified bounded immutable source preview. \(preview)"
-                                    )
-                                if inspection.isPreviewTruncated {
-                                    Text("Preview truncated at the local safety limit.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            } else {
-                                Text(
-                                    "Binary content is verified, but raw bytes are not rendered as text."
-                                )
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
+            }
+        }
+    }
+
+    private func itemDetail(_ row: LibrarySourceRow) -> some View {
+        let item = LibraryItemPresentation(row: row)
+        return GroupBox(item.title) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(item.preview.isEmpty ? "No preview available" : item.preview)
+                    .textSelection(.enabled)
+                DisclosureGroup("Details") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        LabeledContent("Type", value: item.type)
+                        LabeledContent("Saved", value: item.dateText)
+                        LabeledContent("Source ID", value: row.id)
+                        LabeledContent("Citation passage", value: row.passageID)
+                        LabeledContent("Extractor", value: row.extractorID)
+                        Button("Verify original source") {
+                            model.inspectRawLibrarySource(row.id)
                         }
-                    }
-                    Button(row.lifecycleActionLabel) {
-                        model.setLibrarySourceLifecycle(
-                            row.lifecycle == .active ? .hidden : .active,
-                            sourceID: row.id
-                        )
-                    }
-                    .disabled(model.isUpdatingLibraryLifecycle)
-                    .accessibilityHint("Hides this derived source from Library citation navigation and local chat without deleting immutable source bytes or provenance.")
-                    Text("Capture provenance").font(.subheadline)
-                    ForEach(row.captures) { capture in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(capture.sourceName)
-                            Text("\(capture.originLabel) · \(capture.contentType)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        .disabled(model.isInspectingRawSource)
+                        rawInspection(for: row)
+                        provenance(row)
+                        Button(row.lifecycleActionLabel) {
+                            model.setLibrarySourceLifecycle(
+                                row.lifecycle == .active ? .hidden : .active,
+                                sourceID: row.id
+                            )
                         }
-                        .accessibilityElement(children: .combine)
+                        .disabled(model.isUpdatingLibraryLifecycle)
                     }
+                    .padding(.top, 6)
                 }
-                if !model.libraryPresentation.hiddenRows.isEmpty {
-                    Divider()
-                    Text("Hidden local sources").font(.headline)
-                    Text("Hidden sources remain in the immutable local vault and keep their provenance. Restore one to include it in Library citation navigation and local chat.")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func rawInspection(for row: LibrarySourceRow) -> some View {
+        if model.isInspectingRawSource {
+            ProgressView("Verifying the original source")
+        }
+        if let inspection = model.rawSourceInspection,
+           inspection.sourceID.rawValue == row.id {
+            LabeledContent("SHA-256", value: inspection.verifiedSHA256)
+            LabeledContent("Size", value: "\(inspection.byteCount) bytes")
+            LabeledContent("Original name", value: inspection.sourceName)
+            if let preview = inspection.preview {
+                Text(preview).textSelection(.enabled)
+            } else {
+                Text("This binary source cannot be shown as text.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func provenance(_ row: LibrarySourceRow) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Save history").font(.subheadline.bold())
+            ForEach(row.captures) { capture in
+                Text("\(capture.sourceName) · \(capture.originLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var hiddenItems: some View {
+        if !model.libraryPresentation.hiddenRows.isEmpty {
+            DisclosureGroup(
+                "Hidden items (\(model.libraryPresentation.hiddenCount))"
+            ) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Hidden items are not included in search or answers.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     ForEach(model.libraryPresentation.hiddenRows) { row in
                         HStack {
-                            Button {
-                                model.selectLibrarySource(row.id)
-                            } label: {
-                                VStack(alignment: .leading) {
-                                    Text(row.modalityLabel)
-                                    Text(row.id)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(
-                                "Open hidden local \(row.modalityLabel) source \(row.id)"
-                            )
+                            Text(LibraryItemPresentation(row: row).title)
                             Spacer()
-                            Button(row.lifecycleActionLabel) {
-                                model.setLibrarySourceLifecycle(
-                                    .active,
-                                    sourceID: row.id
-                                )
+                            Button("Restore") {
+                                model.setLibrarySourceLifecycle(.active, sourceID: row.id)
                             }
                             .disabled(model.isUpdatingLibraryLifecycle)
-                            .accessibilityHint("Restores this immutable local source to Library citation navigation and local chat.")
                         }
                     }
                 }
+                .padding(.top, 6)
             }
-            if let error = model.libraryError { Text(error).foregroundStyle(.red) }
-            if !model.knowledgeClaims.isEmpty {
-                Divider(); Text("Kept local knowledge").font(.headline)
-                ForEach(model.knowledgeClaims, id: \.id) { claim in Text("\(claim.kind.rawValue.capitalized): \(claim.statement)").font(.caption) }
-                if model.knowledgeClaims.count >= 2 {
-                    Divider(); Text("Record contradiction for review").font(.headline)
-                    Picker("First position", selection: $model.contradictionLeftID) { Text("Choose").tag(""); ForEach(model.knowledgeClaims, id: \.id) { Text($0.statement).tag($0.id) } }
-                    Picker("Second position", selection: $model.contradictionRightID) { Text("Choose").tag(""); ForEach(model.knowledgeClaims, id: \.id) { Text($0.statement).tag($0.id) } }
-                    TextField("Steelman", text: $model.contradictionSteelman)
-                    TextField("Bridge suggestion (optional)", text: $model.contradictionBridgeSuggestion)
-                    Button("Keep Contradiction Candidate", action: model.keepContradictionCandidate)
-                    if let error = model.knowledgeError { Text(error).foregroundStyle(.red).font(.caption) }
-                }
-            }
-            if !model.contradictionCandidates.isEmpty {
-                Text("Unresolved contradiction candidates").font(.headline)
-                ForEach(model.contradictionCandidates, id: \.id) { candidate in
-                    Text("\(candidate.left.statement) ↔ \(candidate.right.statement)").font(.caption)
-                }
-            }
-            Spacer()
         }
-        .padding()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Library. \(model.libraryPresentation.documentCount) active and \(model.libraryPresentation.hiddenCount) hidden indexed local sources.")
+    }
+
+    private func icon(for type: String) -> String {
+        switch type.lowercased() {
+        case "image": "photo"
+        case "audio": "waveform"
+        case "code": "chevron.left.forwardslash.chevron.right"
+        case "pdf": "doc.richtext"
+        default: "doc.text"
+        }
     }
 }

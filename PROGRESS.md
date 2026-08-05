@@ -1,5 +1,16 @@
 # CAM Assistant Progress
 
+## 2026-08-05 - Barebones Task 5: recognizable Library
+
+- Replaced identifier-first Library rows with recognizable filenames or safe
+  fallback titles, saved dates, short previews, type icons, search, and a type
+  filter. Hidden items remain excluded from normal search and answers.
+- Moved source hashes, passage IDs, extractor identity, integrity inspection,
+  provenance, and visibility controls under Details. VoiceOver labels describe
+  the human-facing item and do not read its source hash.
+- Verification: 4 Library UX tests, 27 ingest/lifecycle tests, and 17 app
+  accessibility contract tests pass.
+
 ## 2026-08-05 - Barebones Task 4: friendly capture recovery
 
 - Added a presentation boundary that turns clipboard and watched-folder capture

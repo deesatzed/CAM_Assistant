@@ -10,8 +10,9 @@ func workspaceAccessibilityContainersPreserveChildren() throws {
             fileName: "LibraryView.swift",
             rootLabelPrefix: "Library.",
             requiredStateText: [
-                "Your local library is empty",
-                "Capture the clipboard or index a selected repository",
+                "Nothing saved yet",
+                "Use Save Clipboard on Home to add your first item",
+                "Search your Library",
                 "Button(\"Refresh\"",
             ]
         ),
@@ -631,13 +632,17 @@ private struct AccessibilitySourceContract {
     let requiredStateText: [String]
 
     func isSatisfied(by source: String) -> Bool {
-        let rootChain = """
-        .padding()
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("\(rootLabelPrefix)
-        """
+        let compactSource = source.components(
+            separatedBy: .whitespacesAndNewlines
+        ).joined()
+        let compactPrefix = rootLabelPrefix.components(
+            separatedBy: .whitespacesAndNewlines
+        ).joined()
+        let rootChain =
+            ".padding().accessibilityElement(children:.contain)"
+            + ".accessibilityLabel(\"\(compactPrefix)"
 
-        return source.contains(rootChain)
+        return compactSource.contains(rootChain)
             && requiredStateText.allSatisfy(source.contains)
     }
 }
