@@ -1109,6 +1109,7 @@ struct ResearchAcquisitionOperations: Sendable {
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selection: AssistantSection
+    @Published var requestedSettingsSection: BarebonesSettingsSection?
     let experience: AppExperience
     @Published private(set) var health: AppHealth
     @Published private(set) var modelSettings: ModelSettingsState?
@@ -2550,6 +2551,18 @@ final class AppModel: ObservableObject {
             }
             self?.isCheckingLocalModel = false
         }
+    }
+
+    func checkLocalAIFromSettings() {
+        refreshLocalModelCatalog()
+        if (try? activeLocalModelAssignment()) != nil {
+            checkSelectedLocalModel()
+        }
+    }
+
+    func openCaptureSettings() {
+        requestedSettingsSection = .capture
+        selection = .settings
     }
 
     func applyLocalEndpointPreset(_ preset: LocalEndpointPreset) {

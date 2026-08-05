@@ -58,7 +58,7 @@ struct HomeView: View {
                         "Saves text currently copied on this Mac to your private Library."
                     )
                 Button("Watch a Folder") {
-                    model.selection = .settings
+                    model.openCaptureSettings()
                 }
                 .buttonStyle(.link)
                 .accessibilityHint(

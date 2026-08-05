@@ -1,24 +1,6 @@
 import CAMAssistantCore
 import SwiftUI
 
-enum SettingsPane: String, CaseIterable, Identifiable {
-    case models
-    case hotkeys
-    case captureSources
-    case backupRecovery
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .models: "Models"
-        case .hotkeys: "Hotkeys"
-        case .captureSources: "Capture Sources"
-        case .backupRecovery: "Backup & Recovery"
-        }
-    }
-}
-
 struct AssistantWindow: View {
     @ObservedObject var model: AppModel
 
@@ -74,49 +56,7 @@ struct AssistantWindow: View {
                 ConversationView(model: model)
             }
         case .settings:
-            SettingsWorkspace(model: model)
-        }
-    }
-}
-
-private struct SettingsWorkspace: View {
-    @ObservedObject var model: AppModel
-    @State private var selectedPane = SettingsPane.models
-    @State private var isMeaningPreviewSettingsPresented = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Picker("Settings pane", selection: $selectedPane) {
-                    ForEach(SettingsPane.allCases) { pane in
-                        Text(pane.title).tag(pane)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Button("Meaning Preview…") {
-                    isMeaningPreviewSettingsPresented = true
-                }
-                .accessibilityIdentifier("meaning-preview-settings-open")
-                .accessibilityHint("Opens the optional Meaning Preview lifecycle and permission settings even while the Preview is disabled.")
-            }
-            .padding()
-
-            switch selectedPane {
-            case .models:
-                ModelProfilesView(model: model)
-            case .hotkeys:
-                HotkeySettingsView(model: model)
-            case .captureSources:
-                CaptureSourcesView(model: model)
-            case .backupRecovery:
-                BackupRecoveryView(model: model)
-            }
-        }
-        .accessibilityLabel("Assistant settings")
-        .sheet(isPresented: $isMeaningPreviewSettingsPresented) {
-            MeaningPreviewSettingsView(model: model)
-                .frame(minWidth: 560, minHeight: 480)
+            BarebonesSettingsView(model: model)
         }
     }
 }

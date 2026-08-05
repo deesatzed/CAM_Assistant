@@ -1,5 +1,18 @@
 # CAM Assistant Progress
 
+## 2026-08-05 - Barebones Task 8: layered Settings
+
+- Replaced the model-first segmented settings workspace with four ordinary
+  groups: Capture, Local AI, Backup & Restore, and Advanced.
+- Primary Local AI reports Not running, Detected, Checking, or Ready; exposes
+  one picker when models are found and one Check Again action. Home's Watch a
+  Folder link now opens folder management directly.
+- Endpoint editing, provider configuration, model profile revisions, shortcuts,
+  and experimental Meaning Preview controls remain available only through the
+  explicit Advanced sheet. OpenRouter is absent from ordinary Settings copy.
+- Verification: 3 barebones Settings tests, 4 hotkey/settings tests, 3 model
+  selection tests, and 3 backup AppModel tests pass.
+
 ## 2026-08-05 - Barebones Task 7: reversible Keep
 
 - Keep now writes only the concise displayed answer, exact citations,

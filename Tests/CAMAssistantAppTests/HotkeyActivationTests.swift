@@ -16,18 +16,18 @@ func globalOpenHotkeyActivatesBeforeRaisingWindow() {
     #expect(events == ["prepare", "activate", "raise"])
 }
 
-@Test("settings exposes every required local pane as a distinct selection")
-func settingsExposesEveryRequiredPane() {
+@Test("settings exposes every required user-facing group as a distinct selection")
+func settingsExposesEveryRequiredGroup() {
     #expect(
-        SettingsPane.allCases.map(\.title)
+        BarebonesSettingsSection.allCases.map(\.title)
             == [
-                "Models",
-                "Hotkeys",
-                "Capture Sources",
-                "Backup & Recovery",
+                "Capture",
+                "Local AI",
+                "Backup & Restore",
+                "Advanced",
             ]
     )
-    #expect(Set(SettingsPane.allCases.map(\.id)).count == 4)
+    #expect(Set(BarebonesSettingsSection.allCases.map(\.id)).count == 4)
 }
 
 @Test("default open hotkey avoids the macOS Finder search collision")
