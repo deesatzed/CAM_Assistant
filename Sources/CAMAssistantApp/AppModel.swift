@@ -1161,6 +1161,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isResearchStateReloading = false
     @Published var conversationQuestion = ""
     @Published private(set) var conversationResponse: ConversationResponse?
+    @Published private(set) var conversationAnswerMode: LocalAnswerMode?
     @Published private(set) var conversationRecord: ConversationRecord?
     @Published private(set) var conversationError: String?
     @Published private(set) var knowledgeClaims: [KnowledgeClaim] = []
@@ -2844,18 +2845,57 @@ final class AppModel: ObservableObject {
     }
 
     func sendLocalQuestion() {
+        let question = conversationQuestion.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        guard !question.isEmpty else {
+            conversationError = "Type a question first."
+            return
+        }
+        let databaseURL: URL
         do {
-            let databaseURL = try LocalConversationContextProvider.defaultDatabaseURL()
-            let context = try LocalConversationContextProvider(databaseURL: databaseURL)
-                .context(for: conversationQuestion)
-            conversationResponse = try ConversationCoordinator().respond(
-                question: conversationQuestion,
-                context: context
-            )
-            conversationRecord = nil
-            conversationError = nil
+            databaseURL = try LocalConversationContextProvider.defaultDatabaseURL()
         } catch {
-            conversationError = "Enter a question to search local sources."
+            conversationError = "CAM couldn't open your Library. Try again."
+            return
+        }
+        let assignment = localModelHealth == nil
+            ? nil
+            : try? activeLocalModelAssignment()
+        isGeneratingLocalModelAnswer = true
+        conversationError = nil
+        conversationAnswerMode = nil
+        Task { [weak self] in
+            let coordinator = LocalAnswerCoordinator(
+                loadContext: { requestedQuestion in
+                    try await Task.detached {
+                        try LocalConversationContextProvider(
+                            databaseURL: databaseURL
+                        ).context(for: requestedQuestion)
+                    }.value
+                },
+                isModelAvailable: assignment != nil,
+                generate: { requestedQuestion, context in
+                    guard let assignment else {
+                        throw LocalModelInferenceError.invalidAssignment
+                    }
+                    return try await LocalModelClient(assignment: assignment)
+                        .generate(question: requestedQuestion, context: context)
+                }
+            )
+            do {
+                let result = try await coordinator.answer(question)
+                self?.conversationResponse = result.response
+                self?.conversationAnswerMode = result.mode
+                self?.conversationRecord = nil
+                self?.conversationError = nil
+            } catch ConversationError.blankQuestion {
+                self?.conversationError = "Type a question first."
+            } catch {
+                self?.conversationError =
+                    "CAM couldn't search your Library. Your saved items were not changed."
+            }
+            self?.isGeneratingLocalModelAnswer = false
         }
     }
 

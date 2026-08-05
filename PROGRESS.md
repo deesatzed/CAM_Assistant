@@ -1,5 +1,17 @@
 # CAM Assistant Progress
 
+## 2026-08-05 - Barebones Task 6: one local Ask
+
+- Home's single Ask action now retrieves local evidence first, uses the selected
+  loopback model only when it has already passed health and assignment checks,
+  and otherwise returns visible cited passages.
+- Missing evidence produces an honest not-enough-information result. Model
+  abstention, generation failure, or invalid citations fall back only to the
+  already retrieved local passages; the coordinator has no cloud, web, CAM,
+  provider, retry, or alternate-model route.
+- Verification: 3 single-Ask coordinator tests, 6 conversation tests, 7 local
+  model inference tests, and 3 Home presentation tests pass.
+
 ## 2026-08-05 - Barebones Task 5: recognizable Library
 
 - Replaced identifier-first Library rows with recognizable filenames or safe

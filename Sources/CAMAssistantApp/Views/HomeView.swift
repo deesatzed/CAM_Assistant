@@ -106,8 +106,11 @@ struct HomeView: View {
                         .disabled(
                             model.conversationQuestion
                                 .trimmingCharacters(in: .whitespacesAndNewlines)
-                                .isEmpty
+                                .isEmpty || model.isGeneratingLocalModelAnswer
                         )
+                }
+                if model.isGeneratingLocalModelAnswer {
+                    ProgressView("Searching your Library")
                 }
                 Text(localAIAvailability.explanation)
                     .font(.caption)

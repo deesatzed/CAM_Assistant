@@ -15,6 +15,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-08-05 | Advance one barebones feature only after its packaged journey is independently green; component and synthetic tests cannot substitute for coherent user or human evidence | Active |
 | 2026-08-05 | Capture internals remain authoritative, but the primary Home surface translates outcomes into Save, already saved, queued, and recoverable failure notices. Terms such as vault, ingest, index, and queue are not primary feedback; diagnostics remain available only under Technical details. A failed capture must state that the original content was not changed | Active |
 | 2026-08-05 | Library recognition is filename-first with an ordinary fallback title, date, preview, and type. Source hashes, passage IDs, extractors, integrity proof, provenance, and lifecycle controls remain available under Details and are excluded from the primary row and VoiceOver label | Active |
+| 2026-08-05 | The primary product has one Ask policy: retrieve active local evidence first; if the currently selected loopback model is healthy, allow it to synthesize with exact current citations; otherwise show matching passages. Missing evidence, invalid output, abstention, or model failure never invokes cloud, web, CAM, retries, or another model | Active |
 | 2026-07-24 | CAM_Codx is the workflow hub; CAM_CAM remains runtime owner | Active |
 | 2026-07-24 | The wiki is a core module, not the entire product | Active |
 | 2026-07-24 | Local inference and deterministic retrieval are defaults | Active |
