@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 struct WatchedSourceCaptureRefresh {
     static let successMessage =
-        "Watched folder captured and indexed content locally."
+        "Saved new items from your watched folder to your Library."
 
     let setMessage: @MainActor (String) -> Void
     let reloadLibrary: @MainActor () -> Void

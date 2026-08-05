@@ -13,6 +13,7 @@ scope, security, data ownership, licensing, or verification.
 | 2026-08-05 | Reset the default product to a private memory inbox with Home, Library, and Settings; preserve specialist code but remove it from ordinary navigation until independently re-earned | Active |
 | 2026-08-05 | Target the primary UX at a general iPhone user: plain language, safe automatic defaults, one obvious action, and progressive disclosure of technical detail | Active |
 | 2026-08-05 | Advance one barebones feature only after its packaged journey is independently green; component and synthetic tests cannot substitute for coherent user or human evidence | Active |
+| 2026-08-05 | Capture internals remain authoritative, but the primary Home surface translates outcomes into Save, already saved, queued, and recoverable failure notices. Terms such as vault, ingest, index, and queue are not primary feedback; diagnostics remain available only under Technical details. A failed capture must state that the original content was not changed | Active |
 | 2026-07-24 | CAM_Codx is the workflow hub; CAM_CAM remains runtime owner | Active |
 | 2026-07-24 | The wiki is a core module, not the entire product | Active |
 | 2026-07-24 | Local inference and deterministic retrieval are defaults | Active |

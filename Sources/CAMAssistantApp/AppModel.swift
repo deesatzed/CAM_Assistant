@@ -1185,6 +1185,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isRefreshingActivity = false
     @Published private(set) var isUpdatingIngestJob = false
     @Published private(set) var captureMessage: String?
+    @Published private(set) var captureNotice: CaptureNotice?
     @Published private(set) var hotkeyError: String?
     @Published private(set) var hotkeyStatus: GlobalHotkeyStatus = .unregistered
     @Published var hotkeyOpenKey = AssistantHotkeyDefaults.openKey
@@ -1261,7 +1262,12 @@ final class AppModel: ObservableObject {
             onCaptureFailure: { [weak self] message in
                 Task { @MainActor [weak self] in
                     self?.watchedSourceError = message
-                    self?.captureMessage = message
+                    self?.presentCaptureNotice(
+                        .failed(
+                            itemName: "an item from your watched folder",
+                            technicalDetails: message
+                        )
+                    )
                 }
             }
         )
@@ -3248,7 +3254,7 @@ final class AppModel: ObservableObject {
 
     func captureCurrentClipboard() {
         guard let envelope = ClipboardCapture.readCurrent() else {
-            captureMessage = "Clipboard has no plain text to capture."
+            presentCaptureNotice(.emptyClipboard)
             return
         }
         do {
@@ -3262,20 +3268,29 @@ final class AppModel: ObservableObject {
             defer { try? queue.close() }
             let receipt = try CaptureService(queue: queue).capture(envelope)
             if receipt.wasDuplicateSource {
-                captureMessage = "Clipboard is already in your local vault."
+                presentCaptureNotice(.alreadySaved("Clipboard"))
             } else if CaptureProcessingPolicy.shouldDefer() {
-                captureMessage =
-                    "Clipboard queued locally. Review or cancel it in Activity."
+                presentCaptureNotice(.queued("Clipboard"))
             } else {
                 _ = try queue.processNext()
-                captureMessage = "Clipboard captured and indexed locally."
+                presentCaptureNotice(.saved("Clipboard"))
                 reloadLibrary()
             }
             reloadIngestJobs()
         } catch {
-            captureMessage = "Clipboard could not be captured locally."
+            presentCaptureNotice(
+                .failed(
+                    itemName: "Clipboard",
+                    technicalDetails: String(reflecting: error)
+                )
+            )
             reloadIngestJobs()
         }
+    }
+
+    private func presentCaptureNotice(_ notice: CaptureNotice) {
+        captureNotice = notice
+        captureMessage = notice.message
     }
 
     func registerHotkeys() {

@@ -1,5 +1,16 @@
 # CAM Assistant Progress
 
+## 2026-08-05 - Barebones Task 4: friendly capture recovery
+
+- Added a presentation boundary that turns clipboard and watched-folder capture
+  outcomes into ordinary-language Library feedback without changing ingest,
+  provenance, deduplication, or audit behavior.
+- Home now gives an explicit Try Again action for recoverable failures, reassures
+  the user that original content was not changed, and keeps diagnostic text
+  behind a Technical details disclosure.
+- Verification: 4 capture UX tests, 1 watched-source refresh test, and 27 ingest
+  tests pass. No unrelated user files were touched.
+
 ## Status Overview
 
 Foundation milestones are verified, but the full GOAL_FINISH_WIKI product remains

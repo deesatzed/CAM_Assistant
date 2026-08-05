@@ -68,6 +68,21 @@ struct HomeView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                if let safetyMessage = model.captureNotice?.contentSafetyMessage {
+                    Text(safetyMessage)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                if model.captureNotice?.canRetry == true {
+                    Button("Try Again", action: model.captureCurrentClipboard)
+                }
+                if let details = model.captureNotice?.technicalDetails {
+                    DisclosureGroup("Technical details") {
+                        Text(details)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
