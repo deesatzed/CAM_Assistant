@@ -45,6 +45,14 @@ only after a milestone is verified; early scaffolding is not product readiness.
   and Settings. The complete specialist interface remains available only by
   explicit `.developer` injection. All 76 app tests and offline smoke pass;
   model, cloud, CAM, and specialist authority were unchanged.
+- Barebones Task 3 is green after the Home presentation tests first failed for
+  missing types and view. Primary Home now has one Save Clipboard action, one
+  plain-language question field and Ask action, recognizable source buttons,
+  Keep/Discard, privacy copy, and technical Details disclosure. All 79 app
+  tests, 6 conversation tests, offline smoke, and `git diff --check` pass.
+- Honest boundary: Home Ask still uses the existing deterministic local answer
+  path; selected-model unification belongs to BARE-005. Watch a Folder opens
+  Settings, while direct Capture-group navigation belongs to BARE-007.
 
 ## Current Assumptions
 

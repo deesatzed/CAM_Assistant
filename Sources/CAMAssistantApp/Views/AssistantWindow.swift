@@ -41,7 +41,7 @@ struct AssistantWindow: View {
     private var detail: some View {
         switch model.selection {
         case .home:
-            ConversationView(model: model)
+            HomeView(model: model)
         case .assistant:
             ConversationView(model: model)
         case .library:
