@@ -10,6 +10,9 @@ scope, security, data ownership, licensing, or verification.
 | Date | Decision | Status |
 |---|---|---|
 | 2026-07-24 | Build a new native SwiftUI product repo | Active |
+| 2026-08-05 | Reset the default product to a private memory inbox with Home, Library, and Settings; preserve specialist code but remove it from ordinary navigation until independently re-earned | Active |
+| 2026-08-05 | Target the primary UX at a general iPhone user: plain language, safe automatic defaults, one obvious action, and progressive disclosure of technical detail | Active |
+| 2026-08-05 | Advance one barebones feature only after its packaged journey is independently green; component and synthetic tests cannot substitute for coherent user or human evidence | Active |
 | 2026-07-24 | CAM_Codx is the workflow hub; CAM_CAM remains runtime owner | Active |
 | 2026-07-24 | The wiki is a core module, not the entire product | Active |
 | 2026-07-24 | Local inference and deterministic retrieval are defaults | Active |

@@ -9,6 +9,31 @@ requirement completion audit and hard remaining gates.
 The full objective and all proof gates remain active. Percent complete changes
 only after a milestone is verified; early scaffolding is not product readiness.
 
+### Reset-oriented product inventory — 2026-08-05
+
+- Completed a read-only, current-checkout inventory in
+  `RESET_INVENTORY_2026-08-05.md`, with supporting `REPO_MAP.md` and
+  `RISK_NOTES.md`.
+- Verified the current branch at `3443650`: 448 Swift tests, release build,
+  unsigned package reproducibility, package identity, portability, and the
+  bounded credential-signature scan pass. Fresh-clone verification was
+  intentionally skipped for this inventory.
+- The controlling map remains honestly incomplete at 17 passed, 28 partial,
+  and 3 missing gates. Component success is not whole-product utility.
+- Safe assumption for regrouping: preserve the tested local vault, capture,
+  retrieval, backup, privacy, and audit substrate; propose a three-place shell
+  and validate Capture -> Library first. No product code was changed, and no
+  existing specialist feature was deleted or moved.
+- Preserved dirty-state truth: eleven untracked top-level entries, including the
+  nested `pendoleum/` repository, remain untouched and outside this audit's
+  verified product scope.
+- User approved the private-memory-inbox direction with an explicit UX bar:
+  reduce organization work and technical mental overhead for a general iPhone
+  user. The approved design is
+  `docs/plans/2026-08-05-barebones-user-first-reset-design.md`; the TDD plan is
+  `docs/plans/2026-08-05-barebones-user-first-reset.md`. No product code was
+  changed in the design/plan step.
+
 ## Current Assumptions
 
 - Canonical product path: `/Volumes/WS4TB/waswiki/CAM_Assistant`.
