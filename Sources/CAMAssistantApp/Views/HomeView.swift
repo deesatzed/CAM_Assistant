@@ -22,6 +22,7 @@ struct HomeView: View {
                 capture
                 ask
                 result
+                recentMemories
             }
             .frame(maxWidth: 760, alignment: .leading)
             .padding(24)
@@ -170,14 +171,32 @@ struct HomeView: View {
                     Button("Discard", action: model.discardConversationResponse)
                 }
 
-                if let record = model.conversationRecord {
-                    Text(
-                        record.disposition == .kept
-                            ? "Kept in your Library."
-                            : "Discarded. Nothing was saved."
-                    )
+                if let candidate = model.keptMemoryCandidate {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("A similar memory is already saved:")
+                            .font(.callout)
+                        Text(candidate.text)
+                            .lineLimit(2)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Button(
+                                "Update Existing",
+                                action: model.updateExistingConversationMemory
+                            )
+                            Button(
+                                "Save Separately",
+                                action: model.saveConversationMemorySeparately
+                            )
+                        }
+                    }
+                } else if let status = model.keptMemoryStatus {
+                    Text(status)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                }
+                if model.canUndoLastKeptMemory {
+                    Button("Undo Keep", action: model.undoLastKeptMemory)
+                        .buttonStyle(.link)
                 }
 
                 DisclosureGroup("Details") {
@@ -194,6 +213,30 @@ struct HomeView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var recentMemories: some View {
+        if !model.keptMemories.isEmpty {
+            GroupBox("Recently kept") {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(model.keptMemories.prefix(3))) { memory in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(memory.text).lineLimit(2)
+                            Text(
+                                "\(memory.citations.count) "
+                                    + (memory.citations.count == 1
+                                        ? "source" : "sources")
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 }

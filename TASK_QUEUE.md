@@ -9,7 +9,7 @@
 | BARE-003 | Friendly Home capture | Complete | One obvious Save and Ask path with ordinary-language status |
 | BARE-004 | Recognizable searchable Library | Complete | Titles, dates, previews, search, citation navigation, Details |
 | BARE-005 | One local Ask path | Complete | Local-model cited answer or visible model-free matches; no fallback |
-| BARE-006 | Reversible cited Keep | Pending | Keep/Discard/duplicate/update/Undo/restart proof |
+| BARE-006 | Reversible cited Keep | Complete | Keep/Discard/duplicate/update/Undo/restart proof |
 | BARE-007 | Friendly layered Settings | Pending | Capture, Local AI, Backup & Restore, Advanced |
 | BARE-008 | Packaged and human proof | Pending | Complete isolated journey plus authentic non-developer evidence |
 

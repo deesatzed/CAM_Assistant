@@ -1164,6 +1164,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var conversationAnswerMode: LocalAnswerMode?
     @Published private(set) var conversationRecord: ConversationRecord?
     @Published private(set) var conversationError: String?
+    @Published private(set) var keptMemories: [KeptMemory] = []
+    @Published private(set) var keptMemoryCandidate: KeptMemory?
+    @Published private(set) var keptMemoryStatus: String?
+    @Published private(set) var canUndoLastKeptMemory = false
+    private var keptMemoryUndoReceipt: KeptMemoryUndoReceipt?
     @Published private(set) var knowledgeClaims: [KnowledgeClaim] = []
     @Published private(set) var contradictionCandidates: [ContradictionCandidate] = []
     @Published var contradictionLeftID = ""
@@ -1366,6 +1371,7 @@ final class AppModel: ObservableObject {
         reloadRepositoryJobs(recoverInterrupted: true)
         reloadRetainedResearchPlans()
         reloadResearchAcquisitionState(recoverInterrupted: true)
+        reloadKeptMemories()
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
         reloadPackagedTextSummaryModule()
@@ -2955,13 +2961,107 @@ final class AppModel: ObservableObject {
     }
 
     func keepConversationResponse() {
-        guard let conversationResponse else { return }
-        conversationRecord = ConversationCoordinator().keep(conversationResponse)
+        guard let conversationResponse, !conversationResponse.citations.isEmpty
+        else { return }
+        do {
+            let store = try keptMemoryStore()
+            if let candidate = try store.duplicateCandidate(
+                for: conversationResponse
+            ) {
+                keptMemoryCandidate = candidate
+                keptMemoryStatus =
+                    "A similar memory is already saved. Choose Update or Save Separately."
+                return
+            }
+            try persistConversationMemory(
+                conversationResponse,
+                choice: .saveSeparately
+            )
+        } catch {
+            conversationError =
+                "CAM couldn't keep that memory. Your sources were not changed."
+        }
     }
 
     func discardConversationResponse() {
         guard let conversationResponse else { return }
+        try? keptMemoryStore().discard(answerID: conversationResponse.id)
         conversationRecord = ConversationCoordinator().discard(conversationResponse)
+        keptMemoryCandidate = nil
+        keptMemoryStatus = "Discarded. Nothing was saved."
+        keptMemoryUndoReceipt = nil
+        canUndoLastKeptMemory = false
+    }
+
+    func saveConversationMemorySeparately() {
+        guard let conversationResponse else { return }
+        do {
+            try persistConversationMemory(
+                conversationResponse,
+                choice: .saveSeparately
+            )
+        } catch {
+            conversationError =
+                "CAM couldn't keep that memory. Your sources were not changed."
+        }
+    }
+
+    func updateExistingConversationMemory() {
+        guard let conversationResponse, let keptMemoryCandidate else { return }
+        do {
+            try persistConversationMemory(
+                conversationResponse,
+                choice: .updateExisting(keptMemoryCandidate.id)
+            )
+        } catch {
+            conversationError =
+                "CAM couldn't update that memory. The saved version was not changed."
+        }
+    }
+
+    func undoLastKeptMemory() {
+        guard let receipt = keptMemoryUndoReceipt else { return }
+        do {
+            try keptMemoryStore().undo(receipt: receipt)
+            keptMemoryUndoReceipt = nil
+            canUndoLastKeptMemory = false
+            keptMemoryStatus = "Undone. The saved memory was restored to its previous state."
+            conversationRecord = nil
+            reloadKeptMemories()
+        } catch {
+            keptMemoryUndoReceipt = nil
+            canUndoLastKeptMemory = false
+            keptMemoryStatus =
+                "That memory changed after it was kept, so CAM left it alone."
+            reloadKeptMemories()
+        }
+    }
+
+    func reloadKeptMemories() {
+        do {
+            keptMemories = try keptMemoryStore().all()
+        } catch {
+            keptMemories = []
+        }
+    }
+
+    private func persistConversationMemory(
+        _ response: ConversationResponse,
+        choice: KeptMemorySaveChoice
+    ) throws {
+        let receipt = try keptMemoryStore().keep(
+            answer: response,
+            choice: choice
+        )
+        keptMemoryUndoReceipt = receipt.undoReceipt
+        canUndoLastKeptMemory = true
+        keptMemoryCandidate = nil
+        keptMemoryStatus = choice == .saveSeparately
+            ? "Kept in your Library."
+            : "Updated the existing memory."
+        conversationRecord = ConversationCoordinator().keep(response)
+        conversationError = nil
+        reloadKeptMemories()
     }
 
     func keepConversationAsKnowledge(kind: KnowledgeClaimKind) {
@@ -3500,6 +3600,12 @@ final class AppModel: ObservableObject {
 
     private nonisolated static func knowledgeStoreURL() throws -> URL {
         try LocalVaultPaths.rootURL().appending(path: "knowledge-claims.json")
+    }
+
+    private func keptMemoryStore() throws -> KeptMemoryStore {
+        KeptMemoryStore(
+            url: try vaultRootProvider().appending(path: "kept-memories.json")
+        )
     }
 
     private nonisolated static func contradictionStoreURL() throws -> URL {

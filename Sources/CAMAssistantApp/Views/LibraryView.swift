@@ -6,6 +6,10 @@ struct LibraryView: View {
     @State private var searchText = ""
     @State private var selectedType = "All"
 
+    private var totalSavedCount: Int {
+        model.libraryPresentation.documentCount + model.keptMemories.count
+    }
+
     private var activeItems: [LibraryItemPresentation] {
         let items = model.libraryPresentation.rows.map(LibraryItemPresentation.init)
         return LibraryItemPresentation.filter(items, query: searchText)
@@ -16,6 +20,18 @@ struct LibraryView: View {
         ["All"] + Set(
             model.libraryPresentation.rows.map(\.modalityLabel)
         ).sorted()
+    }
+
+    private var visibleKeptMemories: [KeptMemory] {
+        guard selectedType == "All" else { return [] }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return model.keptMemories }
+        return model.keptMemories.filter {
+            $0.text.localizedCaseInsensitiveContains(query)
+                || $0.citations.contains {
+                    $0.quote.localizedCaseInsensitiveContains(query)
+                }
+        }
     }
 
     private var selectedRow: LibrarySourceRow? {
@@ -31,10 +47,11 @@ struct LibraryView: View {
                 if model.isRefreshingWorkspace {
                     ProgressView("Refreshing your Library")
                 }
-                if model.libraryPresentation.documentCount == 0 {
+                if totalSavedCount == 0 {
                     emptyState
                 } else {
                     searchAndFilter
+                    keptMemoryList
                     itemList
                 }
                 if let selectedRow {
@@ -49,7 +66,7 @@ struct LibraryView: View {
             .frame(maxWidth: 820, alignment: .leading)
             .padding()
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Library. \(model.libraryPresentation.documentCount) saved items.")
+            .accessibilityLabel("Library. \(totalSavedCount) saved items.")
         }
     }
 
@@ -59,8 +76,8 @@ struct LibraryView: View {
                 Text("Library")
                     .font(.largeTitle.bold())
                 Text(
-                    "\(model.libraryPresentation.documentCount) "
-                        + (model.libraryPresentation.documentCount == 1
+                    "\(totalSavedCount) "
+                        + (totalSavedCount == 1
                             ? "saved item" : "saved items")
                 )
                 .foregroundStyle(.secondary)
@@ -95,9 +112,9 @@ struct LibraryView: View {
 
     @ViewBuilder
     private var itemList: some View {
-        if activeItems.isEmpty {
+        if activeItems.isEmpty && visibleKeptMemories.isEmpty {
             ContentUnavailableView.search(text: searchText)
-        } else {
+        } else if !activeItems.isEmpty {
             LazyVStack(spacing: 8) {
                 ForEach(activeItems) { item in
                     Button {
@@ -127,6 +144,42 @@ struct LibraryView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(item.accessibilityLabel)
                     .accessibilityHint("Opens this saved item")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var keptMemoryList: some View {
+        if !visibleKeptMemories.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Kept answers").font(.headline)
+                ForEach(visibleKeptMemories) { memory in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(memory.text)
+                            .font(.headline)
+                            .lineLimit(3)
+                        Text(
+                            "Kept \(memory.updatedAt.formatted(date: .abbreviated, time: .shortened))"
+                                + " · \(memory.citations.count) "
+                                + (memory.citations.count == 1 ? "source" : "sources")
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        ForEach(
+                            Array(memory.citations.enumerated()),
+                            id: \.element.passageID
+                        ) { index, citation in
+                            Button("Open source \(index + 1)") {
+                                model.openLibrarySource(for: citation)
+                            }
+                            .buttonStyle(.link)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityElement(children: .contain)
                 }
             }
         }

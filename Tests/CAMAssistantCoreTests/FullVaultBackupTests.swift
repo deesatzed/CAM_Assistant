@@ -50,6 +50,7 @@ func localVaultPathsOwnEveryRecognizedDurableStateLocation() {
             "approvals.json",
             "contradictions.json",
             "hotkeys.json",
+            "kept-memories.json",
             "knowledge-claims.json",
             "models.json",
             "module-state.json",
@@ -331,6 +332,29 @@ func fullVaultRestoreRoundTripsStateAndPausesAuthority() throws {
     try RepositorySourceConfigurationStore(
         url: sourceRoot.appending(path: "repository-sources.json")
     ).save([repository])
+    let keptAnswer = ConversationResponse(
+        id: "kept-answer",
+        text: "The restored memory remains cited.",
+        route: .localRetrieval,
+        confidence: .supported,
+        citations: [
+            Citation(
+                sourceID: stored.id.rawValue,
+                passageID: "\(stored.id.rawValue)#0",
+                quote: "restored immutable bytes"
+            ),
+        ],
+        retention: .ephemeral,
+        modelIdentity: nil,
+        endpointIdentity: nil,
+        followUp: nil
+    )
+    let keptReceipt = try KeptMemoryStore(
+        url: sourceRoot.appending(path: "kept-memories.json")
+    ).keep(
+        answer: keptAnswer,
+        now: Date(timeIntervalSince1970: 50)
+    )
     let emptyStores = [
         "research-plans.json",
         "research-packets.json",
@@ -401,6 +425,11 @@ func fullVaultRestoreRoundTripsStateAndPausesAuthority() throws {
         ).load().isEmpty
     )
     #expect(
+        try KeptMemoryStore(
+            url: destinationRoot.appending(path: "kept-memories.json")
+        ).all() == [keptReceipt.memory]
+    )
+    #expect(
         try ContradictionStore(
             url: destinationRoot.appending(path: "contradictions.json")
         ).load().isEmpty
@@ -432,7 +461,7 @@ func fullVaultRestoreRoundTripsStateAndPausesAuthority() throws {
             atPath: destinationRoot.appending(path: "retrieval-index").path
         )
     )
-    #expect(receipt.entryCount == 10)
+    #expect(receipt.entryCount == 11)
     #expect(receipt.restoredAt == Date(timeIntervalSince1970: 200))
     #expect(receipt.watchedSourcesPaused == 1)
     #expect(receipt.authorityRecordsQuarantined == 2)

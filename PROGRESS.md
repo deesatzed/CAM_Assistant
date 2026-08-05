@@ -1,5 +1,19 @@
 # CAM Assistant Progress
 
+## 2026-08-05 - Barebones Task 7: reversible Keep
+
+- Keep now writes only the concise displayed answer, exact citations,
+  source-version identity, and timestamps to an atomic local kept-memory store;
+  conversation transcripts are never part of the durable model.
+- Similar memories pause for an explicit Update Existing or Save Separately
+  choice. Discard writes nothing. Undo removes only the exact just-kept revision
+  or restores the previous revision after an update; stale Undo fails safe.
+- Home shows friendly Keep state and recent memories; Library shows searchable
+  kept answers with source links. Full-vault backup recognizes, validates, and
+  restores kept-memory state.
+- Verification: 7 kept-memory tests, 18 full-vault backup/restore tests, 4
+  Library UX tests, 3 Home tests, and 17 accessibility contract tests pass.
+
 ## 2026-08-05 - Barebones Task 6: one local Ask
 
 - Home's single Ask action now retrieves local evidence first, uses the selected

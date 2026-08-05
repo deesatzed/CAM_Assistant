@@ -11,6 +11,7 @@ public enum FullVaultEntryRole: String, Codable, CaseIterable, Sendable {
     case repositorySources
     case researchPlans
     case researchPackets
+    case keptMemories
     case knowledgeClaims
     case contradictions
     case approvals
@@ -553,6 +554,7 @@ public final class FullVaultBackupService {
         case .approvals: .approvals
         case .contradictions: .contradictions
         case .hotkeys: .hotkeys
+        case .keptMemories: .keptMemories
         case .knowledgeClaims: .knowledgeClaims
         case .modelProfiles: .modelProfiles
         case .moduleState: .moduleState
@@ -752,6 +754,13 @@ public final class FullVaultBackupService {
             if fileManager.fileExists(atPath: knowledgeURL.path) {
                 _ = try KnowledgeStore(url: knowledgeURL).load()
             }
+            let keptMemoriesURL = LocalVaultPaths.stateURL(
+                .keptMemories,
+                vaultRoot: vaultRoot
+            )
+            if fileManager.fileExists(atPath: keptMemoriesURL.path) {
+                _ = try KeptMemoryStore(url: keptMemoriesURL).all()
+            }
             let contradictionsURL = LocalVaultPaths.stateURL(
                 .contradictions,
                 vaultRoot: vaultRoot
@@ -800,6 +809,8 @@ public final class FullVaultBackupService {
                 _ = try ResearchPlanStore(url: url).load()
             case .researchPackets:
                 _ = try ResearchPacketStore(url: url).load()
+            case .keptMemories:
+                _ = try KeptMemoryStore(url: url).all()
             case .knowledgeClaims:
                 _ = try KnowledgeStore(url: url).load()
             case .contradictions:

@@ -4,6 +4,7 @@ public enum LocalVaultStateFile: String, CaseIterable, Sendable {
     case approvals = "approvals.json"
     case contradictions = "contradictions.json"
     case hotkeys = "hotkeys.json"
+    case keptMemories = "kept-memories.json"
     case knowledgeClaims = "knowledge-claims.json"
     case modelProfiles = "models.json"
     case moduleState = "module-state.json"
