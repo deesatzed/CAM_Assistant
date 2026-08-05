@@ -33,6 +33,13 @@ only after a milestone is verified; early scaffolding is not product readiness.
   `docs/plans/2026-08-05-barebones-user-first-reset-design.md`; the TDD plan is
   `docs/plans/2026-08-05-barebones-user-first-reset.md`. No product code was
   changed in the design/plan step.
+- Barebones Task 1 started test-first: the repository contract test failed
+  because `GOAL_BAREBONES.md` did not yet exist, establishing the expected red
+  state before the controlling contract and verifier route were added.
+- Barebones Task 1 is green: `GOAL_BAREBONES.md` now controls seven sequential
+  user-outcome gates; `scripts/verify.sh barebones-goal` reports
+  `CAM_ASSISTANT_BAREBONES_GOAL status=pass gates=7`, and portability plus
+  `git diff --check` pass. The broader goal remains preserved as parked history.
 
 ## Current Assumptions
 

@@ -1,5 +1,23 @@
 # CAM Assistant Task Queue
 
+## Active Barebones Queue
+
+| ID | Task | Status | Acceptance |
+|---|---|---|---|
+| BARE-001 | Controlling user-first contract | Complete | `GOAL_BAREBONES.md` and repository verifier pass |
+| BARE-002 | Three-place primary shell | Pending | Fresh production profile exposes only Home, Library, Settings |
+| BARE-003 | Friendly Home capture | Pending | One obvious Save and Ask path with ordinary-language status |
+| BARE-004 | Recognizable searchable Library | Pending | Titles, dates, previews, search, citation navigation, Details |
+| BARE-005 | One local Ask path | Pending | Local-model cited answer or visible model-free matches; no fallback |
+| BARE-006 | Reversible cited Keep | Pending | Keep/Discard/duplicate/update/Undo/restart proof |
+| BARE-007 | Friendly layered Settings | Pending | Capture, Local AI, Backup & Restore, Advanced |
+| BARE-008 | Packaged and human proof | Pending | Complete isolated journey plus authentic non-developer evidence |
+
+## Parked Historical and Specialist Queue
+
+The entries below preserve implementation and evidence history. They are not
+the active product sequence while `GOAL_BAREBONES.md` controls the reset.
+
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
 | CAM-001 | Canonical repo and Swift package | Complete | Build/test/diff pass |
