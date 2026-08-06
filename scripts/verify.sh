@@ -128,6 +128,9 @@ case "$suite" in
   barebones-goal)
     "$REPOSITORY_ROOT/Tests/ReleaseProofTests/barebones-goal-contract-tests.sh"
     ;;
+  barebones-packaged)
+    "$REPOSITORY_ROOT/Tests/ReleaseProofTests/barebones-packaged-journey-tests.sh"
+    ;;
   package-reproducibility)
     "$REPOSITORY_ROOT/Tests/ReleaseProofTests/package-reproducibility-tests.sh"
     ;;
@@ -145,7 +148,7 @@ case "$suite" in
     fi
     ;;
   *)
-    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|meaning-preview|meaning-preview-packaged|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|barebones-goal|package-reproducibility|all]"
+    print -u2 "usage: $0 [routing|models|privacy|cam|research|ingest|knowledge|repositories|repository-semantic|mac-care|conversation|tasks|coordination|modules|backup|storage|app|portability|fresh-clone|retrieval|generated|meaning-preview|meaning-preview-packaged|retrieval-report|retrieval-project-contract-report|smoke|package|release-privacy|goal-map|barebones-goal|barebones-packaged|package-reproducibility|all]"
     exit 64
     ;;
 esac

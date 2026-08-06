@@ -7,6 +7,37 @@ struct CAMAssistantApp: App {
     @StateObject private var model = AppModel()
 
     init() {
+        if let proofRoot = Self.barebonesProofRoot() {
+            let holdSeconds = Self.barebonesProofHoldSeconds()
+            switch BarebonesPackagedProof.runBlocking(
+                applicationSupportRoot: proofRoot
+            ) {
+            case let .success(receipt):
+                print(
+                    "CAM_ASSISTANT_BAREBONES_PROOF status=pass "
+                        + receipt.summary
+                )
+                fflush(stdout)
+                if holdSeconds > 0 {
+                    Thread.sleep(forTimeInterval: holdSeconds)
+                }
+                Darwin.exit(EXIT_SUCCESS)
+            case let .failure(error):
+                print(
+                    "CAM_ASSISTANT_BAREBONES_PROOF status=fail reason="
+                        + error.safeCode
+                )
+                fflush(stdout)
+                Darwin.exit(EXIT_FAILURE)
+            case .unexpectedFailure:
+                print(
+                    "CAM_ASSISTANT_BAREBONES_PROOF status=fail "
+                        + "reason=unexpected"
+                )
+                fflush(stdout)
+                Darwin.exit(EXIT_FAILURE)
+            }
+        }
         if CommandLine.arguments.contains("--smoke-offline") {
             let health = AppHealth.evaluate(
                 localModelAvailable: false,
@@ -21,6 +52,25 @@ struct CAMAssistantApp: App {
             )
             Darwin.exit(EXIT_SUCCESS)
         }
+    }
+
+    private static func barebonesProofRoot() -> URL? {
+        guard let optionIndex = CommandLine.arguments.firstIndex(
+            of: "--barebones-proof"
+        ), CommandLine.arguments.indices.contains(optionIndex + 1) else {
+            return nil
+        }
+        let path = CommandLine.arguments[optionIndex + 1]
+        guard path.hasPrefix("/") else { return nil }
+        return URL(filePath: path, directoryHint: .isDirectory)
+            .standardizedFileURL
+    }
+
+    private static func barebonesProofHoldSeconds() -> Double {
+        let value = ProcessInfo.processInfo.environment[
+            "CAM_ASSISTANT_BAREBONES_PROOF_HOLD_SECONDS"
+        ].flatMap(Double.init) ?? 0
+        return min(max(value, 0), 10)
     }
 
     var body: some Scene {

@@ -467,6 +467,10 @@ func meaningPreviewIsConditionalAndReducedMotionSafe() throws {
         contentsOf: views.appending(path: "AssistantWindow.swift"),
         encoding: .utf8
     )
+    let settings = try String(
+        contentsOf: views.appending(path: "BarebonesSettingsView.swift"),
+        encoding: .utf8
+    )
     let preview = try String(
         contentsOf: views.appending(path: "MeaningPreviewView.swift"),
         encoding: .utf8
@@ -475,13 +479,13 @@ func meaningPreviewIsConditionalAndReducedMotionSafe() throws {
     #expect(sidebar.contains("filter"))
     #expect(sidebar.contains("meaning-preview-sidebar"))
     #expect(window.contains("if model.isMeaningPreviewVisible"))
-    #expect(window.contains("MeaningPreviewSettingsView"))
+    #expect(settings.contains("MeaningPreviewSettingsView"))
     #expect(window.contains("MeaningPreviewView"))
     for forbiddenMotion in [
         "withAnimation", ".animation(", "matchedGeometryEffect",
         "symbolEffect", "contentTransition",
     ] {
-        #expect(!(sidebar + window + preview).contains(forbiddenMotion))
+        #expect(!(sidebar + window + settings + preview).contains(forbiddenMotion))
     }
 }
 

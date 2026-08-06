@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
 ROOT="${SCRIPT_DIR:h}"
-BUILD_DIR="$ROOT/.swift-build"
+BUILD_DIR="${CAM_ASSISTANT_BUILD_DIR:-$ROOT/.swift-build}"
 APP_DIR="$ROOT/artifacts/CAM Assistant.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
