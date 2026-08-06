@@ -17,6 +17,10 @@
   elevated suite passes all 476 tests; `scripts/verify.sh barebones-packaged`
   passes; and the aggregate passes release build, reproducibility, package
   identity, and a 73-file zero-finding credential-signature scan.
+- Exact temporary-clone verification at
+  `95cd2a0ec36ce4990f99dde379f8d3fb1b306273` passes all 476 tests, release
+  packaging/reproducibility/privacy, and offline smoke; the cloned package
+  identity reports `dirty=false`.
 - Exact implementation revision:
   `d22f7e5b13509e977cbab6ab742ce49643f82e79`. Machine evidence is saved in
   `docs/evidence/barebones-packaged-journey.md`.

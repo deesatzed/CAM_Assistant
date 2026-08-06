@@ -43,8 +43,14 @@ the test.
 
 The aggregate was intentionally run from the pre-commit working tree and
 reported `dirty=true`; the exact implementation was then committed as
-`d22f7e5b13509e977cbab6ab742ce49643f82e79`. Exact clean-commit proof is recorded
-separately by `scripts/verify.sh fresh-clone` before publication.
+`d22f7e5b13509e977cbab6ab742ce49643f82e79`.
+
+`/bin/zsh scripts/verify.sh fresh-clone` then verified documentation revision
+`95cd2a0ec36ce4990f99dde379f8d3fb1b306273` from a temporary clone: all 476
+tests, release build, reproducibility, privacy, package, and offline smoke
+passed. The packaged identity reported that exact commit with `dirty=false`.
+The outer checkout remained intentionally dirty only because unrelated,
+untracked user files were preserved.
 
 ## Honest boundary
 
