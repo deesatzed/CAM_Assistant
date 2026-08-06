@@ -11,7 +11,7 @@
 | BARE-005 | One local Ask path | Complete | Local-model cited answer or visible model-free matches; no fallback |
 | BARE-006 | Reversible cited Keep | Complete | Keep/Discard/duplicate/update/Undo/restart proof |
 | BARE-007 | Friendly layered Settings | Complete | Capture, Local AI, Backup & Restore, Advanced |
-| BARE-008 | Packaged and human proof | Pending | Complete isolated journey plus authentic non-developer evidence |
+| BARE-008 | Packaged and human proof | Machine complete; human pending | Isolated packaged journey passes; authentic non-developer Gate 7 remains required |
 
 ## Parked Historical and Specialist Queue
 

@@ -1,5 +1,22 @@
 # GOAL_FINISH_WIKI Current Completion Audit
 
+## 2026-08-06 barebones reset status
+
+The scaled-down Home/Library/Settings product now has current repository-owned
+machine proof. `/bin/zsh scripts/verify.sh barebones-packaged` rebuilds and runs
+the real unsigned app executable against an isolated root and passes capture,
+duplicate, restart, cited model-free Ask, Keep/restart/exact Undo,
+backup/validation/fresh-root restore, restored watched-folder pause, and
+zero-network-socket checks. The full aggregate passes 476 tests, release build,
+two-build package reproducibility, package identity, and a 73-file zero-finding
+credential-signature scan.
+
+This advances machine Gates 1-6 only. Barebones Gate 7 and BARE-008 remain open
+until a general non-developer completes the unaided protocol in
+`docs/pilots/barebones-general-user-protocol.md`. The unsigned internal build is
+not signed, notarized, or approved for public release. Detailed machine evidence
+is in `docs/evidence/barebones-packaged-journey.md`.
+
 **Date:** 2026-07-29
 **Status:** In progress — the tested foundation is real, but the full
 GOAL_FINISH_WIKI outcome is not yet proven or complete.

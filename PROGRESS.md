@@ -1,5 +1,31 @@
 # CAM Assistant Progress
 
+## 2026-08-06 - Barebones Task 9: packaged machine proof complete; human gate pending
+
+- Added a repository-owned proof mode to the real packaged executable. Against
+  an isolated Application Support root it exercises production capture,
+  idempotence, restart, model-free cited Ask, Keep/restart/exact Undo, full-vault
+  backup/validation/restore, and restored-watcher pause behavior.
+- The packaged shell also proves Home/Library/Settings primary structure,
+  ordinary-language copy, zero model requests, and no network socket during the
+  model-free journey. Packaging accepts a per-run build directory so stale or
+  inaccessible SwiftPM caches cannot invalidate the proof.
+- Repaired the stale Meaning Preview accessibility contract after the control
+  moved from `AssistantWindow` into layered Settings. The test failed before
+  the correction and passes afterward.
+- Fresh verification: focused app/Ask/Keep/recovery/privacy tests pass; the full
+  elevated suite passes all 476 tests; `scripts/verify.sh barebones-packaged`
+  passes; and the aggregate passes release build, reproducibility, package
+  identity, and a 73-file zero-finding credential-signature scan.
+- Exact implementation revision:
+  `d22f7e5b13509e977cbab6ab742ce49643f82e79`. Machine evidence is saved in
+  `docs/evidence/barebones-packaged-journey.md`.
+- Safe assumption: a fresh human pilot must not touch existing user data, so
+  the protocol uses a temporary Standard macOS account and synthetic content.
+  `docs/pilots/barebones-general-user-protocol.md` is ready, but no agent result
+  is substituted for authentic human evidence. BARE-008 and barebones Gate 7
+  remain pending.
+
 ## 2026-08-05 - Barebones Task 8: layered Settings
 
 - Replaced the model-first segmented settings workspace with four ordinary
