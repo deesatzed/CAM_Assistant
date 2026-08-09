@@ -1,7 +1,9 @@
 # Novice Second-Mac Test Kit Design
 
-**Status:** Approved by the product owner on 2026-08-09  
-**Tester:** Product owner using a different Mac  
+**Status:** Approved by the product owner on 2026-08-09
+
+**Tester:** Product owner using a different Mac
+
 **Environment:** CAM Assistant and a local Ollama or LM Studio model are already installed
 
 ## Purpose
