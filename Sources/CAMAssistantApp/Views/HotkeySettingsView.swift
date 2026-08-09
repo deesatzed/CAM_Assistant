@@ -87,7 +87,7 @@ struct HotkeySettingsView: View {
         return key.uppercased()
     }
 
-    static func normalizeKeyField(_ value: String) -> String {
+    nonisolated static func normalizeKeyField(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.lowercased() == "space" { return " " }
         if trimmed == " " { return " " }
