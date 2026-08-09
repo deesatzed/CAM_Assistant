@@ -7,7 +7,7 @@ Local-first macOS app for people who **capture everything and then can’t find 
 | | |
 |--|--|
 | **Platform** | macOS 15+, Apple Silicon recommended |
-| **Stack** | Swift 6.2 · SwiftPM · standalone repo |
+| **Stack** | Swift 6.0+ tools · SwiftPM · standalone repo |
 | **Data** | On this Mac (`~/Library/Application Support/CAMAssistant/`) |
 | **Models** | Optional local server (LM Studio / Ollama). **Find works offline.** |
 | **License** | MIT |
@@ -88,7 +88,7 @@ swift test
 swift run CAMAssistant
 ```
 
-**Requirements:** Xcode command-line tools (or full Xcode). Network once to resolve the pinned [MeaningCore](https://github.com/deesatzed/meaningcore) package (opt-in specialist pilot; not required for ordinary Home/Library/Settings use).
+**Requirements:** Xcode command-line tools (or full Xcode; package `swift-tools-version: 6.0`). Network once to resolve the pinned [MeaningCore](https://github.com/deesatzed/meaningcore) package (opt-in specialist pilot; not required for ordinary Home/Library/Settings use).
 
 Optional: run a local OpenAI-compatible server, then Settings → Local AI → Check Again.
 
