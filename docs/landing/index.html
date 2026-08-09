@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CAM Assistant — Private memory that stays yours</title>
+  <meta name="description" content="Local-first macOS app: save once, find later, keep only what matters — with quiet Direction for people and promises. No silent cloud." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0f14;
+      --bg2: #12171f;
+      --panel: #161c26;
+      --border: #2a3344;
+      --text: #e8edf5;
+      --muted: #8b97ab;
+      --accent: #5eead4;
+      --accent2: #a78bfa;
+      --blue: #3b82f6;
+      --good: #4ade80;
+      --radius: 14px;
+      --shadow: 0 24px 80px rgba(0,0,0,.45);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+    header {
+      position: sticky; top: 0; z-index: 20;
+      backdrop-filter: blur(12px);
+      background: rgba(12,15,20,.88);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.9rem 0; gap: 1rem; flex-wrap: wrap;
+    }
+    .logo { font-weight: 700; letter-spacing: -0.02em; font-size: 1.15rem; color: var(--text); }
+    .logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 1.1rem; flex-wrap: wrap; font-size: 0.92rem; }
+    .nav-links a { color: var(--muted); }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    .hero {
+      padding: 3.25rem 0 2.5rem;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 2.25rem;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding-top: 2rem; }
+    }
+    .eyebrow {
+      display: inline-flex; gap: 0.45rem; align-items: center;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 0.85rem;
+    }
+    h1 {
+      font-size: clamp(2rem, 4.4vw, 2.85rem);
+      line-height: 1.12; letter-spacing: -0.03em;
+      margin: 0 0 1rem;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+    .lede { font-size: 1.12rem; color: var(--muted); margin: 0 0 1.4rem; max-width: 34rem; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.7rem 1.15rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem;
+      border: 1px solid transparent;
+    }
+    .btn-primary { background: var(--accent); color: #042f2e; }
+    .btn-primary:hover { text-decoration: none; filter: brightness(1.05); }
+    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text); }
+    .btn-ghost:hover { text-decoration: none; border-color: var(--muted); }
+    .code-inline {
+      font-family: "JetBrains Mono", monospace; font-size: 0.82rem;
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 0.65rem 1rem; border-radius: 10px; color: var(--good);
+      display: inline-block; max-width: 100%; overflow-x: auto;
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+    .badge {
+      font-size: 0.78rem; color: var(--muted); border: 1px solid var(--border);
+      padding: 0.25rem 0.65rem; border-radius: 999px; background: var(--bg2);
+    }
+
+    .shot {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .shot img {
+      display: block; width: 100%; height: auto;
+      background: #0c0f14;
+    }
+    .shot-cap {
+      padding: 0.65rem 1rem; font-size: 0.82rem; color: var(--muted);
+      border-top: 1px solid var(--border); background: var(--bg2);
+    }
+
+    section { padding: 2.75rem 0; }
+    section.alt { background: var(--bg2); border-block: 1px solid var(--border); }
+    h2 {
+      font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+      letter-spacing: -0.02em; margin: 0 0 0.75rem;
+    }
+    .section-lede { color: var(--muted); max-width: 40rem; margin: 0 0 1.75rem; }
+
+    .grid-2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+    }
+    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+    .grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.15rem;
+    }
+    @media (max-width: 880px) { .grid-3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.35rem;
+    }
+    .card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    .card .icon {
+      width: 2.25rem; height: 2.25rem; border-radius: 10px;
+      display: grid; place-items: center; margin-bottom: 0.85rem;
+      background: #0e151c; border: 1px solid var(--border);
+      color: var(--accent); font-size: 1.1rem;
+    }
+
+    table.compare {
+      width: 100%; border-collapse: collapse; font-size: 0.92rem;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    table.compare th, table.compare td {
+      padding: 0.85rem 1rem; text-align: left;
+      border-bottom: 1px solid var(--border); vertical-align: top;
+    }
+    table.compare th { background: #0e131a; color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    table.compare tr:last-child td { border-bottom: none; }
+    table.compare td:first-child { color: var(--text); font-weight: 500; width: 28%; }
+    table.compare .yes { color: var(--good); }
+    table.compare .meh { color: var(--muted); }
+
+    .flow {
+      display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+      gap: 0.5rem; align-items: center; margin: 1.5rem 0;
+    }
+    @media (max-width: 800px) {
+      .flow { grid-template-columns: 1fr; }
+      .flow .arrow { transform: rotate(90deg); justify-self: center; }
+    }
+    .flow .step {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1rem; text-align: center;
+    }
+    .flow .step strong { display: block; color: var(--accent); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.35rem; }
+    .flow .arrow { color: var(--muted); font-size: 1.25rem; }
+
+    .demo-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.35rem;
+    }
+    @media (max-width: 800px) { .demo-grid { grid-template-columns: 1fr; } }
+    .demo-card .shot-cap strong { color: var(--text); display: block; margin-bottom: 0.2rem; }
+
+    .note {
+      font-size: 0.88rem; color: var(--muted);
+      border-left: 3px solid var(--accent2); padding: 0.35rem 0 0.35rem 0.9rem;
+      margin: 1.25rem 0 0;
+    }
+
+    footer {
+      padding: 2.5rem 0 3rem; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 0.9rem;
+    }
+    footer .row {
+      display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between;
+      align-items: flex-start;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <div class="logo">CAM <span>Assistant</span></div>
+      <nav class="nav-links">
+        <a href="#what">What it does</a>
+        <a href="#why">Why want it</a>
+        <a href="#different">Why different</a>
+        <a href="#tour">Tour</a>
+        <a href="#start">Get started</a>
+        <a href="https://github.com/deesatzed/CAM_Assistant">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <div>
+        <div class="eyebrow">macOS · local-first · Pattern A</div>
+        <h1>Private memory that <em>stays yours</em> — and a Direction that keeps you aimed.</h1>
+        <p class="lede">
+          CAM Assistant is a quiet Mac app for people who capture everything and then
+          can’t find it — and who still need continuity with people and promises,
+          without a cloud chat personality.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/deesatzed/CAM_Assistant">View on GitHub</a>
+          <a class="btn btn-ghost" href="#tour">See the tour</a>
+        </div>
+        <div class="code-inline">git clone https://github.com/deesatzed/CAM_Assistant.git &&amp; swift run CAMAssistant</div>
+        <div class="badges">
+          <span class="badge">Offline find works</span>
+          <span class="badge">No silent cloud</span>
+          <span class="badge">Home · Library · Settings</span>
+          <span class="badge">Direction strip (people &amp; promises)</span>
+          <span class="badge">MIT · standalone repo</span>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="assets/save-find-keep.gif" alt="Animated tour: Home private memory, Save Clipboard, Find with citations, Keep" width="960" height="600" />
+        <div class="shot-cap">Product walkthrough (illustrated): Save → Find → Keep. Same ordinary-language surface as the app.</div>
+      </div>
+    </div>
+
+    <section id="what" class="alt">
+      <div class="wrap">
+        <h2>What it does</h2>
+        <p class="section-lede">
+          Two jobs, one app. Memory is the body. Direction is a thin face on Home — not a fourth destination, not a companion bot.
+        </p>
+        <div class="flow">
+          <div class="step"><strong>1 · Save</strong>Clipboard or watched folder</div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>2 · Find</strong>Search &amp; ask with sources</div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>3 · Keep</strong>Only what you choose</div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>4 · Direction</strong>People, promises, Talk</div>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="icon">📥</div>
+            <h3>Capture without taxonomy</h3>
+            <p>Save Clipboard or watch a folder. Items land in Library with readable titles — not hash-first rows. Hide or restore when clutter wins.</p>
+          </div>
+          <div class="card">
+            <div class="icon">🔎</div>
+            <h3>Find with trust</h3>
+            <p>Ask about what you saved. Matching passages work offline. With Local AI ready, answers must cite Library material or admit they can’t.</p>
+          </div>
+          <div class="card">
+            <div class="icon">🧭</div>
+            <h3>Direction, lightly</h3>
+            <p>Who matters, one open promise, a north star you own. Mark done, manage, or Talk — partner stance, never romantic companion framing.</p>
+          </div>
+        </div>
+        <p class="note">
+          Ordinary navigation is only <strong>Home</strong>, <strong>Library</strong>, and <strong>Settings</strong>. Specialist pilots stay off the default path.
+        </p>
+      </div>
+    </section>
+
+    <section id="why">
+      <div class="wrap">
+        <h2>Why you would want it</h2>
+        <p class="section-lede">If any of these sound familiar, CAM Assistant is aimed at you.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>“I capture everything and lose it.”</h3>
+            <p>Screenshots, clipboard dumps, and folders pile up. Notes apps demand structure. Cloud AI wants the paste. You need <em>findable, sourced</em> memory without becoming a librarian.</p>
+          </div>
+          <div class="card">
+            <h3>“I don’t want this in someone else’s logs.”</h3>
+            <p>Family email, health notes, work drafts, kids’ schedules. CAM’s ordinary path is local-first: capture, exact find, Keep, and backup work without sending content to a network model.</p>
+          </div>
+          <div class="card">
+            <h3>“ChatGPT remembers me — until it doesn’t feel like me.”</h3>
+            <p>Vendor memory is convenient and opaque. CAM keeps people and promises as <em>your</em> inspectable records on disk, and Talk must cite Library or admit absence.</p>
+          </div>
+          <div class="card">
+            <h3>“I drift between urgency and what matters.”</h3>
+            <p>Direction is not a productivity cosplay board. It’s a small strip for real humans and open promises — always visible while you save and find.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="different" class="alt">
+      <div class="wrap">
+        <h2>Why it’s different</h2>
+        <p class="section-lede">Not another floating chat window. Not a second-brain religion. Not a companion product.</p>
+        <table class="compare">
+          <thead>
+            <tr>
+              <th>Need</th>
+              <th>Typical cloud chat</th>
+              <th>Notes / second brain</th>
+              <th>CAM Assistant</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Where does my stuff live?</td>
+              <td class="meh">Vendor memory / history</td>
+              <td class="meh">Vault you maintain</td>
+              <td class="yes">On-device vault; backup you control</td>
+            </tr>
+            <tr>
+              <td>Find without organizing</td>
+              <td class="meh">Scroll the chat</td>
+              <td class="meh">Tags, folders, plugins</td>
+              <td class="yes">Save once → Library → Ask</td>
+            </tr>
+            <tr>
+              <td>Trust the answer</td>
+              <td class="meh">Fluency without sources</td>
+              <td class="meh">Links if you made them</td>
+              <td class="yes">Citations into Library; Keep is deliberate</td>
+            </tr>
+            <tr>
+              <td>Offline usefulness</td>
+              <td class="meh">Often blocked</td>
+              <td class="yes">Often yes</td>
+              <td class="yes">Find/Keep without a model</td>
+            </tr>
+            <tr>
+              <td>People &amp; promises</td>
+              <td class="meh">Prompt residue</td>
+              <td class="meh">Separate apps</td>
+              <td class="yes">Direction strip on Home</td>
+            </tr>
+            <tr>
+              <td>Product stance</td>
+              <td class="meh">Engagement chat</td>
+              <td class="meh">PKM craft</td>
+              <td class="yes">Partner, not servant / companion bot</td>
+            </tr>
+            <tr>
+              <td>Escape hatches</td>
+              <td class="meh">Tab forever</td>
+              <td class="meh">Plugin rabbit holes</td>
+              <td class="yes">Done + Escape on sheets; Close on detail</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">
+          Local AI (LM Studio / Ollama) is <strong>optional</strong> for richer synthesis. It is not required to capture, browse, or exact-find.
+        </p>
+      </div>
+    </section>
+
+    <section id="tour">
+      <div class="wrap">
+        <h2>Visual tour</h2>
+        <p class="section-lede">
+          Short loops of the ordinary product. These are <strong>product illustrations</strong> of the real Home / Library / Direction language — open the app for live UI.
+        </p>
+        <div class="demo-grid">
+          <div class="demo-card shot">
+            <img src="assets/save-find-keep.gif" alt="Save, find, and keep loop" width="960" height="600" loading="lazy" />
+            <div class="shot-cap">
+              <strong>Save → Find → Keep</strong>
+              Capture, ask with sources, deliberately Keep — not a transcript landfill.
+            </div>
+          </div>
+          <div class="demo-card shot">
+            <img src="assets/direction.gif" alt="Direction strip for people and promises" width="960" height="600" loading="lazy" />
+            <div class="shot-cap">
+              <strong>Direction strip</strong>
+              People, open promises, Done / Manage / Talk — continuity without a fourth tab.
+            </div>
+          </div>
+          <div class="demo-card shot">
+            <img src="assets/library.gif" alt="Library with recognizable titles" width="960" height="600" loading="lazy" />
+            <div class="shot-cap">
+              <strong>Library</strong>
+              Recognizable titles, search, kept answers, Close on detail — no identifier-first rows.
+            </div>
+          </div>
+          <div class="demo-card shot">
+            <img src="assets/private-local.gif" alt="Privacy and local-first defaults" width="960" height="600" loading="lazy" />
+            <div class="shot-cap">
+              <strong>Private by default</strong>
+              Local vault, optional Local AI, Escape leaves settings sheets.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="start" class="alt">
+      <div class="wrap">
+        <h2>Get started</h2>
+        <p class="section-lede">Standalone repository — no parent monorepo required.</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Run from source</h3>
+            <p style="margin-bottom:0.85rem">macOS 15+, Swift 6.2 / Xcode tools. Network once for package resolve.</p>
+            <div class="code-inline" style="display:block; white-space:pre; line-height:1.55;">git clone https://github.com/deesatzed/CAM_Assistant.git
+cd CAM_Assistant
+swift build
+swift run CAMAssistant</div>
+          </div>
+          <div class="card">
+            <h3>What you’ll see</h3>
+            <p>
+              <strong>Home</strong> — Direction, Save, Find, Keep<br />
+              <strong>Library</strong> — search and sources<br />
+              <strong>Settings</strong> — folders, Local AI, backup<br /><br />
+              Sheets close with <strong>Done</strong> or <strong>Escape</strong>.
+            </p>
+            <p style="margin-top:1rem">
+              Docs: <a href="https://github.com/deesatzed/CAM_Assistant/blob/main/README.md">README</a> ·
+              <a href="https://github.com/deesatzed/CAM_Assistant/blob/main/GOAL.md">GOAL.md</a> ·
+              <a href="https://github.com/deesatzed/CAM_Assistant/blob/main/GOAL_BAREBONES.md">Barebones</a> ·
+              <a href="https://github.com/deesatzed/CAM_Assistant/blob/main/GOAL_DIRECTION.md">Direction</a>
+            </p>
+          </div>
+        </div>
+        <p class="note">
+          <strong>Honest status:</strong> Machine gates for barebones + Direction are evidenced in-repo.
+          Human pilots remain open. Not App Store / notarized production by default.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap row">
+      <div>
+        <div class="logo" style="margin-bottom:0.5rem">CAM <span>Assistant</span></div>
+        <div>Private memory · Direction continuity · Local-first macOS</div>
+        <div style="margin-top:0.5rem">MIT License · Standalone SwiftPM product</div>
+      </div>
+      <div style="text-align:right">
+        <div><a href="https://github.com/deesatzed/CAM_Assistant">github.com/deesatzed/CAM_Assistant</a></div>
+        <div style="margin-top:0.35rem"><a href="../../README.md">Repository README</a></div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
