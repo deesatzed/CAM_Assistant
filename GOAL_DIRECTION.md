@@ -41,9 +41,9 @@ Pattern A: **Memory is the body; Direction is the face (thin strip).**
 
 1. **Do not break** barebones Gates 1–6 packaged evidence or no-model /
    no-network utility for capture, find, Library, Keep, backup.
-2. Barebones **Gate 7** (human pilot) remains required for barebones
-   completion; Direction work may proceed in parallel only if it does not
-   block or contaminate that pilot protocol.
+2. Barebones **Gate 7** (human pilot) was required for barebones completion
+   unless waived; **waived 2026-08-09** with Direction D6 (see
+   `docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`).
 3. Direction features are **absent from default navigation as specialist
    workspaces**. They live on **Home** as a strip/card, not Research /
    Meaning Preview / Modules.

@@ -17,7 +17,13 @@
 - Watched folders: **Remove…** requires confirmation; Library items kept.
 - Hotkeys: guided copy, live Command–Option preview, key normalize, conflict warn.
 - Local model picker: friendly short labels + full id under the field.
-- Human pilots G7/D6 still require real people (protocols already exist).
+- Human pilots G7/D6 later waived by owner (see HUMAN_GATE_WAIVER_2026-08-09).
+
+## 2026-08-09 - CI green on main after AppModel / isolation fixes
+
+- GitHub Actions `CI` on `main` **success** (run after hotkey `nonisolated` fix).
+- Landing Pages site responds **200** at https://deesatzed.github.io/CAM_Assistant/
+- Tip: full app `swift build` / `barebones-packaged` remains the local proof path.
 
 ## 2026-08-09 - Settings sheet trap fix (Done + Escape)
 

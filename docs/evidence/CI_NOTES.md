@@ -13,4 +13,7 @@ compiler does not emit the broken stored-property default thunk.
 CI runs full `swift build` + filtered `swift test` + portability script.
 
 **Pages deploy** is separate (`.github/workflows/pages.yml`) and does not
-compile Swift.
+compile Swift. Live site: https://deesatzed.github.io/CAM_Assistant/
+
+**Verified green:** CI workflow on `main` after AppModel `StateObject` init fix
+and `HotkeySettingsView.normalizeKeyField` `nonisolated` (2026-08-09).

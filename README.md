@@ -12,7 +12,8 @@ Local-first macOS app for people who **capture everything and then can’t find 
 | **Models** | Optional local server (LM Studio / Ollama). **Find works offline.** |
 | **License** | MIT |
 
-**Landing page:** open [`docs/landing/index.html`](docs/landing/index.html) locally, or the GitHub Pages site once Actions deploys (`Settings → Pages` uses the workflow in `.github/workflows/pages.yml`).
+**Landing page:** https://deesatzed.github.io/CAM_Assistant/  
+(local: [`docs/landing/index.html`](docs/landing/index.html); deploy workflow: `.github/workflows/pages.yml`)
 
 ---
 
