@@ -3,8 +3,10 @@
 Follow the tests in order. Read **What should happen** before choosing a result,
 but do not treat the expectation as proof: record what you actually see.
 
-Preparation: [`NOVICE_TEST_START_HERE.md`](NOVICE_TEST_START_HERE.md)  
-Problem form: [`NOVICE_TEST_PROBLEM_REPORT.md`](NOVICE_TEST_PROBLEM_REPORT.md)  
+Preparation: [`NOVICE_TEST_START_HERE.md`](NOVICE_TEST_START_HERE.md)
+
+Problem form: [`NOVICE_TEST_PROBLEM_REPORT.md`](NOVICE_TEST_PROBLEM_REPORT.md)
+
 Final summary: [`NOVICE_TEST_RESULTS.md`](NOVICE_TEST_RESULTS.md)
 
 ## Run information
@@ -673,4 +675,3 @@ untested or skipped behavior as passing.
 - [ ] Indexed every problem report
 - [ ] Reviewed screenshots for private information
 - [ ] Recorded the single most valuable improvement
-

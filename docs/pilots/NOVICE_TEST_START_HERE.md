@@ -240,4 +240,3 @@ Before opening the app, confirm:
 - [ ] I opened the checklist and report templates.
 
 Continue with [`NOVICE_TEST_CHECKLIST.md`](NOVICE_TEST_CHECKLIST.md).
-

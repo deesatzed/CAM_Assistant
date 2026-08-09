@@ -108,7 +108,7 @@ list short.
 
 Why?
 
-> 
+>
 
 ### 2. Could I repeat the main workflow without instructions?
 
@@ -118,11 +118,11 @@ Why?
 
 Where would I hesitate?
 
-> 
+>
 
 ### 3. What single change would improve the app most?
 
-> 
+>
 
 ## Additional ratings
 
@@ -153,7 +153,7 @@ Choose one:
 
 Final explanation:
 
-> 
+>
 
 ## Honest boundary
 

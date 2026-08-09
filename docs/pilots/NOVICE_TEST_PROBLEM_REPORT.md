@@ -31,23 +31,23 @@ Check one severity:
 
 What did the checklist say should happen?
 
-> 
+>
 
 ## What actually happened
 
 Describe only what you saw. Include the control you selected, visible status,
 wrong result, delay, freeze, or surprising behavior.
 
-> 
+>
 
 ## Exact actions before the observation
 
 Number every action starting from a screen someone else can find.
 
-1. 
-2. 
-3. 
-4. 
+1.
+2.
+3.
+4.
 
 ## Repeatability
 
@@ -87,7 +87,7 @@ Copy error or status wording exactly. Do not paraphrase if you can copy it.
 For confusion or an enhancement, what wording, layout, feedback, or action
 would have helped most?
 
-> 
+>
 
 ## Privacy confirmation
 
@@ -105,4 +105,3 @@ would have helped most?
 - Related reports:
 - Recommended next action:
 - Decision or task link:
-
