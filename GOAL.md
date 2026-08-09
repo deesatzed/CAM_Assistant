@@ -7,9 +7,10 @@
 Complete the user-first private memory inbox defined by
 [`GOAL_BAREBONES.md`](GOAL_BAREBONES.md).
 
-**Status (2026-08-06 evidence):** Machine packaged proof for Gates 1–6 is
-recorded; **Gate 7 (human) remains open**. Phase 1 is not complete until
-Gate 7 has authentic human evidence or an explicit human waiver.
+**Status (2026-08-09):** Machine packaged proof for Gates 1–6 is recorded.
+**Gate 7 human pilot is WAIVED** by explicit owner instruction — see
+`docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`. Phase 1 is complete for
+controlling-goal purposes under that waiver.
 
 ### Phase 2 — Direction strip + Talk (N3 face) — authorized, build paused for review
 
@@ -22,8 +23,10 @@ add Pattern A Direction (people, promises, north star, optional Talk) under
 **Implementation plan (review before code):**  
 [`docs/plans/2026-08-09-pattern-a-direction-implementation.md`](docs/plans/2026-08-09-pattern-a-direction-implementation.md)
 
-**Build rule:** No Phase 2 implementation until the human approves that plan.
-Phase 2 must not regress Phase 1 gates.
+**Build rule:** Phase 2 implementation is approved and shipped (machine gates
+D1–D5). **Gate D6 human pilot is WAIVED** — see
+`docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`. Phase 2 must not regress
+Phase 1 gates.
 
 ### Historical / not active product queue
 
@@ -102,6 +105,10 @@ they promised, privately.
 
 | Milestone | Done when |
 |-----------|-----------|
-| Phase 1 barebones | Every gate in `GOAL_BAREBONES.md` has required evidence |
-| Phase 2 Direction | Every gate in `GOAL_DIRECTION.md` has required evidence |
-| Pattern A product (N3+N4) | Phase 1 **and** Phase 2 complete (explicit waivers allowed only by human) |
+| Phase 1 barebones | Gates 1–6 machine evidence + Gate 7 evidence **or** explicit human waiver |
+| Phase 2 Direction | Gates D1–D5 machine evidence + Gate D6 evidence **or** explicit human waiver |
+| Pattern A product (N3+N4) | Phase 1 **and** Phase 2 complete under the rules above |
+
+**2026-08-09 owner waiver:** G7 and D6 waived — Pattern A controlling goals
+treated complete for this product spine (see evidence waiver file). Not a claim
+of notarized App Store release.

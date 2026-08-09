@@ -12,7 +12,7 @@ Local-first macOS app for people who **capture everything and then can’t find 
 | **Models** | Optional local server (LM Studio / Ollama). **Find works offline.** |
 | **License** | MIT |
 
-**Landing page (open in a browser):** [`docs/landing/index.html`](docs/landing/index.html)
+**Landing page:** open [`docs/landing/index.html`](docs/landing/index.html) locally, or the GitHub Pages site once Actions deploys (`Settings → Pages` uses the workflow in `.github/workflows/pages.yml`).
 
 ---
 
@@ -105,7 +105,7 @@ Optional: run a local OpenAI-compatible server, then Settings → Local AI → C
 
 Historical / specialist (not ordinary nav): `GOAL_FINISH_WIKI.md`, `GOAL_ADD2CAM.md`.
 
-**Honest status:** Machine gates for barebones + Direction are evidenced under `docs/evidence/`. Human pilots (Gate 7, D6) remain open unless a human waives them. Not App Store / notarized production by default.
+**Status (2026-08-09):** Pattern A controlling goals complete under machine evidence **plus explicit owner waiver** of human Gates 7 and D6 — see [`docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`](docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md). Still not App Store / notarized production by default.
 
 ---
 
@@ -151,7 +151,7 @@ swift run CAMAssistant
 - Capture, Library, exact find, Keep, and backup remain useful **without** a network model.  
 - No silent cloud provider on ordinary Ask / Talk paths.  
 - Direction Talk is **cite-or-admit** for Library claims.  
-- Do not claim “complete” or “production-ready” while human gates remain open without an explicit waiver.
+- Controlling Pattern A gates are complete under recorded waiver; this is **not** a notarized App Store release claim.
 
 ---
 

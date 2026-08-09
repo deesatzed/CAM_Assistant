@@ -1,5 +1,15 @@
 # CAM Assistant Progress
 
+## 2026-08-09 - Owner waiver G7/D6 + optional standalone polish
+
+- Explicit owner waiver of barebones Gate 7 and Direction D6 recorded in
+  `docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`; goals and gate status updated.
+- Pattern A controlling completion accepted under machine evidence + waiver.
+- Optional: GitHub Pages workflow for `docs/landing`; local-model probe script;
+  landing/README status honesty; TASK_QUEUE header sync.
+- Live LM Studio/Ollama on this host: probe reported none ready (offline paths
+  remain the proven default).
+
 ## 2026-08-09 - UX backlog: Direction lifecycle, confirms, hotkeys, model labels
 
 - Direction: open promises show **Done** on Home; **Manage** sheet for remove

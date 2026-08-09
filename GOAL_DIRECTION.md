@@ -180,9 +180,12 @@ Stop Direction work when:
 ## Completion
 
 Phase 2 Direction is complete only when Gates D1–D5 have current repository-
-owned evidence and Gate D6 has authentic human evidence (or explicit human
-waiver). Barebones Gate 7 remains separately required for barebones
-completion.
+owned evidence and Gate D6 has authentic human evidence **or an explicit human
+waiver recorded in the repository**.
 
 The **Pattern A product** (N3+N4) is complete only when **both** barebones
 Gates 1–7 and Direction Gates D1–D6 are satisfied (waivers explicit).
+
+**Waiver (2026-08-09):** Gate D6 waived by product owner (Gate 7 also waived) —
+see `docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`. Pattern A controlling
+completion accepted under that waiver.

@@ -1,14 +1,14 @@
 # Direction Gate Status
 
-**Updated:** 2026-08-09 (post DIR-007)
+**Updated:** 2026-08-09 (post owner waiver)
 
 | Gate | Meaning | Status | Evidence |
 |------|---------|--------|----------|
-| D1 | Strip on Home, plain language | PASS (machine) | `DirectionStripView` on Home; HomePresentationTests |
-| D2 | Profile persist + backup/restore | PASS (machine) | DirectionProfileStoreTests; fullVaultPackageCapturesDirectionProfile; packaged proof |
-| D3 | Offline Talk coach | PASS (machine) | DirectionTalkCoordinatorTests offline; AppModel `sendDirectionTalk` |
-| D4 | Cite-or-admit Talk | PASS (machine unit) | Coordinator library grounded + admit absence tests; live model optional |
-| D5 | Barebones non-regression + Direction packaged | PASS | `scripts/verify.sh barebones-packaged` → status=pass; `direction-packaged-journey.md` |
-| D6 | Human Direction pilot | PENDING | `docs/pilots/direction-general-user-protocol.md` |
+| D1 | Strip on Home, plain language | **PASS** | DirectionStripView; HomePresentationTests |
+| D2 | Profile persist + backup/restore | **PASS** | DirectionProfileStoreTests; full-vault Direction test; packaged proof |
+| D3 | Offline Talk coach | **PASS** | DirectionTalkCoordinatorTests; AppModel sendDirectionTalk |
+| D4 | Cite-or-admit Talk | **PASS** (unit) | Coordinator library grounded + admit tests |
+| D5 | Barebones non-regression + Direction packaged | **PASS** | `scripts/verify.sh barebones-packaged`; direction-packaged-journey.md |
+| D6 | Human Direction pilot | **WAIVED** | `HUMAN_GATE_WAIVER_2026-08-09.md` |
 
-**Phase 2 complete for machine gates only.** Human D6 + barebones G7 remain open.
+**Phase 2:** complete under machine D1–D5 + D6 waiver.

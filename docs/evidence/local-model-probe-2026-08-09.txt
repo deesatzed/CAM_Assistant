@@ -1,0 +1,12 @@
+CAM_ASSISTANT_LOCAL_MODEL_PROBE begin
+DOWN  http://127.0.0.1:1234/v1/models http=000000
+DOWN  http://127.0.0.1:11434/v1/models http=000000
+DOWN  http://localhost:1234/v1/models http=000000
+DOWN  http://localhost:11434/v1/models http=000000
+CAM_ASSISTANT_LOCAL_MODEL_PROBE status=none_ready
+Offline Find/Talk-coach paths remain valid; live synthesis not proven this host.
+Fetching https://github.com/deesatzed/meaningcore.git from cache
+Fetched https://github.com/deesatzed/meaningcore.git from cache (0.01s)
+Creating working copy for https://github.com/deesatzed/meaningcore.git
+Working copy of https://github.com/deesatzed/meaningcore.git resolved at 23db68044ebdc410edf3b7f436e433ffba6e94b8
+CAM_ASSISTANT_BAREBONES_PACKAGED status=pass

@@ -115,5 +115,9 @@ Stop the active feature when:
 ## Completion
 
 The barebones reset is complete only when Gates 1-6 have current repository-
-owned packaged evidence and Gate 7 has authentic human evidence. Passing
-component tests alone is not completion.
+owned packaged evidence and Gate 7 has authentic human evidence **or an
+explicit human waiver recorded in the repository**. Passing component tests
+alone is not completion of Gate 7 without waiver.
+
+**Waiver (2026-08-09):** Gate 7 waived by product owner — see
+`docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md`.

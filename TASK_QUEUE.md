@@ -11,13 +11,13 @@
 | BARE-005 | One local Ask path | Complete | Local-model cited answer or visible model-free matches; no fallback |
 | BARE-006 | Reversible cited Keep | Complete | Keep/Discard/duplicate/update/Undo/restart proof |
 | BARE-007 | Friendly layered Settings | Complete | Capture, Local AI, Backup & Restore, Advanced |
-| BARE-008 | Packaged and human proof | Machine complete; human pending | Isolated packaged journey passes; authentic non-developer Gate 7 remains required |
+| BARE-008 | Packaged and human proof | **Complete** (machine + G7 waived) | Packaged journey pass; Gate 7 waived 2026-08-09 |
 
-## Phase 2 Direction Queue (Pattern A N3) — plan review before code
+## Phase 2 Direction Queue (Pattern A N3) — shipped
 
 Controlling: `GOAL_DIRECTION.md`. Plan:
 `docs/plans/2026-08-09-pattern-a-direction-implementation.md`.
-**Status: authorized docs only; implementation not started.**
+**Status: implemented; D6 waived 2026-08-09.**
 
 | ID | Task | Status | Acceptance |
 |---|---|---|---|
@@ -29,12 +29,15 @@ Controlling: `GOAL_DIRECTION.md`. Plan:
 | DIR-005 | Talk offline coach (no model) | Complete | Coordinator offline + AppModel wiring |
 | DIR-006 | Talk cite-or-admit (local model) | Complete | Coordinator library grounded / admit tests |
 | DIR-007 | Packaged non-regression + Direction proof | Complete | `scripts/verify.sh barebones-packaged` status=pass |
-| DIR-008 | Human Direction gate | Not started | Gate D6 authentic human evidence (protocol ready) |
+| DIR-008 | Human Direction gate | **Waived** | D6 waived — `docs/evidence/HUMAN_GATE_WAIVER_2026-08-09.md` |
 | UX-B1 | Promise done / remove person Manage | Complete | Strip Done + Manage sheet + confirms |
 | UX-B2 | Confirm remove watched folder | Complete | confirmationDialog before remove |
 | UX-B3 | Guided hotkey editor | Complete | Preview, normalize, conflict, tips |
 | UX-B4 | Plainer local model labels | Complete | LocalModelDisplayName + full id caption |
-| UX-B5 | Human pilots G7 + D6 | Pending human | Protocols ready; agents cannot complete |
+| UX-B5 | Human pilots G7 + D6 | **Waived** | Owner explicit waiver 2026-08-09 |
+| OPT-01 | Live local-model Ask/Talk env proof | Complete (honest) | Probe none_ready this host; offline paths re-proven; re-run script when server up |
+| OPT-02 | Landing page GitHub Pages | Complete | `.github/workflows/pages.yml` deploys `docs/landing` |
+| OPT-03 | Product GIF refresh | Complete | Escape/Done frame + landing honesty labels |
 
 ## Parked Historical and Specialist Queue
 
