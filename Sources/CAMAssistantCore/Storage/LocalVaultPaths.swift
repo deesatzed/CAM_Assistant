@@ -3,6 +3,7 @@ import Foundation
 public enum LocalVaultStateFile: String, CaseIterable, Sendable {
     case approvals = "approvals.json"
     case contradictions = "contradictions.json"
+    case directionProfile = "direction-profile.json"
     case hotkeys = "hotkeys.json"
     case keptMemories = "kept-memories.json"
     case knowledgeClaims = "knowledge-claims.json"

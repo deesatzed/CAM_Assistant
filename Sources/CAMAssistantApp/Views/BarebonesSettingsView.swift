@@ -72,16 +72,22 @@ struct BarebonesSettingsView: View {
             honorRequestedSection()
         }
         .sheet(isPresented: $showCapture) {
-            CaptureSourcesView(model: model)
-                .frame(minWidth: 600, minHeight: 480)
+            DismissibleSheetChrome(title: "Watched folders") {
+                CaptureSourcesView(model: model)
+            }
+            .frame(minWidth: 600, minHeight: 480)
         }
         .sheet(isPresented: $showBackup) {
-            BackupRecoveryView(model: model)
-                .frame(minWidth: 680, minHeight: 560)
+            DismissibleSheetChrome(title: "Backup & Restore") {
+                BackupRecoveryView(model: model)
+            }
+            .frame(minWidth: 680, minHeight: 560)
         }
         .sheet(isPresented: $showAdvanced) {
-            AdvancedSettingsView(model: model)
-                .frame(minWidth: 720, minHeight: 620)
+            DismissibleSheetChrome(title: "Advanced Settings") {
+                AdvancedSettingsView(model: model)
+            }
+            .frame(minWidth: 720, minHeight: 620)
         }
     }
 
@@ -105,12 +111,20 @@ struct BarebonesSettingsView: View {
             if !model.localCatalogModelIDs.isEmpty {
                 Picker("Model", selection: $model.selectedLocalCatalogModelID) {
                     ForEach(model.localCatalogModelIDs, id: \.self) { modelID in
-                        Text(modelID).tag(modelID)
+                        Text(model.friendlyLocalModelLabel(for: modelID))
+                            .tag(modelID)
+                            .help(modelID)
                     }
                 }
                 .onChange(of: model.selectedLocalCatalogModelID) { _, modelID in
                     guard !modelID.isEmpty else { return }
                     model.applySelectedLocalModelFromCatalog()
+                }
+                if !model.selectedLocalCatalogModelID.isEmpty {
+                    Text("Full id: \(model.selectedLocalCatalogModelID)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .textSelection(.enabled)
                 }
             }
             Button("Check Again", action: model.checkLocalAIFromSettings)
@@ -177,7 +191,6 @@ struct BarebonesSettingsView: View {
 private enum AdvancedSettingsPane: String, CaseIterable, Identifiable {
     case localAI = "Local AI Details"
     case shortcuts = "Shortcuts"
-    case meaningPreview = "Meaning Preview"
 
     var id: String { rawValue }
 }
@@ -200,9 +213,16 @@ private struct AdvancedSettingsView: View {
                 ModelProfilesView(model: model)
             case .shortcuts:
                 HotkeySettingsView(model: model)
-            case .meaningPreview:
-                MeaningPreviewSettingsView(model: model)
             }
+            // Meaning Preview is a parked specialist pilot. It is not offered
+            // on the ordinary Advanced surface (Pattern A primary product).
+            Text(
+                "Tip: Press Escape or Done to leave Advanced and return to Settings."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding([.horizontal, .bottom])
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityLabel("Advanced technical settings")
     }

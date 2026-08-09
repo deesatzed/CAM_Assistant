@@ -1,5 +1,47 @@
 # CAM Assistant Progress
 
+## 2026-08-09 - UX backlog: Direction lifecycle, confirms, hotkeys, model labels
+
+- Direction: open promises show **Done** on Home; **Manage** sheet for remove
+  person/promise (confirm), reopen done promises; store update/remove APIs.
+- Watched folders: **Remove…** requires confirmation; Library items kept.
+- Hotkeys: guided copy, live Command–Option preview, key normalize, conflict warn.
+- Local model picker: friendly short labels + full id under the field.
+- Human pilots G7/D6 still require real people (protocols already exist).
+
+## 2026-08-09 - Settings sheet trap fix (Done + Escape)
+
+- User could open Watched folders / Backup / Advanced sheets with no close
+  control; Esc did not dismiss.
+- Added `DismissibleSheetChrome` (toolbar Done + `keyboardShortcut(.cancelAction)`
+  + `onExitCommand` for Escape).
+- Wired Capture, Backup, Advanced, and Direction sheets through it.
+- Tests: BarebonesSettingsTests chrome contract pass.
+
+## 2026-08-09 - Phase 2 Direction implemented (machine gates; human D6 open)
+
+- Human approved Pattern A plan; implemented DIR-001…DIR-007.
+- Core: `DirectionModels`, `DirectionProfileStore`, `DirectionTalkCoordinator`
+  (offline coach, profile continuity, cite-or-admit via LocalAnswerCoordinator).
+- App: Direction strip on Home, sheets for person/promise/north star, Talk sheet;
+  `direction-profile.json` in vault state + full-vault backup/restore.
+- Verification: Direction unit/presentation tests pass (16 focused);
+  `scripts/verify.sh barebones-packaged` **status=pass** (includes Direction
+  person/promise round-trip on restore).
+- Gate D6 human pilot protocol ready; agents cannot satisfy. Barebones Gate 7
+  still pending human. Pattern A product not complete until both human gates
+  (or explicit waivers).
+
+## 2026-08-09 - Pattern A needs lock; Phase 2 Direction authorized (docs only)
+
+- Needs locked: **N3** (people/promises continuity) + **N4** (capture→find/trust),
+  **Pattern A** (memory body, Direction strip face). Positioning:
+  `docs/plans/2026-08-09-n3-n4-pattern-a-positioning.md`.
+- `GOAL.md` sequenced: Phase 1 barebones (Gate 7 human still open); Phase 2
+  Direction under new `GOAL_DIRECTION.md`.
+- Implementation plan:
+  `docs/plans/2026-08-09-pattern-a-direction-implementation.md`.
+
 ## 2026-08-06 - Barebones Task 9: packaged machine proof complete; human gate pending
 
 - Added a repository-owned proof mode to the real packaged executable. Against

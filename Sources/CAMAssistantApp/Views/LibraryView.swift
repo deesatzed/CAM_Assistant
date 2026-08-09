@@ -170,7 +170,7 @@ struct LibraryView: View {
                             Array(memory.citations.enumerated()),
                             id: \.element.passageID
                         ) { index, citation in
-                            Button("Open source \(index + 1)") {
+                            Button("Show source in Library (\(index + 1))") {
                                 model.openLibrarySource(for: citation)
                             }
                             .buttonStyle(.link)
@@ -187,18 +187,25 @@ struct LibraryView: View {
 
     private func itemDetail(_ row: LibrarySourceRow) -> some View {
         let item = LibraryItemPresentation(row: row)
-        return GroupBox(item.title) {
+        return GroupBox {
             VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(item.title)
+                        .font(.headline)
+                    Spacer()
+                    Button("Close") {
+                        model.clearLibrarySelection()
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityHint("Hides this item detail and returns to the list.")
+                }
                 Text(item.preview.isEmpty ? "No preview available" : item.preview)
                     .textSelection(.enabled)
-                DisclosureGroup("Details") {
+                DisclosureGroup("More about this item") {
                     VStack(alignment: .leading, spacing: 8) {
                         LabeledContent("Type", value: item.type)
                         LabeledContent("Saved", value: item.dateText)
-                        LabeledContent("Source ID", value: row.id)
-                        LabeledContent("Citation passage", value: row.passageID)
-                        LabeledContent("Extractor", value: row.extractorID)
-                        Button("Verify original source") {
+                        Button("Verify original is still on this Mac") {
                             model.inspectRawLibrarySource(row.id)
                         }
                         .disabled(model.isInspectingRawSource)
@@ -211,6 +218,11 @@ struct LibraryView: View {
                             )
                         }
                         .disabled(model.isUpdatingLibraryLifecycle)
+                        DisclosureGroup("Technical identifiers") {
+                            LabeledContent("Source ID", value: row.id)
+                            LabeledContent("Citation passage", value: row.passageID)
+                            LabeledContent("Extractor", value: row.extractorID)
+                        }
                     }
                     .padding(.top, 6)
                 }

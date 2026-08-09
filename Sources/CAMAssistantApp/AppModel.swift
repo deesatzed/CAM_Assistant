@@ -1170,6 +1170,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var keptMemoryStatus: String?
     @Published private(set) var canUndoLastKeptMemory = false
     private var keptMemoryUndoReceipt: KeptMemoryUndoReceipt?
+    @Published private(set) var directionProfile = DirectionProfile.empty
+    @Published private(set) var directionStatus: String?
+    @Published private(set) var directionTalkResult: DirectionTalkResult?
+    @Published private(set) var isDirectionTalking = false
+    @Published var directionTalkDraft = ""
     @Published private(set) var knowledgeClaims: [KnowledgeClaim] = []
     @Published private(set) var contradictionCandidates: [ContradictionCandidate] = []
     @Published var contradictionLeftID = ""
@@ -1373,6 +1378,7 @@ final class AppModel: ObservableObject {
         reloadRetainedResearchPlans()
         reloadResearchAcquisitionState(recoverInterrupted: true)
         reloadKeptMemories()
+        reloadDirectionProfile()
         reloadKnowledgeClaims()
         reloadContradictionCandidates()
         reloadPackagedTextSummaryModule()
@@ -3058,6 +3064,222 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func reloadDirectionProfile() {
+        do {
+            directionProfile = try directionProfileStore().load()
+        } catch {
+            directionProfile = .empty
+        }
+    }
+
+    func addDirectionPerson(name: String, relation: String = "") {
+        do {
+            directionProfile = try directionProfileStore().addPerson(
+                name: name,
+                relation: relation
+            )
+            directionStatus = "Saved person."
+        } catch DirectionProfileError.blankPersonName {
+            directionStatus = "Enter a name first."
+        } catch {
+            directionStatus = "CAM couldn't save that person."
+        }
+    }
+
+    func addDirectionPromise(text: String, toward: String = "shared good") {
+        do {
+            directionProfile = try directionProfileStore().addPromise(
+                text: text,
+                toward: toward
+            )
+            directionStatus = "Saved promise."
+        } catch DirectionProfileError.blankPromiseText {
+            directionStatus = "Enter a promise first."
+        } catch {
+            directionStatus = "CAM couldn't save that promise."
+        }
+    }
+
+    func setDirectionNorthStar(_ text: String) {
+        do {
+            directionProfile = try directionProfileStore().setNorthStar(text)
+            directionStatus = "Saved direction."
+        } catch {
+            directionStatus = "CAM couldn't save that direction."
+        }
+    }
+
+    func removeDirectionPerson(id: String) {
+        do {
+            directionProfile = try directionProfileStore().removePerson(id: id)
+            directionStatus = "Removed person."
+        } catch DirectionProfileError.personNotFound {
+            directionStatus = "That person was already removed."
+            reloadDirectionProfile()
+        } catch {
+            directionStatus = "CAM couldn't remove that person."
+        }
+    }
+
+    func updateDirectionPerson(id: String, name: String, relation: String = "") {
+        do {
+            directionProfile = try directionProfileStore().updatePerson(
+                id: id,
+                name: name,
+                relation: relation
+            )
+            directionStatus = "Updated person."
+        } catch DirectionProfileError.blankPersonName {
+            directionStatus = "Enter a name first."
+        } catch DirectionProfileError.personNotFound {
+            directionStatus = "That person was not found."
+            reloadDirectionProfile()
+        } catch {
+            directionStatus = "CAM couldn't update that person."
+        }
+    }
+
+    func markDirectionPromiseDone(id: String) {
+        do {
+            directionProfile = try directionProfileStore().setPromiseOpen(
+                id: id,
+                isOpen: false
+            )
+            directionStatus = "Marked promise done."
+        } catch DirectionProfileError.promiseNotFound {
+            directionStatus = "That promise was not found."
+            reloadDirectionProfile()
+        } catch {
+            directionStatus = "CAM couldn't update that promise."
+        }
+    }
+
+    func reopenDirectionPromise(id: String) {
+        do {
+            directionProfile = try directionProfileStore().setPromiseOpen(
+                id: id,
+                isOpen: true
+            )
+            directionStatus = "Promise reopened."
+        } catch {
+            directionStatus = "CAM couldn't reopen that promise."
+            reloadDirectionProfile()
+        }
+    }
+
+    func removeDirectionPromise(id: String) {
+        do {
+            directionProfile = try directionProfileStore().removePromise(id: id)
+            directionStatus = "Removed promise."
+        } catch DirectionProfileError.promiseNotFound {
+            directionStatus = "That promise was already removed."
+            reloadDirectionProfile()
+        } catch {
+            directionStatus = "CAM couldn't remove that promise."
+        }
+    }
+
+    /// Short label for model pickers (hides long repo paths when possible).
+    func friendlyLocalModelLabel(for modelID: String) -> String {
+        LocalModelDisplayName.friendly(modelID)
+    }
+
+    func clearDirectionTalk() {
+        directionTalkResult = nil
+        directionTalkDraft = ""
+    }
+
+    func sendDirectionTalk(_ question: String) {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let profile = directionProfile
+        let modelReady = localModelHealth != nil
+        let databaseURL: URL
+        do {
+            databaseURL = try LocalConversationContextProvider
+                .defaultDatabaseURL()
+        } catch {
+            directionTalkResult = DirectionTalkResult(
+                text: DirectionTalkCoordinator.offlineCoachMessage,
+                mode: .offlineCoach
+            )
+            return
+        }
+        let assignment = modelReady ? try? activeLocalModelAssignment() : nil
+        isDirectionTalking = true
+        directionTalkDraft = trimmed
+        Task { [weak self] in
+            let talk = DirectionTalkCoordinator(
+                isModelAvailable: assignment != nil,
+                loadContext: { requested in
+                    try await Task.detached {
+                        try LocalConversationContextProvider(
+                            databaseURL: databaseURL
+                        ).context(for: requested)
+                    }.value
+                },
+                answerLibrary: { requested in
+                    let coordinator = LocalAnswerCoordinator(
+                        loadContext: { q in
+                            try await Task.detached {
+                                try LocalConversationContextProvider(
+                                    databaseURL: databaseURL
+                                ).context(for: q)
+                            }.value
+                        },
+                        isModelAvailable: assignment != nil,
+                        generate: { q, context in
+                            guard let assignment else {
+                                throw LocalModelInferenceError.invalidAssignment
+                            }
+                            return try await LocalModelClient(
+                                assignment: assignment
+                            ).generate(question: q, context: context)
+                        }
+                    )
+                    return try await coordinator.answer(requested)
+                }
+            )
+            do {
+                let result = try await talk.respond(
+                    question: trimmed,
+                    profile: profile
+                )
+                self?.directionTalkResult = result
+            } catch ConversationError.blankQuestion {
+                self?.directionTalkResult = DirectionTalkResult(
+                    text: "Type something first.",
+                    mode: .offlineCoach
+                )
+            } catch {
+                self?.directionTalkResult = DirectionTalkResult(
+                    text: """
+                        CAM couldn't finish Talk. Your Library and Direction \
+                        were not changed.
+                        """,
+                    mode: .admitAbsence
+                )
+            }
+            self?.isDirectionTalking = false
+        }
+    }
+
+    func keepDirectionTalkResponse() {
+        guard let response = directionTalkResult?.response,
+              !response.citations.isEmpty
+        else { return }
+        conversationResponse = response
+        keepConversationResponse()
+    }
+
+    private func directionProfileStore() throws -> DirectionProfileStore {
+        DirectionProfileStore(
+            url: try vaultRootProvider().appending(
+                path: LocalVaultStateFile.directionProfile.rawValue
+            )
+        )
+    }
+
     private func persistConversationMemory(
         _ response: ConversationResponse,
         choice: KeptMemorySaveChoice
@@ -3252,6 +3474,11 @@ final class AppModel: ObservableObject {
                 self?.reloadIngestJobs()
             }
         }
+    }
+
+    func clearLibrarySelection() {
+        selectedLibrarySourceID = nil
+        rawSourceInspection = nil
     }
 
     func selectLibrarySource(_ sourceID: String) {

@@ -13,6 +13,29 @@
 | BARE-007 | Friendly layered Settings | Complete | Capture, Local AI, Backup & Restore, Advanced |
 | BARE-008 | Packaged and human proof | Machine complete; human pending | Isolated packaged journey passes; authentic non-developer Gate 7 remains required |
 
+## Phase 2 Direction Queue (Pattern A N3) — plan review before code
+
+Controlling: `GOAL_DIRECTION.md`. Plan:
+`docs/plans/2026-08-09-pattern-a-direction-implementation.md`.
+**Status: authorized docs only; implementation not started.**
+
+| ID | Task | Status | Acceptance |
+|---|---|---|---|
+| DIR-000 | Goal + plan review | Complete | Human approved 2026-08-09; build authorized |
+| DIR-001 | Direction profile store (people, promises, north star) | Complete | Store + DirectionProfileStoreTests pass |
+| DIR-002 | Home Direction strip + empty invites | Complete | DirectionStripView on Home; presentation tests |
+| DIR-003 | Add/edit person and promise sheets | Complete | Sheets + AppModel mutators |
+| DIR-004 | Backup/restore includes Direction profile | Complete | Full-vault Direction test + packaged restore |
+| DIR-005 | Talk offline coach (no model) | Complete | Coordinator offline + AppModel wiring |
+| DIR-006 | Talk cite-or-admit (local model) | Complete | Coordinator library grounded / admit tests |
+| DIR-007 | Packaged non-regression + Direction proof | Complete | `scripts/verify.sh barebones-packaged` status=pass |
+| DIR-008 | Human Direction gate | Not started | Gate D6 authentic human evidence (protocol ready) |
+| UX-B1 | Promise done / remove person Manage | Complete | Strip Done + Manage sheet + confirms |
+| UX-B2 | Confirm remove watched folder | Complete | confirmationDialog before remove |
+| UX-B3 | Guided hotkey editor | Complete | Preview, normalize, conflict, tips |
+| UX-B4 | Plainer local model labels | Complete | LocalModelDisplayName + full id caption |
+| UX-B5 | Human pilots G7 + D6 | Pending human | Protocols ready; agents cannot complete |
+
 ## Parked Historical and Specialist Queue
 
 The entries below preserve implementation and evidence history. They are not

@@ -51,4 +51,23 @@ func primarySettingsUsesProgressiveDisclosure() throws {
     #expect(settings.contains("Check Again"))
     #expect(settings.contains("Open Backup & Restore"))
     #expect(settings.contains("Open Advanced Settings"))
+    #expect(settings.contains("DismissibleSheetChrome"))
+    #expect(settings.contains("Watched folders"))
+}
+
+@Test("settings sheets use dismissible chrome with Escape support")
+func settingsSheetsUseDismissibleChrome() throws {
+    let root = URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let chrome = try String(
+        contentsOf: root.appending(
+            path: "Sources/CAMAssistantApp/Views/DismissibleSheetChrome.swift"
+        ),
+        encoding: .utf8
+    )
+    #expect(chrome.contains("onExitCommand"))
+    #expect(chrome.contains("keyboardShortcut(.cancelAction)"))
+    #expect(chrome.contains("Done"))
 }

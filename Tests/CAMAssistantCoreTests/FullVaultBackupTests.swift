@@ -49,6 +49,7 @@ func localVaultPathsOwnEveryRecognizedDurableStateLocation() {
         LocalVaultStateFile.allCases.map(\.rawValue) == [
             "approvals.json",
             "contradictions.json",
+            "direction-profile.json",
             "hotkeys.json",
             "kept-memories.json",
             "knowledge-claims.json",
@@ -122,6 +123,51 @@ func fullVaultManifestRejectsUnsafeEntries() {
             entries: [database, database]
         )
     }
+}
+
+@Test("full-vault package captures Direction profile with recognized state")
+func fullVaultPackageCapturesDirectionProfile() throws {
+    let workspace = try makeBackupTestDirectory()
+    defer { try? FileManager.default.removeItem(at: workspace) }
+    let vaultRoot = workspace.appending(path: "CAMAssistant")
+    let packageURL = workspace.appending(path: "Direction.camvault")
+    let restoredRoot = workspace.appending(path: "Restored")
+    let database = try SQLiteStore(
+        databaseURL: vaultRoot.appending(path: "vault.sqlite")
+    )
+    _ = try ContentStore(
+        rootDirectory: vaultRoot.appending(path: "content")
+    )
+    let directionURL = LocalVaultPaths.stateURL(
+        .directionProfile,
+        vaultRoot: vaultRoot
+    )
+    let store = DirectionProfileStore(url: directionURL)
+    _ = try store.addPerson(name: "Jordan", relation: "friend")
+    _ = try store.addPromise(text: "Walk", toward: "Jordan")
+    _ = try store.setNorthStar("Be present")
+
+    let backup = FullVaultBackupService()
+    _ = try backup.createPackage(
+        from: vaultRoot,
+        to: packageURL,
+        createdAt: Date(timeIntervalSince1970: 200)
+    )
+    try database.close()
+    _ = try backup.restorePackage(
+        at: packageURL,
+        to: restoredRoot,
+        restoredAt: Date(timeIntervalSince1970: 201)
+    )
+    let restored = try DirectionProfileStore(
+        url: LocalVaultPaths.stateURL(
+            .directionProfile,
+            vaultRoot: restoredRoot
+        )
+    ).load()
+    #expect(restored.people.map(\.name) == ["Jordan"])
+    #expect(restored.openPromises.map(\.text) == ["Walk"])
+    #expect(restored.northStar == "Be present")
 }
 
 @Test("full-vault package captures database, immutable objects, and recognized state")

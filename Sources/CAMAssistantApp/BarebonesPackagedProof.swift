@@ -9,6 +9,7 @@ enum BarebonesPackagedProofError: Error, Sendable {
     case restart
     case ask
     case keep
+    case direction
     case recovery
     case unexpectedModelRequest
 
@@ -21,6 +22,7 @@ enum BarebonesPackagedProofError: Error, Sendable {
         case .restart: "restart"
         case .ask: "ask"
         case .keep: "keep"
+        case .direction: "direction"
         case .recovery: "recovery"
         case .unexpectedModelRequest: "unexpected-model-request"
         }
@@ -214,6 +216,25 @@ enum BarebonesPackagedProof {
             now: capturedAt.addingTimeInterval(3)
         )
 
+        let directionURL = LocalVaultPaths.stateURL(
+            .directionProfile,
+            vaultRoot: vaultRoot
+        )
+        let directionStore = DirectionProfileStore(url: directionURL)
+        _ = try directionStore.addPerson(
+            name: "Jordan",
+            relation: "friend",
+            now: capturedAt.addingTimeInterval(3.5)
+        )
+        _ = try directionStore.addPromise(
+            text: "Call this week",
+            toward: "Jordan",
+            now: capturedAt.addingTimeInterval(3.6)
+        )
+        guard try directionStore.load().people.map(\.name) == ["Jordan"] else {
+            throw BarebonesPackagedProofError.direction
+        }
+
         let watchedStore = WatchedSourceConfigurationStore(
             url: LocalVaultPaths.stateURL(.watchedSources, vaultRoot: vaultRoot)
         )
@@ -257,6 +278,12 @@ enum BarebonesPackagedProof {
                 vaultRoot: restoredRoot
             )
         ).all()
+        let restoredDirection = try DirectionProfileStore(
+            url: LocalVaultPaths.stateURL(
+                .directionProfile,
+                vaultRoot: restoredRoot
+            )
+        ).load()
         let restoredQueue = try IngestQueue(
             databaseURL: restoredRoot.appending(path: "vault.sqlite"),
             contentStore: try ContentStore(
@@ -274,6 +301,8 @@ enum BarebonesPackagedProof {
               restoredWatched.count == 1,
               !restoredWatched[0].isEnabled,
               restoredMemories.count == 1,
+              restoredDirection.people.map(\.name) == ["Jordan"],
+              restoredDirection.openPromises.map(\.text) == ["Call this week"],
               try restoredQueue.sourceCount() == 1,
               try restoredQueue.documents().count == 1 else {
             throw BarebonesPackagedProofError.recovery

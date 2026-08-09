@@ -26,6 +26,14 @@ Home uses one obvious Ask action. Details use progressive disclosure. Capture,
 Library, exact search, citations, backup, and recovery remain useful with no model
 and no network.
 
+### Phase 2 note (does not change barebones gates)
+
+After Gates 1–6 machine evidence, Pattern A **Direction** (people, promises,
+north star, optional Talk) may appear as a **thin strip on Home** only, under
+[`GOAL_DIRECTION.md`](GOAL_DIRECTION.md). Direction is not a fourth primary
+destination and must not regress these barebones gates. Phase 2 code starts
+only after human approval of the Direction implementation plan.
+
 ## Authority and Data Boundaries
 
 - Captured source bytes and provenance remain local and authoritative.

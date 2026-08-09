@@ -479,13 +479,21 @@ func meaningPreviewIsConditionalAndReducedMotionSafe() throws {
     #expect(sidebar.contains("filter"))
     #expect(sidebar.contains("meaning-preview-sidebar"))
     #expect(window.contains("if model.isMeaningPreviewVisible"))
-    #expect(settings.contains("MeaningPreviewSettingsView"))
+    // Ordinary Advanced settings must not host the pilot (dead-end for primary users).
+    #expect(!settings.contains("MeaningPreviewSettingsView"))
+    #expect(settings.contains("parked specialist") || settings.contains("Done to leave Advanced"))
     #expect(window.contains("MeaningPreviewView"))
+    let settingsViewPath = views.appending(path: "MeaningPreviewSettingsView.swift")
+    let meaningSettings = try String(contentsOf: settingsViewPath, encoding: .utf8)
+    #expect(meaningSettings.contains("Enable Meaning Preview"))
     for forbiddenMotion in [
         "withAnimation", ".animation(", "matchedGeometryEffect",
         "symbolEffect", "contentTransition",
     ] {
-        #expect(!(sidebar + window + settings + preview).contains(forbiddenMotion))
+        #expect(
+            !(sidebar + window + settings + preview + meaningSettings)
+                .contains(forbiddenMotion)
+        )
     }
 }
 

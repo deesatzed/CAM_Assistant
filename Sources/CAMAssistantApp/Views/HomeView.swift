@@ -19,6 +19,7 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 welcome
+                DirectionStripView(model: model)
                 capture
                 ask
                 result
@@ -27,9 +28,14 @@ struct HomeView: View {
             .frame(maxWidth: 760, alignment: .leading)
             .padding(24)
         }
-        .onAppear { questionFocused = true }
+        .onAppear {
+            questionFocused = true
+            model.reloadDirectionProfile()
+        }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Home. Save something, find it later, and keep only what matters.")
+        .accessibilityLabel(
+            "Home. Direction, save something, find it later, and keep only what matters."
+        )
     }
 
     private var welcome: some View {
@@ -57,12 +63,12 @@ struct HomeView: View {
                     .accessibilityHint(
                         "Saves text currently copied on this Mac to your private Library."
                     )
-                Button("Watch a Folder") {
+                Button("Watch a Folder…") {
                     model.openCaptureSettings()
                 }
                 .buttonStyle(.link)
                 .accessibilityHint(
-                    "Opens Settings where you can choose a folder to save from automatically."
+                    "Opens folder settings. Press Escape or Done to leave that sheet."
                 )
                 if let message = model.captureMessage {
                     Text(message)
@@ -157,10 +163,11 @@ struct HomeView: View {
                         Array(response.citations.enumerated()),
                         id: \.element.passageID
                     ) { index, citation in
-                        Button("Open source \(index + 1)") {
+                        Button("Show in Library (\(index + 1))") {
                             model.openLibrarySource(for: citation)
                         }
                         .buttonStyle(.link)
+                        .accessibilityHint("Opens Library focused on this saved item.")
                     }
                 }
 
@@ -222,17 +229,27 @@ struct HomeView: View {
             GroupBox("Recently kept") {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(model.keptMemories.prefix(3))) { memory in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(memory.text).lineLimit(2)
-                            Text(
-                                "\(memory.citations.count) "
-                                    + (memory.citations.count == 1
-                                        ? "source" : "sources")
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Button {
+                            model.selection = .library
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(memory.text)
+                                    .lineLimit(2)
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.leading)
+                                Text(
+                                    "\(memory.citations.count) "
+                                        + (memory.citations.count == 1
+                                            ? "source" : "sources")
+                                        + " · Open Library"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .accessibilityElement(children: .combine)
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens Library where kept answers are listed.")
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

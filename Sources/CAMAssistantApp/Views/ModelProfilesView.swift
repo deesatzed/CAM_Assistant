@@ -47,8 +47,16 @@ struct ModelProfilesView: View {
                     ) {
                         Text("Choose a model").tag("")
                         ForEach(model.localCatalogModelIDs, id: \.self) { id in
-                            Text(id).tag(id)
+                            Text(model.friendlyLocalModelLabel(for: id))
+                                .tag(id)
+                                .help(id)
                         }
+                    }
+                    if !model.selectedLocalCatalogModelID.isEmpty {
+                        Text("Full id: \(model.selectedLocalCatalogModelID)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .textSelection(.enabled)
                     }
                 }
 
