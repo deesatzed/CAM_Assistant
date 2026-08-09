@@ -1,14 +1,16 @@
 # CI notes
 
-## Core-only on GitHub Actions (2026-08-09)
+## AppModel SILGen crash (2026-08-09)
 
-GitHub-hosted `macos-15` + Xcode 16.4 / Swift 6.1.2 **crashes** (`signal 10`)
-while SILGen-emitting `AppModel()` for `CAMAssistantApp` (`StateObject`
-default init over a very large `@MainActor` type).
+GitHub-hosted Swift 6.1.2 **crashed** (`signal 10`) while SILGen-emitting a
+property-level `@StateObject private var model = AppModel()` because
+`AppModel` has a large default-argument initializer.
 
-**CI policy:** build/test **CAMAssistantCore** (+ Core tests) and portability
-script. Full app build/test remains local (`swift build` / `swift run
-CAMAssistant` / `scripts/verify.sh barebones-packaged` on developer machines).
+**Mitigation:** construct `AppModel` inside `CAMAssistantApp.init` via
+`StateObject(wrappedValue: AppModel(initializeFullWorkspace: true))` so the
+compiler does not emit the broken stored-property default thunk.
+
+CI runs full `swift build` + filtered `swift test` + portability script.
 
 **Pages deploy** is separate (`.github/workflows/pages.yml`) and does not
 compile Swift.

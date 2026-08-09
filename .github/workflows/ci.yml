@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Swift Core tests (macOS)
+    name: Swift test (macOS)
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -23,21 +23,20 @@ jobs:
       - name: Resolve packages
         run: swift package resolve
 
-      # Full CAMAssistantApp + AppModel() can crash swift-frontend (signal 10) on
-      # some GitHub-hosted toolchains during SILGen. Core library + Core tests
-      # cover vault, Direction, Keep, Ask policy, and backup — the product spine.
-      - name: Build Core
-        run: swift build --target CAMAssistantCore --disable-sandbox
+      - name: Build
+        run: swift build --disable-sandbox
 
-      - name: Test Core (Direction, Keep, Ask, backup, portability-related)
+      - name: Test product spine filters
         run: |
-          swift test --target CAMAssistantCoreTests --disable-sandbox \
+          swift test --disable-sandbox \
             --filter DirectionProfileStoreTests \
             --filter DirectionTalkCoordinatorTests \
             --filter LocalAnswerCoordinatorTests \
             --filter KeptMemoryTests \
             --filter FullVaultBackupTests \
-            --filter ConversationTests
+            --filter BarebonesSettingsTests \
+            --filter HomePresentationTests \
+            --filter BarebonesNavigationTests
 
       - name: Portability contract
         run: /bin/zsh scripts/verify.sh portability

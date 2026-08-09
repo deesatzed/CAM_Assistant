@@ -4,7 +4,10 @@ import SwiftUI
 
 @main
 struct CAMAssistantApp: App {
-    @StateObject private var model = AppModel()
+    /// Constructed in `init` (not a property default) to avoid a SILGen crash
+    /// on some Swift 6.1 toolchains when default-arg `AppModel()` is stored in
+    /// `@StateObject` at property init time.
+    @StateObject private var model: AppModel
 
     init() {
         if let proofRoot = Self.barebonesProofRoot() {
@@ -52,6 +55,9 @@ struct CAMAssistantApp: App {
             )
             Darwin.exit(EXIT_SUCCESS)
         }
+        _model = StateObject(
+            wrappedValue: AppModel(initializeFullWorkspace: true)
+        )
     }
 
     private static func barebonesProofRoot() -> URL? {
