@@ -1,5 +1,18 @@
 # CAM Assistant Progress
 
+## 2026-08-09 - Clone-ready novice second-Mac test kit
+
+- Added a four-document plain-language kit under `docs/pilots/` for the product
+  owner to run on another Mac: preparation and safety, a stable-ID check-off
+  journey, a reusable problem/confusion/enhancement report, and a run summary.
+- The journey uses fixed synthetic facts and covers first launch, three-place
+  navigation, capture/deduplication, Library/search/citations, model-free Ask,
+  Keep/Undo, Direction, live local Ask/Talk, watched folders, restart,
+  backup/validation/fresh restore, accessibility, privacy understanding, and
+  unaided repetition.
+- This creates an easier route to authentic human evidence but records no new
+  human result. Existing G7/D6 waivers and release boundaries are unchanged.
+
 ## 2026-08-09 - Owner waiver G7/D6 + optional standalone polish
 
 - Explicit owner waiver of barebones Gate 7 and Direction D6 recorded in

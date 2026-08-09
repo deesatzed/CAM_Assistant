@@ -118,6 +118,14 @@ Historical / specialist (not ordinary nav): `GOAL_FINISH_WIKI.md`, `GOAL_ADD2CAM
 /bin/zsh scripts/package-app.sh   # local unsigned bundle
 ```
 
+### Test on another Mac
+
+For a plain-language, check-off human test covering the complete ordinary app,
+Local AI, Direction, watched folders, restart, and backup/restore, begin with
+[`docs/pilots/NOVICE_TEST_START_HERE.md`](docs/pilots/NOVICE_TEST_START_HERE.md).
+It includes fixed synthetic test data, expected results, safety stop rules, a
+reusable problem report, and a final results page.
+
 ---
 
 ## Repository layout
