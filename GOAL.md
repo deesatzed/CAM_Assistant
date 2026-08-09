@@ -80,10 +80,15 @@ they promised, privately.
 
 ## Assumptions
 
-- Apple Silicon and Swift 6.3 are available.
-- CAM_Codx and CAM_CAM remain separately owned repositories.
+- This repository is **standalone**: clone from
+  `https://github.com/deesatzed/CAM_Assistant.git` and build with SwiftPM only.
+- Apple Silicon and Swift 6.2+ are available (package requires macOS 15).
+- CAM_Codx and CAM_CAM remain separately owned repositories and are **not**
+  required to build or run ordinary barebones / Direction product surfaces.
 - Local inference is exposed through an OpenAI-compatible local endpoint or a
   future native MLX adapter.
+- MeaningCore is a pinned Swift package dependency (opt-in specialist pilot
+  paths); ordinary Home/Library/Settings do not require enabling it.
 - Donor repos remain read-only unless a separate approved goal changes scope.
 
 ## Non-Goals

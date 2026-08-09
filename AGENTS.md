@@ -5,12 +5,16 @@
 Before coding, read in order:
 
 1. `GOAL.md`
-2. `STANDARDS.md`
-3. `IMPLEMENT.md`
-4. `DECISIONS.md`
-5. `PROGRESS.md`
-6. `TASK_QUEUE.md`
-7. `GOAL_FINISH_WIKI.md`
+2. `GOAL_BAREBONES.md` and/or `GOAL_DIRECTION.md` (active phase)
+3. `STANDARDS.md`
+4. `IMPLEMENT.md`
+5. `DECISIONS.md`
+6. `PROGRESS.md`
+7. `TASK_QUEUE.md`
+8. `GOAL_FINISH_WIKI.md` (historical/specialist only)
+
+This checkout is a **standalone** git repository. Do not assume parent
+workspace paths. Prefer repository-relative scripts under `scripts/`.
 
 ## Autonomous Progress
 

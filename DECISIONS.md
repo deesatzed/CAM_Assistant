@@ -9,8 +9,9 @@ scope, security, data ownership, licensing, or verification.
 
 | Date | Decision | Status |
 |---|---|---|
+| 2026-08-09 | **Canonical standalone remote** is `https://github.com/deesatzed/CAM_Assistant.git` (`origin`). Historical `cam_wiki` remotes are not required for clone/build. Default collaboration branch is `main`. | Active |
 | 2026-08-09 | Primary product needs are N3 (people/promises continuity) + N4 (capture→find/trust). Experience pattern is **A**: memory inbox is the body; Direction is a thin Home strip face—not ScreenSage/ZoomIt-first, not partner-first without Library | Active |
-| 2026-08-09 | Phase 2 Direction is authorized by `GOAL_DIRECTION.md` only after barebones machine Gates 1–6; implementation waits on human review of `docs/plans/2026-08-09-pattern-a-direction-implementation.md`. Meaning Preview / specialist nav must not be reopened to ship N3 | Active |
+| 2026-08-09 | Phase 2 Direction is authorized by `GOAL_DIRECTION.md`. Meaning Preview / specialist nav must not be reopened on the ordinary product surface to ship N3 | Active |
 | 2026-07-24 | Build a new native SwiftUI product repo | Active |
 | 2026-08-05 | Reset the default product to a private memory inbox with Home, Library, and Settings; preserve specialist code but remove it from ordinary navigation until independently re-earned | Active |
 | 2026-08-05 | Target the primary UX at a general iPhone user: plain language, safe automatic defaults, one obvious action, and progressive disclosure of technical detail | Active |
